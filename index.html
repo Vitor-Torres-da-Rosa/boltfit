@@ -289,7 +289,7 @@ const FOODS=[
   {n:"PF completo (arroz, feijão, carne, salada)",cal:520,p:38,c:65,f:10,cat:"Refeições",brand:"Caseiro",serving:400,addedAt:"2025-01-01",official:true},
   {n:"Marmita fit frango e batata doce",cal:430,p:36,c:48,f:8,cat:"Refeições",brand:"Fit Food",serving:350,addedAt:"2025-01-01",official:true},
   {n:"Sopa de legumes com frango",cal:90,p:8,c:11,f:1.5,cat:"Refeições",brand:"Caseiro",serving:250,addedAt:"2025-01-01",official:true},
-]];
+];
 const FOOD_CATS=[...new Set(FOODS.map(f=>f.cat))];
 
 // ═══════════════════════════════════════════
@@ -459,9 +459,9 @@ function rHome(){
     {id:"exercicios",label:"Exercícios",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>`},
     {id:"perfil",label:"Perfil",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`},
   ];
-  const tabContent={agenda:rAgenda(),treinos:rTreinos(),calorias:rCalorias(),exercicios:rExercicios(),perfil:rPerfil()};
+  const tabFns={agenda:rAgenda,treinos:rTreinos,calorias:rCalorias,exercicios:rExercicios,perfil:rPerfil};
   d.innerHTML=`<div class="home-body" id="hBody"></div><nav class="bottom-nav">${TABS.map(t=>`<div class="nav-item ${S.tab===t.id?"active":""}" data-tab="${t.id}"><div class="nav-icon">${t.icon}</div><div class="nav-label">${t.label}</div></div>`).join("")}</nav>`;
-  d.querySelector("#hBody").appendChild(tabContent[S.tab]||D("div"));
+  try{const tabEl=(tabFns[S.tab]||rAgenda)();d.querySelector("#hBody").appendChild(tabEl);}catch(e){console.error("Tab error:",e);const errDiv=D("tab-page");errDiv.innerHTML=`<div style="padding:40px;text-align:center;color:#FF6B6B"><p>Erro ao carregar aba</p><p style="font-size:12px;margin-top:8px">${e.message}</p></div>`;d.querySelector("#hBody").appendChild(errDiv);}
   d.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;r();});
   return d;
 }
