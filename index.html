@@ -181,126 +181,115 @@ const ALL_EX=Object.entries(EXERCISES).flatMap(([g,arr])=>arr.map(e=>({...e,grou
 // FOOD DATABASE (300+ Brazilian foods)
 // ═══════════════════════════════════════════
 const FOODS=[
-  // Proteínas animais
-  {n:"Frango grelhado (100g)",cal:165,p:31,c:0,f:3.6,cat:"Proteínas"},
-  {n:"Peito de frango cozido (100g)",cal:158,p:32,c:0,f:2.7,cat:"Proteínas"},
-  {n:"Carne bovina magra (100g)",cal:170,p:26,c:0,f:7,cat:"Proteínas"},
-  {n:"Picanha grelhada (100g)",cal:247,p:24,c:0,f:16,cat:"Proteínas"},
-  {n:"Alcatra grelhada (100g)",cal:200,p:28,c:0,f:9,cat:"Proteínas"},
-  {n:"Filé mignon grelhado (100g)",cal:193,p:27,c:0,f:9,cat:"Proteínas"},
-  {n:"Patinho moído cozido (100g)",cal:184,p:24,c:0,f:9,cat:"Proteínas"},
-  {n:"Salmão grelhado (100g)",cal:208,p:20,c:0,f:13,cat:"Proteínas"},
-  {n:"Tilápia grelhada (100g)",cal:128,p:26,c:0,f:2.7,cat:"Proteínas"},
-  {n:"Atum em lata (100g)",cal:109,p:25,c:0,f:1,cat:"Proteínas"},
-  {n:"Sardinha em lata (100g)",cal:190,p:24,c:0,f:11,cat:"Proteínas"},
-  {n:"Camarão cozido (100g)",cal:99,p:21,c:0.9,f:1.1,cat:"Proteínas"},
-  {n:"Ovo cozido (unidade 50g)",cal:78,p:6,c:0.6,f:5,cat:"Proteínas"},
-  {n:"Clara de ovo (unidade)",cal:17,p:3.6,c:0.2,f:0,cat:"Proteínas"},
-  {n:"Omelete 2 ovos",cal:186,p:13,c:1.5,f:14,cat:"Proteínas"},
-  {n:"Frango à milanesa (100g)",cal:229,p:20,c:11,f:11,cat:"Proteínas"},
-  {n:"Peito de peru (100g)",cal:111,p:23,c:0,f:1.7,cat:"Proteínas"},
-  {n:"Presunto cozido (100g)",cal:120,p:18,c:1.5,f:4.8,cat:"Proteínas"},
-  {n:"Linguiça calabresa (100g)",cal:330,p:14,c:0,f:30,cat:"Proteínas"},
-  {n:"Whey Protein isolado (30g)",cal:108,p:25,c:0.5,f:0.3,cat:"Suplementos"},
-  {n:"Whey Protein concentrado (30g)",cal:120,p:22,c:3,f:2,cat:"Suplementos"},
-  {n:"Caseína (30g)",cal:115,p:24,c:2,f:1,cat:"Suplementos"},
-  // Carboidratos
-  {n:"Arroz branco cozido (100g)",cal:130,p:2.7,c:28,f:0.3,cat:"Carboidratos"},
-  {n:"Arroz integral cozido (100g)",cal:124,p:2.6,c:26,f:0.9,cat:"Carboidratos"},
-  {n:"Batata doce cozida (100g)",cal:86,p:1.6,c:20,f:0.1,cat:"Carboidratos"},
-  {n:"Batata inglesa cozida (100g)",cal:77,p:2.1,c:17,f:0.1,cat:"Carboidratos"},
-  {n:"Macarrão cozido (100g)",cal:158,p:5.8,c:31,f:0.9,cat:"Carboidratos"},
-  {n:"Macarrão integral cozido (100g)",cal:149,p:5.5,c:29,f:1.2,cat:"Carboidratos"},
-  {n:"Aveia em flocos (100g)",cal:389,p:17,c:66,f:7,cat:"Carboidratos"},
-  {n:"Granola (100g)",cal:471,p:11,c:60,f:20,cat:"Carboidratos"},
-  {n:"Pão francês (50g)",cal:135,p:4.2,c:27,f:0.5,cat:"Carboidratos"},
-  {n:"Pão integral (fatia 25g)",cal:69,p:3.6,c:12,f:1.1,cat:"Carboidratos"},
-  {n:"Tapioca (100g)",cal:350,p:0.2,c:87,f:0.3,cat:"Carboidratos"},
-  {n:"Cuscuz cozido (100g)",cal:112,p:3.8,c:23,f:0.2,cat:"Carboidratos"},
-  {n:"Mandioca cozida (100g)",cal:125,p:0.9,c:30,f:0.2,cat:"Carboidratos"},
-  {n:"Inhame cozido (100g)",cal:116,p:1.6,c:27,f:0.2,cat:"Carboidratos"},
-  {n:"Cará cozido (100g)",cal:100,p:1.5,c:23,f:0.1,cat:"Carboidratos"},
-  {n:"Feijão carioca cozido (100g)",cal:76,p:4.8,c:14,f:0.5,cat:"Carboidratos"},
-  {n:"Feijão preto cozido (100g)",cal:77,p:5.2,c:14,f:0.5,cat:"Carboidratos"},
-  {n:"Lentilha cozida (100g)",cal:116,p:9,c:20,f:0.4,cat:"Carboidratos"},
-  {n:"Grão-de-bico cozido (100g)",cal:164,p:8.9,c:27,f:2.6,cat:"Carboidratos"},
-  {n:"Ervilha cozida (100g)",cal:84,p:5.4,c:15,f:0.4,cat:"Carboidratos"},
-  {n:"Milho cozido (100g)",cal:86,p:3.2,c:19,f:1.2,cat:"Carboidratos"},
-  {n:"Quinoa cozida (100g)",cal:120,p:4.4,c:21,f:1.9,cat:"Carboidratos"},
-  // Frutas
-  {n:"Banana prata (100g)",cal:89,p:1.1,c:23,f:0.3,cat:"Frutas"},
-  {n:"Banana maçã (100g)",cal:98,p:1.4,c:26,f:0.1,cat:"Frutas"},
-  {n:"Maçã (100g)",cal:55,p:0.3,c:14,f:0.2,cat:"Frutas"},
-  {n:"Laranja (100g)",cal:47,p:0.9,c:11,f:0.1,cat:"Frutas"},
-  {n:"Mamão papaia (100g)",cal:40,p:0.5,c:10,f:0.1,cat:"Frutas"},
-  {n:"Manga (100g)",cal:65,p:0.8,c:17,f:0.4,cat:"Frutas"},
-  {n:"Melancia (100g)",cal:30,p:0.6,c:7.6,f:0.2,cat:"Frutas"},
-  {n:"Abacaxi (100g)",cal:48,p:0.9,c:12,f:0.2,cat:"Frutas"},
-  {n:"Morango (100g)",cal:32,p:0.7,c:7.7,f:0.3,cat:"Frutas"},
-  {n:"Uva (100g)",cal:69,p:0.6,c:18,f:0.4,cat:"Frutas"},
-  {n:"Pêra (100g)",cal:55,p:0.4,c:14,f:0.1,cat:"Frutas"},
-  {n:"Abacate (100g)",cal:160,p:2,c:9,f:15,cat:"Frutas"},
-  {n:"Coco fresco (100g)",cal:354,p:3.3,c:15,f:34,cat:"Frutas"},
-  {n:"Açaí puro (100g)",cal:58,p:1.3,c:6.2,f:3.3,cat:"Frutas"},
-  {n:"Goiaba (100g)",cal:54,p:2.6,c:12,f:0.6,cat:"Frutas"},
-  {n:"Tangerina (100g)",cal:38,p:0.8,c:9,f:0.1,cat:"Frutas"},
-  // Laticínios
-  {n:"Leite integral (200ml)",cal:122,p:6.4,c:9.6,f:6.6,cat:"Laticínios"},
-  {n:"Leite desnatado (200ml)",cal:68,p:6.8,c:9.4,f:0.4,cat:"Laticínios"},
-  {n:"Iogurte natural integral (100g)",cal:66,p:3.5,c:4.9,f:3.5,cat:"Laticínios"},
-  {n:"Iogurte grego (100g)",cal:59,p:10,c:3.6,f:0.4,cat:"Laticínios"},
-  {n:"Iogurte desnatado (100g)",cal:48,p:4.5,c:6.7,f:0,cat:"Laticínios"},
-  {n:"Queijo minas frescal (100g)",cal:264,p:17,c:3.2,f:20,cat:"Laticínios"},
-  {n:"Queijo cottage (100g)",cal:98,p:11,c:3.4,f:4.3,cat:"Laticínios"},
-  {n:"Queijo mussarela (100g)",cal:280,p:22,c:2.2,f:20,cat:"Laticínios"},
-  {n:"Requeijão cremoso (100g)",cal:257,p:11,c:2.8,f:22,cat:"Laticínios"},
-  {n:"Manteiga (10g)",cal:72,p:0.1,c:0,f:8,cat:"Laticínios"},
-  // Gorduras e oleaginosas
-  {n:"Amendoim (30g)",cal:176,p:7,c:5,f:14,cat:"Gorduras"},
-  {n:"Castanha do Pará (30g)",cal:207,p:4.5,c:3.7,f:21,cat:"Gorduras"},
-  {n:"Castanha de caju (30g)",cal:163,p:4.3,c:9,f:13,cat:"Gorduras"},
-  {n:"Amendoim pasta (30g)",cal:185,p:7.5,c:6,f:16,cat:"Gorduras"},
-  {n:"Azeite de oliva (10ml)",cal:88,p:0,c:0,f:10,cat:"Gorduras"},
-  {n:"Óleo de coco (10ml)",cal:86,p:0,c:0,f:10,cat:"Gorduras"},
-  {n:"Chia (15g)",cal:72,p:2.4,c:6,f:4.6,cat:"Gorduras"},
-  {n:"Linhaça dourada (15g)",cal:81,p:2.8,c:4.4,f:5.9,cat:"Gorduras"},
-  {n:"Nozes (30g)",cal:196,p:4.6,c:4,f:19,cat:"Gorduras"},
-  {n:"Amêndoas (30g)",cal:173,p:6.4,c:5.7,f:15,cat:"Gorduras"},
-  // Fast food e lanches
-  {n:"Pão de queijo (50g)",cal:177,p:4.2,c:22,f:8,cat:"Lanches"},
-  {n:"Coxinha de frango (100g)",cal:262,p:10,c:27,f:13,cat:"Lanches"},
-  {n:"Esfiha de carne (100g)",cal:274,p:10,c:30,f:13,cat:"Lanches"},
-  {n:"Pastel de carne (100g)",cal:270,p:10,c:25,f:15,cat:"Lanches"},
-  {n:"Pizza queijo e presunto (1 fatia 100g)",cal:266,p:12,c:27,f:11,cat:"Lanches"},
-  {n:"Hambúrguer caseiro (150g)",cal:330,p:24,c:15,f:20,cat:"Lanches"},
-  {n:"Sanduíche natural frango (180g)",cal:290,p:25,c:30,f:8,cat:"Lanches"},
-  {n:"Wrap integral frango (200g)",cal:310,p:28,c:32,f:8,cat:"Lanches"},
-  // Bebidas
-  {n:"Suco de laranja natural (200ml)",cal:92,p:1.4,c:22,f:0.4,cat:"Bebidas"},
-  {n:"Vitamina de banana (300ml)",cal:210,p:7,c:38,f:4,cat:"Bebidas"},
-  {n:"Café preto sem açúcar (100ml)",cal:2,p:0.3,c:0,f:0,cat:"Bebidas"},
-  {n:"Café com leite (200ml)",cal:75,p:4,c:6,f:3.3,cat:"Bebidas"},
-  {n:"Água de coco (200ml)",cal:38,p:0.6,c:9,f:0.2,cat:"Bebidas"},
-  {n:"Chá verde sem açúcar (200ml)",cal:2,p:0,c:0.4,f:0,cat:"Bebidas"},
-  // Vegetais
-  {n:"Brócolis cozido (100g)",cal:35,p:2.4,c:7,f:0.4,cat:"Vegetais"},
-  {n:"Couve refogada (100g)",cal:54,p:3.3,c:7,f:1.6,cat:"Vegetais"},
-  {n:"Espinafre cozido (100g)",cal:23,p:2.9,c:3.7,f:0.4,cat:"Vegetais"},
-  {n:"Cenoura crua (100g)",cal:34,p:0.9,c:8,f:0.2,cat:"Vegetais"},
-  {n:"Tomate (100g)",cal:15,p:0.9,c:3.3,f:0.2,cat:"Vegetais"},
-  {n:"Alface (100g)",cal:12,p:1.2,c:2.2,f:0.2,cat:"Vegetais"},
-  {n:"Pepino (100g)",cal:14,p:0.7,c:3.1,f:0.1,cat:"Vegetais"},
-  {n:"Chuchu cozido (100g)",cal:24,p:0.9,c:5.5,f:0.1,cat:"Vegetais"},
-  {n:"Abobrinha (100g)",cal:17,p:1.2,c:3.1,f:0.4,cat:"Vegetais"},
-  {n:"Beterraba cozida (100g)",cal:44,p:1.7,c:10,f:0.1,cat:"Vegetais"},
-  // Refeições prontas brasileiras
-  {n:"Arroz e feijão (300g)",cal:390,p:15,c:73,f:4,cat:"Refeições"},
-  {n:"PF arroz, feijão, frango, salada (400g)",cal:520,p:38,c:65,f:10,cat:"Refeições"},
-  {n:"Marmita fit frango e batata doce (350g)",cal:430,p:36,c:48,f:8,cat:"Refeições"},
-  {n:"Macarronada à bolonhesa (300g)",cal:480,p:22,c:60,f:16,cat:"Refeições"},
-  {n:"Frango com legumes (300g)",cal:290,p:35,c:20,f:8,cat:"Refeições"},
-  {n:"Sopa de legumes com frango (400ml)",cal:180,p:16,c:22,f:3,cat:"Refeições"},
-];
+  // ─── PROTEÍNAS ANIMAIS ───
+  {n:"Peito de frango grelhado",cal:165,p:31,c:0,f:3.6,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Peito de frango cozido",cal:158,p:32,c:0,f:2.7,cat:"Proteínas",brand:"Seara",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Carne bovina moída magra",cal:170,p:26,c:0,f:7,cat:"Proteínas",brand:"Friboi",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Picanha grelhada",cal:247,p:24,c:0,f:16,cat:"Proteínas",brand:"Friboi",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Filé mignon grelhado",cal:193,p:27,c:0,f:9,cat:"Proteínas",brand:"Friboi",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Alcatra grelhada",cal:200,p:28,c:0,f:9,cat:"Proteínas",brand:"Friboi",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Salmão grelhado",cal:208,p:20,c:0,f:13,cat:"Proteínas",brand:"Marine Harvest",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Tilápia grelhada",cal:128,p:26,c:0,f:2.7,cat:"Proteínas",brand:"Seara",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Atum em lata ao natural",cal:109,p:25,c:0,f:1,cat:"Proteínas",brand:"Gomes da Costa",serving:170,addedAt:"2025-01-01",official:true},
+  {n:"Sardinha em lata ao óleo",cal:190,p:24,c:0,f:11,cat:"Proteínas",brand:"Gomes da Costa",serving:125,addedAt:"2025-01-01",official:true},
+  {n:"Ovo cozido",cal:78,p:6,c:0.6,f:5,cat:"Proteínas",brand:"Ovos Mantiqueira",serving:50,addedAt:"2025-01-01",official:true},
+  {n:"Clara de ovo",cal:17,p:3.6,c:0.2,f:0,cat:"Proteínas",brand:"Ovos Mantiqueira",serving:33,addedAt:"2025-01-01",official:true},
+  {n:"Peito de peru defumado",cal:111,p:23,c:0,f:1.7,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Presunto cozido sem capa de gordura",cal:120,p:18,c:1.5,f:4.8,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Camarão cozido",cal:99,p:21,c:0.9,f:1.1,cat:"Proteínas",brand:"Seara",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Frango à milanesa",cal:229,p:20,c:11,f:11,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Linguiça Toscana grelhada",cal:310,p:14,c:1,f:28,cat:"Proteínas",brand:"Perdigão",serving:100,addedAt:"2025-01-01",official:true},
+  // ─── SUPLEMENTOS ───
+  {n:"Whey Protein isolado",cal:108,p:25,c:0.5,f:0.3,cat:"Suplementos",brand:"Optimum Nutrition",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Whey Protein concentrado",cal:120,p:22,c:3,f:2,cat:"Suplementos",brand:"Growth Supplements",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Caseína",cal:115,p:24,c:2,f:1,cat:"Suplementos",brand:"Optimum Nutrition",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Creatina monohidratada",cal:0,p:0,c:0,f:0,cat:"Suplementos",brand:"Integral Médica",serving:5,addedAt:"2025-01-01",official:true},
+  {n:"BCAA em pó",cal:20,p:5,c:0,f:0,cat:"Suplementos",brand:"Integralmedica",serving:10,addedAt:"2025-01-01",official:true},
+  // ─── CARBOIDRATOS ───
+  {n:"Arroz branco tipo 1 cozido",cal:130,p:2.7,c:28,f:0.3,cat:"Carboidratos",brand:"Tio João",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Arroz integral cozido",cal:124,p:2.6,c:26,f:0.9,cat:"Carboidratos",brand:"Camil",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Batata doce cozida",cal:86,p:1.6,c:20,f:0.1,cat:"Carboidratos",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Batata inglesa cozida",cal:77,p:2.1,c:17,f:0.1,cat:"Carboidratos",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Macarrão espaguete cozido",cal:158,p:5.8,c:31,f:0.9,cat:"Carboidratos",brand:"Barilla",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Macarrão integral cozido",cal:149,p:5.5,c:29,f:1.2,cat:"Carboidratos",brand:"Barilla",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Aveia em flocos finos",cal:389,p:17,c:66,f:7,cat:"Carboidratos",brand:"Quaker",serving:40,addedAt:"2025-01-01",official:true},
+  {n:"Aveia em flocos grossos",cal:394,p:14,c:67,f:8,cat:"Carboidratos",brand:"Nesfit",serving:40,addedAt:"2025-01-01",official:true},
+  {n:"Pão francês",cal:135,p:4.2,c:27,f:0.5,cat:"Carboidratos",brand:"Padaria",serving:50,addedAt:"2025-01-01",official:true},
+  {n:"Pão de forma integral",cal:69,p:3.6,c:12,f:1.1,cat:"Carboidratos",brand:"Wickbold",serving:25,addedAt:"2025-01-01",official:true},
+  {n:"Pão de forma tradicional",cal:75,p:2.5,c:14,f:1,cat:"Carboidratos",brand:"Pullman",serving:25,addedAt:"2025-01-01",official:true},
+  {n:"Tapioca crua",cal:350,p:0.2,c:87,f:0.3,cat:"Carboidratos",brand:"Amafil",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Cuscuz cozido",cal:112,p:3.8,c:23,f:0.2,cat:"Carboidratos",brand:"Yoki",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Feijão carioca cozido",cal:76,p:4.8,c:14,f:0.5,cat:"Carboidratos",brand:"Camil",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Feijão preto cozido",cal:77,p:5.2,c:14,f:0.5,cat:"Carboidratos",brand:"Camil",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Lentilha cozida",cal:116,p:9,c:20,f:0.4,cat:"Carboidratos",brand:"Yoki",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Grão-de-bico cozido",cal:164,p:8.9,c:27,f:2.6,cat:"Carboidratos",brand:"Camil",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Quinoa cozida",cal:120,p:4.4,c:21,f:1.9,cat:"Carboidratos",brand:"Mundo dos Grãos",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Mandioca cozida",cal:125,p:0.9,c:30,f:0.2,cat:"Carboidratos",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Granola tradicional",cal:471,p:11,c:60,f:20,cat:"Carboidratos",brand:"Jasmine",serving:40,addedAt:"2025-01-01",official:true},
+  // ─── FRUTAS ───
+  {n:"Banana prata",cal:89,p:1.1,c:23,f:0.3,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Banana nanica",cal:98,p:1.4,c:26,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Maçã Fuji",cal:55,p:0.3,c:14,f:0.2,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Laranja pera",cal:47,p:0.9,c:11,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Mamão papaia",cal:40,p:0.5,c:10,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Manga Tommy",cal:65,p:0.8,c:17,f:0.4,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Melancia",cal:30,p:0.6,c:7.6,f:0.2,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Abacaxi pérola",cal:48,p:0.9,c:12,f:0.2,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Morango",cal:32,p:0.7,c:7.7,f:0.3,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Abacate",cal:160,p:2,c:9,f:15,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Uva Itália",cal:69,p:0.6,c:18,f:0.4,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Açaí puro",cal:58,p:1.3,c:6.2,f:3.3,cat:"Frutas",brand:"Açaí do Norte",serving:100,addedAt:"2025-01-01",official:true},
+  // ─── LATICÍNIOS ───
+  {n:"Leite integral",cal:61,p:3.2,c:4.8,f:3.3,cat:"Laticínios",brand:"Italac",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Leite desnatado",cal:34,p:3.4,c:4.7,f:0.2,cat:"Laticínios",brand:"Parmalat",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Iogurte natural integral",cal:66,p:3.5,c:4.9,f:3.5,cat:"Laticínios",brand:"Nestlé",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Iogurte grego natural",cal:59,p:10,c:3.6,f:0.4,cat:"Laticínios",brand:"Fage",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Iogurte grego 0% gordura",cal:49,p:10,c:4,f:0,cat:"Laticínios",brand:"Danone",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Queijo minas frescal",cal:264,p:17,c:3.2,f:20,cat:"Laticínios",brand:"Tirolez",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Queijo cottage",cal:98,p:11,c:3.4,f:4.3,cat:"Laticínios",brand:"Vigor",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Queijo mussarela",cal:280,p:22,c:2.2,f:20,cat:"Laticínios",brand:"Tirolez",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Requeijão cremoso",cal:257,p:11,c:2.8,f:22,cat:"Laticínios",brand:"Catupiry",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Manteiga com sal",cal:717,p:0.9,c:0.1,f:80,cat:"Laticínios",brand:"Aviação",serving:10,addedAt:"2025-01-01",official:true},
+  {n:"Whey isolado sabor chocolate",cal:108,p:25,c:0.5,f:0.3,cat:"Suplementos",brand:"Optimum Nutrition",serving:30,addedAt:"2025-01-01",official:true},
+  // ─── GORDURAS BOAS ───
+  {n:"Amendoim torrado sem sal",cal:567,p:25,c:16,f:49,cat:"Gorduras",brand:"Dori",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Pasta de amendoim integral",cal:589,p:25,c:18,f:51,cat:"Gorduras",brand:"Power1One",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Castanha do Pará",cal:656,p:14,c:12,f:64,cat:"Gorduras",brand:"Natural",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Castanha de caju torrada",cal:553,p:18,c:30,f:44,cat:"Gorduras",brand:"Mundo dos Grãos",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Azeite de oliva extravirgem",cal:884,p:0,c:0,f:100,cat:"Gorduras",brand:"Gallo",serving:10,addedAt:"2025-01-01",official:true},
+  {n:"Óleo de coco extravirgem",cal:862,p:0,c:0,f:100,cat:"Gorduras",brand:"Copra",serving:10,addedAt:"2025-01-01",official:true},
+  {n:"Semente de chia",cal:486,p:17,c:42,f:31,cat:"Gorduras",brand:"Native",serving:15,addedAt:"2025-01-01",official:true},
+  {n:"Linhaça dourada",cal:534,p:18,c:29,f:42,cat:"Gorduras",brand:"Jasmine",serving:15,addedAt:"2025-01-01",official:true},
+  {n:"Nozes",cal:654,p:15,c:14,f:65,cat:"Gorduras",brand:"Natural",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Amêndoas sem sal",cal:579,p:21,c:22,f:50,cat:"Gorduras",brand:"Soleil",serving:30,addedAt:"2025-01-01",official:true},
+  // ─── LANCHES / FAST FOOD ───
+  {n:"Pão de queijo mineiro",cal:354,p:8.4,c:44,f:16,cat:"Lanches",brand:"Forno de Minas",serving:50,addedAt:"2025-01-01",official:true},
+  {n:"Wrap integral de frango",cal:310,p:28,c:32,f:8,cat:"Lanches",brand:"Sadia",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Biscoito de arroz",cal:386,p:7,c:84,f:2.3,cat:"Lanches",brand:"Yoki",serving:10,addedAt:"2025-01-01",official:true},
+  {n:"Barrinha de proteína",cal:190,p:20,c:18,f:5,cat:"Suplementos",brand:"Nutry",serving:45,addedAt:"2025-01-01",official:true},
+  {n:"Mix de castanhas",cal:560,p:15,c:15,f:50,cat:"Lanches",brand:"Natural One",serving:30,addedAt:"2025-01-01",official:true},
+  // ─── BEBIDAS ───
+  {n:"Suco de laranja natural",cal:46,p:0.7,c:11,f:0.2,cat:"Bebidas",brand:"Natural",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Água de coco natural",cal:19,p:0.3,c:4.5,f:0.1,cat:"Bebidas",brand:"Vita Coco",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Café preto sem açúcar",cal:2,p:0.3,c:0,f:0,cat:"Bebidas",brand:"Nescafé",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Leite com achocolatado",cal:145,p:5.5,c:22,f:4.2,cat:"Bebidas",brand:"Nescau",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Chá verde sem açúcar",cal:2,p:0,c:0.4,f:0,cat:"Bebidas",brand:"Leão",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Vitamina de banana com leite",cal:148,p:5.5,c:26,f:2.7,cat:"Bebidas",brand:"Natural",serving:300,addedAt:"2025-01-01",official:true},
+  // ─── VEGETAIS ───
+  {n:"Brócolis cozido",cal:35,p:2.4,c:7,f:0.4,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Couve refogada",cal:54,p:3.3,c:7,f:1.6,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Espinafre cozido",cal:23,p:2.9,c:3.7,f:0.4,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Cenoura crua",cal:34,p:0.9,c:8,f:0.2,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Tomate italiano",cal:15,p:0.9,c:3.3,f:0.2,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Alface americana",cal:12,p:1.2,c:2.2,f:0.2,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Abobrinha cozida",cal:17,p:1.2,c:3.1,f:0.4,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Beterraba cozida",cal:44,p:1.7,c:10,f:0.1,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  // ─── REFEIÇÕES PRONTAS ───
+  {n:"Arroz e feijão",cal:195,p:7.5,c:36.5,f:2,cat:"Refeições",brand:"Caseiro",serving:150,addedAt:"2025-01-01",official:true},
+  {n:"PF completo (arroz, feijão, carne, salada)",cal:520,p:38,c:65,f:10,cat:"Refeições",brand:"Caseiro",serving:400,addedAt:"2025-01-01",official:true},
+  {n:"Marmita fit frango e batata doce",cal:430,p:36,c:48,f:8,cat:"Refeições",brand:"Fit Food",serving:350,addedAt:"2025-01-01",official:true},
+  {n:"Sopa de legumes com frango",cal:90,p:8,c:11,f:1.5,cat:"Refeições",brand:"Caseiro",serving:250,addedAt:"2025-01-01",official:true},
+]];
 const FOOD_CATS=[...new Set(FOODS.map(f=>f.cat))];
 
 // ═══════════════════════════════════════════
@@ -310,6 +299,8 @@ let S={
   user:null,profile:null,phase:"splash",
   tab:"agenda",
   communityFoods:[],
+  mealCat:{},
+  pendingMealCat:null,
   onboard:{step:0,data:{sex:"",age:"",weight:"",height:"",activity:"",goal:"",trainDays:[],split:""}},
   tmb:null,targetCal:null,
   foods:[],workouts:[],schedule:{},
@@ -327,8 +318,8 @@ let restTimer=null;
 const uid=()=>S.user?.uid;
 const saveProfile=async p=>setDoc(doc(db,"users",uid(),"data","profile"),p);
 const loadProfile=async()=>{const s=await getDoc(doc(db,"users",uid(),"data","profile"));return s.exists()?s.data():null;};
-const saveFoods=async f=>{const t=new Date().toISOString().split("T")[0];await setDoc(doc(db,"users",uid(),"foods",t),{items:f,ts:serverTimestamp()});};
-const loadFoods=async()=>{const t=new Date().toISOString().split("T")[0];const s=await getDoc(doc(db,"users",uid(),"foods",t));return s.exists()?s.data().items:[];};
+const saveFoods=async f=>{const t=new Date().toISOString().split("T")[0];await setDoc(doc(db,"users",uid(),"foods",t),{items:f,mealCat:S.mealCat||{},ts:serverTimestamp()});};
+const loadFoods=async()=>{const t=new Date().toISOString().split("T")[0];const s=await getDoc(doc(db,"users",uid(),"foods",t));if(s.exists()){const d2=s.data();S.mealCat=d2.mealCat||{};return d2.items||[];}return [];};
 const loadWorkouts=async()=>{const snap=await getDocs(collection(db,"users",uid(),"workouts"));return snap.docs.map(d=>({id:d.id,...d.data()}));};
 const saveWorkout=async w=>{const r=await addDoc(collection(db,"users",uid(),"workouts"),{...w,ts:serverTimestamp()});return r.id;};
 const deleteWorkout=async id=>deleteDoc(doc(db,"users",uid(),"workouts",id));
@@ -507,71 +498,190 @@ function rTreinos(){
 }
 
 // ─── CALORIAS ───
+// Meal categories with icons and colors
+const MEAL_CATS=[
+  {id:"cafe",label:"☕ Café da Manhã",color:"#FFB347"},
+  {id:"almoco",label:"🍽️ Almoço",color:"#4B9EFF"},
+  {id:"lanche",label:"🥪 Lanche da Tarde",color:"#22D3A5"},
+  {id:"jantar",label:"🌙 Jantar",color:"#A78BFA"},
+  {id:"ceia",label:"🌛 Ceia",color:"#818CF8"},
+];
+
+function calcAdj(f){
+  const grams=f.grams||f.serving||100;
+  const base=f.serving||100;
+  const ratio=grams/base;
+  return {
+    grams,
+    cal:Math.round((f.cal||0)*ratio),
+    p:+(((f.p||0)*ratio).toFixed(1)),
+    c:+(((f.c||0)*ratio).toFixed(1)),
+    f:+(((f.f||0)*ratio).toFixed(1)),
+  };
+}
+
+function updateCalTotals(d){
+  let totalCal=0,totalP=0,totalC=0,totalF=0;
+  S.foods.forEach(f=>{const a=calcAdj(f);totalCal+=a.cal;totalP+=a.p;totalC+=a.c;totalF+=a.f;});
+  const cal=S.targetCal||0;
+  const pct=cal>0?Math.min((totalCal/cal)*100,100):0;
+  const circ=2*Math.PI*64;
+  const mp=Math.round(cal*0.3/4),mc=Math.round(cal*0.45/4),mf=Math.round(cal*0.25/9);
+  const ringEl=d.querySelector("#calRingCircle");
+  const numEl=d.querySelector("#calTotalNum");
+  if(ringEl)ringEl.style.strokeDashoffset=circ*(1-pct/100);
+  if(numEl)numEl.textContent=Math.round(totalCal);
+  const pb=d.querySelector("#pb-p");const cb=d.querySelector("#pb-c");const fb=d.querySelector("#pb-f");
+  const pt=d.querySelector("#pt-p");const ct=d.querySelector("#pt-c");const ft=d.querySelector("#pt-f");
+  if(pb)pb.style.width=Math.min((totalP/mp)*100,100)+"%";
+  if(cb)cb.style.width=Math.min((totalC/mc)*100,100)+"%";
+  if(fb)fb.style.width=Math.min((totalF/mf)*100,100)+"%";
+  if(pt)pt.textContent=Math.round(totalP)+"g / "+mp+"g";
+  if(ct)ct.textContent=Math.round(totalC)+"g / "+mc+"g";
+  if(ft)ft.textContent=Math.round(totalF)+"g / "+mf+"g";
+}
+
+function renderFoodItem(f,i){
+  const a=calcAdj(f);
+  return `<div class="food-item" id="fi_${i}">
+    <div class="fi-info">
+      <div class="fi-name">${f.n}${f.brand?` <span style="font-size:10px;color:#666">${f.brand}</span>`:""}</div>
+      <div class="fi-mac" id="fimac_${i}">P:${a.p}g · C:${a.c}g · G:${a.f}g</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:5px">
+        <button class="fi-grams-btn" data-dir="-1" data-fi="${i}">−</button>
+        <input type="number" class="fi-grams" data-fi="${i}" value="${a.grams}" min="1" max="5000"/>
+        <button class="fi-grams-btn" data-dir="1" data-fi="${i}">+</button>
+        <span style="font-size:11px;color:#888">g</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div class="fi-cal" id="fical_${i}">${a.cal} kcal</div>
+      <button class="fi-del" data-fi="${i}">×</button>
+    </div>
+  </div>`;
+}
+
 function rCalorias(){
   const d=D("tab-page");
   const cal=S.targetCal||0;
-  const total=S.foods.reduce((s,f)=>s+(f.cal||0),0);
-  const tp=S.foods.reduce((s,f)=>s+(f.p||0),0);
-  const tc=S.foods.reduce((s,f)=>s+(f.c||0),0);
-  const tf=S.foods.reduce((s,f)=>s+(f.f||0),0);
-  const pct=cal>0?Math.min((total/cal)*100,100):0;
-  const mp=Math.round(cal*0.3/4),mc2=Math.round(cal*0.45/4),mf=Math.round(cal*0.25/9);
-  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Calorias</div><div style="display:flex;gap:8px"><button class="btn-sm-orange" id="bAIPhoto">📸 IA</button><button class="btn-sm-orange" id="bAddFood">+ Adicionar</button></div></div>
-  <div class="cal-ring-wrap"><div class="cal-ring"><svg width="160" height="160" viewBox="0 0 160 160" style="transform:rotate(-90deg)"><circle cx="80" cy="80" r="64" fill="none" stroke="#222" stroke-width="14"/><circle cx="80" cy="80" r="64" fill="none" stroke="#FF6B00" stroke-width="14" stroke-dasharray="${2*Math.PI*64}" stroke-dashoffset="${2*Math.PI*64*(1-pct/100)}" stroke-linecap="round" style="transition:stroke-dashoffset 0.8s ease"/></svg><div class="cal-ring-inner"><div class="cal-num">${total}</div><div class="cal-lbl">/ ${cal} kcal</div></div></div></div>
-  <div class="macro-bar-wrap"><div class="mbar"><div class="mbar-label"><span style="color:#4B9EFF">Proteína</span><span>${Math.round(tp)}g / ${mp}g</span></div><div class="mbar-track"><div class="mbar-fill" style="width:${Math.min((tp/mp)*100,100)}%;background:#4B9EFF"></div></div></div><div class="mbar"><div class="mbar-label"><span style="color:#FF8C42">Carbs</span><span>${Math.round(tc)}g / ${mc2}g</span></div><div class="mbar-track"><div class="mbar-fill" style="width:${Math.min((tc/mc2)*100,100)}%;background:#FF8C42"></div></div></div><div class="mbar"><div class="mbar-label"><span style="color:#22D3A5">Gordura</span><span>${Math.round(tf)}g / ${mf}g</span></div><div class="mbar-track"><div class="mbar-fill" style="width:${Math.min((tf/mf)*100,100)}%;background:#22D3A5"></div></div></div></div>
-  <div class="sec-title">REFEIÇÕES DE HOJE</div>
-  <div class="foods-list">${S.foods.length===0?`<div class="empty" style="padding:24px 0"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}${S.foods.map((f,i)=>{
-    const grams=f.grams||f.serving||100;
-    const base=f.serving||100;
-    const ratio=grams/base;
-    const adjCal=Math.round((f.cal||0)*ratio);
-    const adjP=+(((f.p||0)*ratio).toFixed(1));
-    const adjC=+(((f.c||0)*ratio).toFixed(1));
-    const adjF=+(((f.f||0)*ratio).toFixed(1));
-    return `<div class="food-item" id="fi_${i}">
-      <div class="fi-info">
-        <div class="fi-name">${f.n}${f.brand?` <span style="font-size:11px;color:#888">${f.brand}</span>`:""}</div>
-        <div class="fi-mac">P:${adjP}g · C:${adjC}g · G:${adjF}g</div>
-        <div style="display:flex;align-items:center;gap:5px;margin-top:5px">
-          <button class="fi-grams-btn" data-dir="-1" data-fi="${i}" style="width:26px;height:26px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:16px;cursor:pointer">−</button>
-          <input type="number" class="fi-grams" data-fi="${i}" value="${grams}" min="1" max="5000" style="width:52px;padding:3px 6px;background:var(--bg3);border:1px solid var(--orange);border-radius:7px;color:var(--text);font-size:13px;font-weight:700;text-align:center"/>
-          <button class="fi-grams-btn" data-dir="1" data-fi="${i}" style="width:26px;height:26px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:16px;cursor:pointer">+</button>
-          <span style="font-size:11px;color:#888">g</span>
-        </div>
+  if(!S.mealCat)S.mealCat={};// {foodIdx: mealCatId}
+  const mp=Math.round(cal*0.3/4),mc2=Math.round(cal*0.45/4),mf2=Math.round(cal*0.25/9);
+  let totalCal=0,totalP=0,totalC=0,totalF=0;
+  S.foods.forEach(f=>{const a=calcAdj(f);totalCal+=a.cal;totalP+=a.p;totalC+=a.c;totalF+=a.f;});
+  const pct=cal>0?Math.min((totalCal/cal)*100,100):0;
+  const circ=2*Math.PI*64;
+
+  // Group foods by meal category
+  const grouped={};
+  MEAL_CATS.forEach(mc=>grouped[mc.id]=[]);
+  grouped["sem_categoria"]=[];
+  S.foods.forEach((f,i)=>{
+    const cat=S.mealCat[i]||"";
+    if(cat&&grouped[cat])grouped[cat].push({f,i});
+    else grouped["sem_categoria"].push({f,i});
+  });
+
+  const renderGroup=(catId,catLabel,catColor,items)=>{
+    if(items.length===0)return "";
+    const groupCal=items.reduce((s,{f})=>s+calcAdj(f).cal,0);
+    return `<div class="meal-group">
+      <div class="meal-group-hdr" data-mcid="${catId}">
+        <span style="font-weight:700;font-size:14px">${catLabel}</span>
+        <span style="font-size:12px;color:${catColor};font-weight:600">${groupCal} kcal</span>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-        <div class="fi-cal" id="fical_${i}">${adjCal} kcal</div>
-        <button class="fi-del" data-fi="${i}">×</button>
-      </div>
+      ${items.map(({f,i})=>renderFoodItem(f,i)).join("")}
+      <button class="meal-add-btn" data-addcat="${catId}">+ Adicionar a ${catLabel.split(" ").slice(1).join(" ")}</button>
     </div>`;
-  }).join("")}</div>`;
-  d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.modal="food";r();});
-  d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.modal="food";S.aiLoading=false;S.aiResult=null;r();setTimeout(()=>document.getElementById("bAiTrigger")?.click(),100);});
-  d.querySelectorAll(".fi-del").forEach(b=>b.onclick=async()=>{S.foods.splice(parseInt(b.dataset.fi),1);await saveFoods(S.foods);r();});
-  const updateFoodRow=(i)=>{
+  };
+
+  const foodsHTML=`
+    ${MEAL_CATS.map(mc=>renderGroup(mc.id,mc.label,mc.color,grouped[mc.id])).join("")}
+    ${grouped["sem_categoria"].length>0?renderGroup("sem_categoria","📦 Sem categoria","#888",grouped["sem_categoria"]):""}
+    <div class="meal-add-section">
+      ${MEAL_CATS.map(mc=>`<button class="meal-cat-btn" data-newcat="${mc.id}" style="border-color:${mc.color}20;color:${mc.color}">${mc.label}</button>`).join("")}
+    </div>`;
+
+  d.innerHTML=`
+    <div class="tab-hdr"><div class="tab-title">Calorias</div><div style="display:flex;gap:8px">
+      <button class="btn-sm-orange" id="bAIPhoto">📸 IA</button>
+      <button class="btn-sm-orange" id="bAddFood">+ Adicionar</button>
+    </div></div>
+    <div class="cal-ring-wrap"><div class="cal-ring">
+      <svg width="160" height="160" viewBox="0 0 160 160" style="transform:rotate(-90deg)">
+        <circle cx="80" cy="80" r="64" fill="none" stroke="#222" stroke-width="14"/>
+        <circle id="calRingCircle" cx="80" cy="80" r="64" fill="none" stroke="#FF6B00" stroke-width="14"
+          stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-pct/100)}"
+          stroke-linecap="round" style="transition:stroke-dashoffset 0.5s ease"/>
+      </svg>
+      <div class="cal-ring-inner"><div class="cal-num" id="calTotalNum">${Math.round(totalCal)}</div><div class="cal-lbl">/ ${cal} kcal</div></div>
+    </div></div>
+    <div class="macro-bar-wrap">
+      <div class="mbar"><div class="mbar-label"><span style="color:#4B9EFF">Proteína</span><span id="pt-p">${Math.round(totalP)}g / ${mp}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-p" style="width:${Math.min((totalP/mp)*100,100)}%;background:#4B9EFF"></div></div></div>
+      <div class="mbar"><div class="mbar-label"><span style="color:#FF8C42">Carbs</span><span id="pt-c">${Math.round(totalC)}g / ${mc2}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-c" style="width:${Math.min((totalC/mc2)*100,100)}%;background:#FF8C42"></div></div></div>
+      <div class="mbar"><div class="mbar-label"><span style="color:#22D3A5">Gordura</span><span id="pt-f">${Math.round(totalF)}g / ${mf2}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-f" style="width:${Math.min((totalF/mf2)*100,100)}%;background:#22D3A5"></div></div></div>
+    </div>
+    <div class="sec-title">REFEIÇÕES DE HOJE</div>
+    <div class="foods-list" id="foodsList">
+      ${S.foods.length===0?`<div class="empty" style="padding:24px 0;text-align:center"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}
+      ${foodsHTML}
+    </div>`;
+
+  // Button handlers
+  d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.modal="food";r();});
+  d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.modal="food";S.aiLoading=false;S.aiResult=null;r();});
+
+  // Add to specific meal category
+  d.querySelectorAll("[data-addcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.addcat;S.modal="food";r();});
+  d.querySelectorAll("[data-newcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.newcat;S.modal="food";r();});
+
+  // Delete food
+  d.querySelectorAll(".fi-del").forEach(b=>b.onclick=async()=>{
+    const i=parseInt(b.dataset.fi);
+    S.foods.splice(i,1);
+    // Rebuild mealCat with shifted indices
+    const newMC={};
+    Object.entries(S.mealCat||{}).forEach(([k,v])=>{
+      const ki=parseInt(k);
+      if(ki<i)newMC[ki]=v;
+      else if(ki>i)newMC[ki-1]=v;
+    });
+    S.mealCat=newMC;
+    await saveFoods(S.foods);
+    r();
+  });
+
+  // Grams update — NO re-render, update inline + update totals
+  const updateRow=(i)=>{
     const f=S.foods[i];if(!f)return;
-    const grams=f.grams||f.serving||100;
-    const base=f.serving||100;
-    const ratio=grams/base;
-    const adjCal=Math.round((f.cal||0)*ratio);
+    const a=calcAdj(f);
     const inp=d.querySelector(`.fi-grams[data-fi="${i}"]`);
     const calEl=d.querySelector(`#fical_${i}`);
-    if(inp)inp.value=grams;
-    if(calEl)calEl.textContent=adjCal+" kcal";
+    const macEl=d.querySelector(`#fimac_${i}`);
+    if(inp)inp.value=a.grams;
+    if(calEl)calEl.textContent=a.cal+" kcal";
+    if(macEl)macEl.textContent=`P:${a.p}g · C:${a.c}g · G:${a.f}g`;
+    // Update group calorie header
+    const mc=S.mealCat?.[i]||"sem_categoria";
+    const groupItems=S.foods.map((f2,i2)=>({f:f2,i:i2})).filter(x=>(S.mealCat?.[x.i]||"sem_categoria")===mc);
+    const groupCal=groupItems.reduce((s,{f:f2})=>s+calcAdj(f2).cal,0);
+    const groupHdrEls=d.querySelectorAll(`[data-mcid="${mc}"] span:last-child`);
+    groupHdrEls.forEach(el=>el.textContent=groupCal+" kcal");
+    updateCalTotals(d);
   };
-  d.querySelectorAll(".fi-grams").forEach(inp=>inp.oninput=async e=>{
+
+  d.querySelectorAll(".fi-grams").forEach(inp=>inp.addEventListener("input",async e=>{
     const i=parseInt(inp.dataset.fi);
     S.foods[i].grams=parseFloat(e.target.value)||1;
-    updateFoodRow(i);
+    updateRow(i);
     await saveFoods(S.foods);
-  });
-  d.querySelectorAll(".fi-grams-btn").forEach(btn=>btn.onclick=async()=>{
+  }));
+  d.querySelectorAll(".fi-grams-btn").forEach(btn=>btn.addEventListener("click",async()=>{
     const i=parseInt(btn.dataset.fi);const dir=parseInt(btn.dataset.dir);
     const cur=S.foods[i].grams||S.foods[i].serving||100;
     S.foods[i].grams=Math.max(1,cur+(dir*10));
-    updateFoodRow(i);
+    updateRow(i);
     await saveFoods(S.foods);
-  });
+  }));
   return d;
 }
 
@@ -720,9 +830,11 @@ function rFoodModal(){
         overlay.querySelector("#qtyInp").oninput=e=>{qty=parseFloat(e.target.value)||1;renderQty();};
         overlay.querySelector("#qCancel").onclick=()=>overlay.remove();
         overlay.querySelector("#qAdd").onclick=async()=>{
-          S.foods.push({...f,grams:qty});
+          const ni=S.foods.length;
+S.foods.push({...f,grams:qty});
+          if(S.pendingMealCat&&S.pendingMealCat!=='sem_categoria'){if(!S.mealCat)S.mealCat={};S.mealCat[ni]=S.pendingMealCat;}
           await saveFoods(S.foods);
-          S.foodSearch="";S.foodCat="";
+          S.foodSearch="";S.foodCat="";S.pendingMealCat=null;
           overlay.remove();
           closeModal();
         };
@@ -1350,7 +1462,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .mbar-fill{height:100%;border-radius:4px;transition:width 0.6s ease;}
 .sec-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:2px;margin-bottom:12px;}
 .foods-list{display:flex;flex-direction:column;gap:0;}
-.food-item{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);}
+.food-item{display:flex;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border);}
+.meal-group{background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:12px;margin-bottom:12px;}
+.meal-group-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.meal-add-btn{width:100%;margin-top:8px;padding:8px;background:transparent;border:1.5px dashed rgba(255,107,0,0.3);border-radius:10px;color:var(--orange);font-size:12px;font-weight:600;cursor:pointer;}
+.meal-add-section{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.meal-cat-btn{padding:7px 12px;background:transparent;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;}
+.fi-grams-btn{width:28px;height:28px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.fi-grams{width:52px;padding:4px 6px;background:var(--bg3);border:1.5px solid var(--orange);border-radius:7px;color:var(--text);font-size:13px;font-weight:700;text-align:center;outline:none;}
 .fi-info{flex:1;}
 .fi-name{font-weight:600;font-size:14px;}
 .fi-mac{font-size:11px;color:var(--text2);margin-top:2px;}
