@@ -1225,8 +1225,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .train-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
 .tpill{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:var(--bg3);color:var(--text3);border:1.5px solid var(--border);}
 .tpill-on{background:rgba(255,107,0,0.12);color:var(--orange);border-color:rgba(255,107,0,0.35);}
-.modal-full{max-height:96vh;border-radius:20px 20px 0 0;}
-.ex-add-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:50vh;}
+.modal-full{height:96vh;border-radius:16px 16px 0 0;}
+.ex-add-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;}
 .ex-add-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
 .ex-add-thumb{width:64px;height:64px;background:var(--bg3);border-radius:12px;flex-shrink:0;overflow:hidden;}
 .ex-add-info{flex:1;min-width:0;}
@@ -1252,8 +1252,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* OVERLAY / MODAL */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:flex-end;max-width:430px;margin:0 auto;left:50%;transform:translateX(-50%);}
-.modal-sheet{width:100%;background:var(--bg2);border-radius:22px 22px 0 0;border-top:1px solid var(--border);padding:16px 20px;padding-bottom:calc(24px + var(--safe-bot));max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.modal-tall{max-height:96vh;}
+.modal-sheet{width:100%;background:var(--bg2);border-radius:22px 22px 0 0;border-top:1px solid var(--border);padding:16px 20px;padding-bottom:calc(24px + var(--safe-bot));height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;}
+.modal-tall{height:96vh;border-radius:16px 16px 0 0;}
 .modal-handle{width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 14px;}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
 .modal-title{font-size:20px;font-weight:800;}
