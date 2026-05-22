@@ -175,22 +175,113 @@ function applyTheme(){
 }
 
 // GIF URL — ExerciseDB public CDN (no key needed for images)
+// Free exercise GIFs from yuhonas/free-exercise-db on GitHub (public CDN, no key needed)
+// Format: https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/{id}/images/0.jpg
 function gifUrl(exId){
-  // These are real ExerciseDB GIF IDs that work publicly
   const gifMap={
-    p1:'0025',p2:'0030',p3:'0033',p4:'0076',p5:'0561',p6:'0327',p7:'0226',p8:'0029',p9:'0331',p10:'0098',p11:'0153',p12:'0025',
-    c1:'0606',c2:'0034',c3:'0059',c4:'0389',c5:'0035',c6:'0032',c7:'0035',c8:'0059',c9:'0606',c10:'0244',c11:'0389',c12:'0035',
-    l1:'0042',l2:'0356',l3:'0360',l4:'0362',l5:'0044',l6:'0041',l7:'0356',l8:'0353',l9:'0353',l10:'0041',l11:'0356',l12:'0356',l13:'0042',l14:'0044',l15:'0042',
-    o1:'0092',o2:'0093',o3:'0088',o4:'0087',o5:'0090',o6:'0092',o7:'0088',o8:'0090',o9:'0093',
-    tr1:'0096',tr2:'0096',tr3:'0093',tr4:'0093',tr5:'0096',
-    b1:'0021',b2:'0022',b3:'0024',b4:'0021',b5:'0021',b6:'0022',b7:'0021',b8:'0024',
-    t1:'0052',t2:'0047',t3:'0052',t4:'0098',t5:'0050',t6:'0047',t7:'0098',t8:'0052',
-    a1:'0003',a2:'0571',a3:'0003',a4:'0003',a5:'0575',a6:'0571',a7:'0003',a8:'0003',a9:'0571',a10:'0575',
-    g1:'0341',g2:'0042',g3:'0341',g4:'0041',g5:'0341',g6:'0356',g7:'0041',
-    af1:'0024',af2:'0024',af3:'0096',af4:'0024',
+    // Peito
+    p1:'Barbell_Bench_Press_-_Medium_Grip',
+    p2:'Dumbbell_Incline_Bench_Press',
+    p3:'Barbell_Decline_Bench_Press',
+    p4:'Cable_Crossover',
+    p5:'Push-Up',
+    p6:'Dumbbell_Flyes',
+    p7:'Dumbbell_Pullover',
+    p8:'Dumbbell_Bench_Press',
+    p9:'Incline_Dumbbell_Flyes',
+    p10:'Chest_Dip',
+    p11:'Pec_Deck_Butterfly',
+    p12:'Barbell_Bench_Press_-_Medium_Grip',
+    // Costas
+    c1:'Pull-Up',
+    c2:'Barbell_Bent_Over_Row',
+    c3:'Wide-Grip_Lat_Pulldown',
+    c4:'Seated_Cable_Row',
+    c5:'Dumbbell_One-Arm_Row',
+    c6:'Barbell_Deadlift',
+    c7:'Dumbbell_Bent_Over_Row',
+    c8:'Wide-Grip_Lat_Pulldown',
+    c9:'Pull-Up',
+    c10:'Good_Morning',
+    c11:'Seated_Cable_Row',
+    c12:'Dumbbell_One-Arm_Row',
+    // Pernas
+    l1:'Barbell_Squat',
+    l2:'Leg_Press',
+    l3:'Leg_Extension',
+    l4:'Lying_Leg_Curl',
+    l5:'Stiff-Legged_Dumbbell_Deadlift',
+    l6:'Dumbbell_Lunge',
+    l7:'Hack_Squat',
+    l8:'Standing_Calf_Raises',
+    l9:'Seated_Calf_Raise',
+    l10:'Dumbbell_Lunge',
+    l11:'Leg_Press',
+    l12:'Leg_Press',
+    l13:'Barbell_Squat',
+    l14:'Stiff-Legged_Dumbbell_Deadlift',
+    l15:'Barbell_Squat',
+    // Ombros
+    o1:'Dumbbell_Shoulder_Press',
+    o2:'Barbell_Shoulder_Press',
+    o3:'Side_Lateral_Raise',
+    o4:'Dumbbell_Front_Raise',
+    o5:'Bent_Over_Dumbbell_Rear_Delt_Row',
+    o6:'Arnold_Dumbbell_Press',
+    o7:'Side_Lateral_Raise',
+    o8:'Face_Pull',
+    o9:'Barbell_Shoulder_Press',
+    // Trapézio
+    tr1:'Barbell_Shrug',
+    tr2:'Dumbbell_Shrug',
+    tr3:'Barbell_Upright_Row',
+    tr4:'Dumbbell_Upright_Row',
+    tr5:'Farmers_Walk',
+    // Bíceps
+    b1:'Barbell_Curl',
+    b2:'Alternate_Hammer_Curl',
+    b3:'Hammer_Curls',
+    b4:'EZ-Bar_Preacher_Curl',
+    b5:'Cable_Hammer_Curls_-_Rope_Attachment',
+    b6:'Concentration_Curls',
+    b7:'Barbell_Curl',
+    b8:'Reverse_Barbell_Curl',
+    // Tríceps
+    t1:'Lying_Triceps_Press',
+    t2:'Triceps_Pushdown',
+    t3:'Dumbbell_Tricep_Extension',
+    t4:'Tricep_Dips',
+    t5:'Kickbacks',
+    t6:'Triceps_Pushdown',
+    t7:'Tricep_Dips',
+    t8:'Lying_Triceps_Press',
+    // Abdômen
+    a1:'Crunch',
+    a2:'Plank',
+    a3:'Cable_Crunch',
+    a4:'Lying_Leg_Raise',
+    a5:'Russian_Twist',
+    a6:'Mountain_Climber',
+    a7:'Bicycle_Crunch',
+    a8:'Hanging_Leg_Raise',
+    a9:'Side_Plank',
+    a10:'Russian_Twist',
+    // Glúteos
+    g1:'Barbell_Hip_Thrust',
+    g2:'Barbell_Squat',
+    g3:'Cable_Hip_Adduction',
+    g4:'Dumbbell_Lunge',
+    g5:'Glute_Bridge',
+    g6:'Leg_Press',
+    g7:'Dumbbell_Lunge',
+    // Antebraço
+    af1:'Wrist_Curl_Over_Bench',
+    af2:'Wrist_Extension',
+    af3:'Farmers_Walk',
+    af4:'Hammer_Curls',
   };
-  const gid=gifMap[exId];
-  if(gid)return `https://v2.exercisedb.io/image/${gid}`;
+  const name=gifMap[exId];
+  if(name)return `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${name}/images/0.jpg`;
   return '';
 }
 
@@ -291,15 +382,17 @@ async function loadSchedule(){const s=await getDoc(doc(db,'users',uid(),'data','
 // ── RENDER ──
 function r(){
   const root=document.getElementById('app');
+  const modalRoot=document.getElementById('modalRoot');
   root.innerHTML='';
+  if(modalRoot)modalRoot.innerHTML='';
   if(S.phase==='splash')root.appendChild(rSplash());
   else if(S.phase==='login')root.appendChild(rLogin());
   else if(S.phase==='onboard')root.appendChild(rOnboard());
   else{
     if(S.session){root.appendChild(rSession());return;}
     root.appendChild(rHome());
-    const overlays=['food','newWorkout','addExercises','assignWorkout'];
-    if(overlays.includes(S.modal))root.appendChild(rModal());
+    const overlays=['food','newWorkout','addExercises','assignWorkout','exDetail'];
+    if(overlays.includes(S.modal)&&modalRoot)modalRoot.appendChild(rModal());
   }
 }
 
@@ -788,11 +881,21 @@ function rExDetailModal(){
   return d;
 }
 
+function closeModal(){
+  const sheet=document.querySelector('.modal-sheet');
+  const overlay=document.querySelector('.overlay');
+  if(sheet&&overlay){
+    sheet.classList.add('closing');
+    overlay.classList.add('closing');
+    setTimeout(()=>{S.modal=null;S.modalCtx=null;r();},280);
+  }else{S.modal=null;S.modalCtx=null;r();}
+}
+
 function modal(title,content){
   const d=D('overlay');
   d.innerHTML=`<div class="modal-sheet"><div class="modal-handle"></div><div class="modal-hdr"><div class="modal-title">${title}</div><button class="close-x" id="bClose">✕</button></div>${content}</div>`;
-  d.querySelector('#bClose').onclick=()=>{S.modal=null;S.modalCtx=null;r();};
-  d.onclick=e=>{if(e.target===d){S.modal=null;S.modalCtx=null;r();}};
+  d.querySelector('#bClose').onclick=()=>closeModal();
+  d.onclick=e=>{if(e.target===d)closeModal();};
   return d;
 }
 
@@ -816,9 +919,9 @@ function rFoodModal(){
     catch(e){S.aiResult={name:'Refeição estimada',cal:480,protein:25,carb:52,fat:16,desc:'Estimativa baseada em refeição típica'};}
     S.aiLoading=false;r();
   };
-  d.querySelector('#bAddAi')?.addEventListener('click',async()=>{S.foods.push({...S.aiResult});await saveFoods(S.foods);S.modal=null;S.aiResult=null;r();});
+  d.querySelector('#bAddAi')?.addEventListener('click',async()=>{S.foods.push({...S.aiResult});await saveFoods(S.foods);S.aiResult=null;closeModal();});
   const fs=d.querySelector('#fSearch');if(fs)fs.oninput=e=>{S.foodSearch=e.target.value;r();};
-  d.querySelectorAll('[data-fn]').forEach(row=>row.onclick=async()=>{const f=FOODS_DB.find(x=>x.name===row.dataset.fn);if(f){S.foods.push({...f});await saveFoods(S.foods);S.modal=null;S.foodSearch='';r();}});
+  d.querySelectorAll('[data-fn]').forEach(row=>row.onclick=async()=>{const f=FOODS_DB.find(x=>x.name===row.dataset.fn);if(f){S.foods.push({...f});await saveFoods(S.foods);S.foodSearch='';closeModal();}});
   return d;
 }
 
@@ -901,8 +1004,8 @@ function rAddExercisesModal(){
       </div>
       <div style="padding:12px 0 0"><button class="btn-primary" id="bSaveEx" style="${picked.length===0?'opacity:0.5':''}">Salvar (${picked.length} exercício${picked.length!==1?'s':''})</button></div>
     </div>`;
-    d.querySelector('#bClose2').onclick=()=>{S.modal=null;S.modalCtx=null;r();};
-    d.onclick=e=>{if(e.target===d){S.modal=null;S.modalCtx=null;r();}};
+    d.querySelector('#bClose2').onclick=()=>closeModal();
+    d.onclick=e=>{if(e.target===d)closeModal();};
     const ps=d.querySelector('#exPSearch');
     if(ps){ps.oninput=e=>{localFilter=e.target.value;render();};setTimeout(()=>ps.focus(),100);}
     d.querySelectorAll('[data-lg]').forEach(b=>b.onclick=()=>{localGroup=b.dataset.lg;render();});
@@ -1076,6 +1179,8 @@ if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch((
 :root{--bg:#0D0D0D;--bg2:#141414;--bg3:#1C1C1C;--bg4:#232323;--orange:#FF6B00;--border:#2A2A2A;--text:#FFFFFF;--text2:#AAAAAA;--text3:#555555;--radius:14px;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;}
 #app{height:100%;display:flex;flex-direction:column;max-width:430px;margin:0 auto;overflow:hidden;}
+#modalRoot{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:200;}
+#modalRoot>.overlay{pointer-events:all;}
 input,button{font-family:inherit;}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
 ::-webkit-scrollbar{width:0;}
@@ -1251,8 +1356,27 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .ex-hero-muscle-map{background:var(--bg3);border-radius:14px;display:flex;align-items:center;justify-content:center;padding:8px;}
 
 /* OVERLAY / MODAL */
-.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:flex-end;}
-.modal-sheet{width:100%;background:var(--bg2);border-radius:0;border-top:none;padding:16px 20px;padding-bottom:calc(24px + var(--safe-bot));height:100vh;height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes slideDown{from{transform:translateY(0)}to{transform:translateY(100%)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+.overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.6);z-index:100;animation:fadeIn 0.3s ease forwards;}
+.overlay.closing{animation:fadeOut 0.3s ease forwards;}
+.modal-sheet{
+  position:fixed;bottom:0;left:0;width:100vw;
+  background:var(--bg2);
+  border-radius:20px 20px 0 0;
+  border-top:1px solid var(--border);
+  padding:16px 20px;
+  padding-bottom:calc(24px + var(--safe-bot));
+  height:95vh;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:flex;flex-direction:column;
+  z-index:101;
+  animation:slideUp 0.35s cubic-bezier(0.32,0.72,0,1) forwards;
+  box-shadow:0 -8px 40px rgba(0,0,0,0.5);
+}
+.modal-sheet.closing{animation:slideDown 0.3s cubic-bezier(0.32,0.72,0,1) forwards;}
 .modal-tall{height:100vh;height:100dvh;border-radius:0;}
 .modal-handle{width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 14px;}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
@@ -1311,5 +1435,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .done-sub{font-size:14px;color:var(--text2);}
 </style>
 </head>
-<body><div id="app"></div></body>
+<body>
+<div id="app"></div>
+<div id="modalRoot"></div>
+</body>
 </html>
