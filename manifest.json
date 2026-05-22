@@ -1,0 +1,24 @@
+{
+  "name": "BoltFit - Seu Treino",
+  "short_name": "BoltFit",
+  "description": "App de treino completo com IA e banco de dados",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0C",
+  "theme_color": "#FF6B00",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%230A0A0C' rx='32'/><polygon points='110,10 44,106 92,106 82,182 148,86 100,86' fill='%23FF6B00'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%230A0A0C' rx='80'/><polygon points='294,26 118,282 246,282 218,486 394,230 266,230' fill='%23FF6B00'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
