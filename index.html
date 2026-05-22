@@ -396,7 +396,7 @@ function rLogin(){
     const em=d.querySelector("#iE").value,pw=d.querySelector("#iP").value,nm=d.querySelector("#iN").value;
     if(!em||!pw)return showErr(d,"Preencha email e senha.");
     const b=d.querySelector("#bA");b.textContent="Aguarde...";b.disabled=true;
-    try{if(mode==="login"){await signInWithEmailAndPassword(auth,em,pw);}else{const r=await createUserWithEmailAndPassword(auth,em,pw);if(nm)await updateProfile(r.user,{displayName:nm});}}
+    try{if(mode==="login"){await signInWithEmailAndPassword(auth,em,pw);}else{const r=await createUserWithEmailAndPassword(auth,em,pw);const displayName=nm||em.split("@")[0];await updateProfile(r.user,{displayName});}}
     catch(e){b.disabled=false;b.textContent=mode==="login"?"Entrar":"Criar conta";const m={"auth/wrong-password":"Senha incorreta.","auth/user-not-found":"Email não cadastrado.","auth/email-already-in-use":"Email já cadastrado.","auth/weak-password":"Senha muito curta."};showErr(d,m[e.code]||e.message);}
   };
   return d;
@@ -520,11 +520,58 @@ function rCalorias(){
   <div class="cal-ring-wrap"><div class="cal-ring"><svg width="160" height="160" viewBox="0 0 160 160" style="transform:rotate(-90deg)"><circle cx="80" cy="80" r="64" fill="none" stroke="#222" stroke-width="14"/><circle cx="80" cy="80" r="64" fill="none" stroke="#FF6B00" stroke-width="14" stroke-dasharray="${2*Math.PI*64}" stroke-dashoffset="${2*Math.PI*64*(1-pct/100)}" stroke-linecap="round" style="transition:stroke-dashoffset 0.8s ease"/></svg><div class="cal-ring-inner"><div class="cal-num">${total}</div><div class="cal-lbl">/ ${cal} kcal</div></div></div></div>
   <div class="macro-bar-wrap"><div class="mbar"><div class="mbar-label"><span style="color:#4B9EFF">Proteína</span><span>${Math.round(tp)}g / ${mp}g</span></div><div class="mbar-track"><div class="mbar-fill" style="width:${Math.min((tp/mp)*100,100)}%;background:#4B9EFF"></div></div></div><div class="mbar"><div class="mbar-label"><span style="color:#FF8C42">Carbs</span><span>${Math.round(tc)}g / ${mc2}g</span></div><div class="mbar-track"><div class="mbar-fill" style="width:${Math.min((tc/mc2)*100,100)}%;background:#FF8C42"></div></div></div><div class="mbar"><div class="mbar-label"><span style="color:#22D3A5">Gordura</span><span>${Math.round(tf)}g / ${mf}g</span></div><div class="mbar-track"><div class="mbar-fill" style="width:${Math.min((tf/mf)*100,100)}%;background:#22D3A5"></div></div></div></div>
   <div class="sec-title">REFEIÇÕES DE HOJE</div>
-  <div class="foods-list">${S.foods.length===0?`<div class="empty" style="padding:24px 0"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}${S.foods.map((f,i)=>`<div class="food-item"><div class="fi-info"><div class="fi-name">${f.n}</div><div class="fi-mac">P:${f.p}g · C:${f.c}g · G:${f.f}g</div></div><div class="fi-cal">${f.cal} kcal</div><button class="fi-del" data-fi="${i}">×</button></div>`).join("")}</div>`;
+  <div class="foods-list">${S.foods.length===0?`<div class="empty" style="padding:24px 0"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}${S.foods.map((f,i)=>{
+    const grams=f.grams||f.serving||100;
+    const base=f.serving||100;
+    const ratio=grams/base;
+    const adjCal=Math.round((f.cal||0)*ratio);
+    const adjP=+(((f.p||0)*ratio).toFixed(1));
+    const adjC=+(((f.c||0)*ratio).toFixed(1));
+    const adjF=+(((f.f||0)*ratio).toFixed(1));
+    return `<div class="food-item" id="fi_${i}">
+      <div class="fi-info">
+        <div class="fi-name">${f.n}${f.brand?` <span style="font-size:11px;color:#888">${f.brand}</span>`:""}</div>
+        <div class="fi-mac">P:${adjP}g · C:${adjC}g · G:${adjF}g</div>
+        <div style="display:flex;align-items:center;gap:5px;margin-top:5px">
+          <button class="fi-grams-btn" data-dir="-1" data-fi="${i}" style="width:26px;height:26px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:16px;cursor:pointer">−</button>
+          <input type="number" class="fi-grams" data-fi="${i}" value="${grams}" min="1" max="5000" style="width:52px;padding:3px 6px;background:var(--bg3);border:1px solid var(--orange);border-radius:7px;color:var(--text);font-size:13px;font-weight:700;text-align:center"/>
+          <button class="fi-grams-btn" data-dir="1" data-fi="${i}" style="width:26px;height:26px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:16px;cursor:pointer">+</button>
+          <span style="font-size:11px;color:#888">g</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="fi-cal" id="fical_${i}">${adjCal} kcal</div>
+        <button class="fi-del" data-fi="${i}">×</button>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
   d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.modal="food";r();});
   d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.modal="food";S.aiLoading=false;S.aiResult=null;r();setTimeout(()=>document.getElementById("bAiTrigger")?.click(),100);});
-  d.querySelectorAll("[data-fi]").forEach(b=>{if(b.classList.contains("fi-del"))b.onclick=async()=>{S.foods.splice(parseInt(b.dataset.fi),1);await saveFoods(S.foods);r();};});
-  d.querySelectorAll(".fi-grams").forEach(inp=>inp.oninput=async e=>{const i=parseInt(inp.dataset.fi);S.foods[i].grams=parseFloat(e.target.value)||100;await saveFoods(S.foods);r();});
+  d.querySelectorAll(".fi-del").forEach(b=>b.onclick=async()=>{S.foods.splice(parseInt(b.dataset.fi),1);await saveFoods(S.foods);r();});
+  const updateFoodRow=(i)=>{
+    const f=S.foods[i];if(!f)return;
+    const grams=f.grams||f.serving||100;
+    const base=f.serving||100;
+    const ratio=grams/base;
+    const adjCal=Math.round((f.cal||0)*ratio);
+    const inp=d.querySelector(`.fi-grams[data-fi="${i}"]`);
+    const calEl=d.querySelector(`#fical_${i}`);
+    if(inp)inp.value=grams;
+    if(calEl)calEl.textContent=adjCal+" kcal";
+  };
+  d.querySelectorAll(".fi-grams").forEach(inp=>inp.oninput=async e=>{
+    const i=parseInt(inp.dataset.fi);
+    S.foods[i].grams=parseFloat(e.target.value)||1;
+    updateFoodRow(i);
+    await saveFoods(S.foods);
+  });
+  d.querySelectorAll(".fi-grams-btn").forEach(btn=>btn.onclick=async()=>{
+    const i=parseInt(btn.dataset.fi);const dir=parseInt(btn.dataset.dir);
+    const cur=S.foods[i].grams||S.foods[i].serving||100;
+    S.foods[i].grams=Math.max(1,cur+(dir*10));
+    updateFoodRow(i);
+    await saveFoods(S.foods);
+  });
   return d;
 }
 
@@ -607,22 +654,81 @@ function rFoodModal(){
       const sOk=!q2||x.n.toLowerCase().includes(q2)||(x.brand||"").toLowerCase().includes(q2);
       return catOk&&sOk;
     }).slice(0,60);
-    container.innerHTML=f2.map(f=>`<div class="frow" data-fn="${f.n.replace(/"/g,"&quot;")}">
-      <div style="flex:1;min-width:0">
-        <div class="fn">${f.n}${f.brand?` <span style="font-size:11px;color:#888;font-weight:400">${f.brand}</span>`:""}</div>
-        <div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div>
-        <div style="font-size:10px;color:#555;margin-top:2px">${f.addedBy?`👤 ${f.addedBy}`:""}${f.addedAt?` · ${f.addedAt}`:""}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-        <div class="fcal">${f.cal} kcal</div>
-        ${!f.official&&f.addedById===uid()?`<button class="fi-del" data-del-community="${f.id||f.n}" style="font-size:11px;padding:2px 6px;border-radius:6px;background:rgba(255,80,80,0.15);color:#FF6B6B;border:none;cursor:pointer">Excluir</button>`:""}
-      </div>
-    </div>`).join("");
+    const catColors={
+      "Proteínas":"#4B9EFF","Carboidratos":"#FF8C42","Frutas":"#4ADE80","Laticínios":"#A78BFA",
+      "Gorduras":"#FFD700","Lanches":"#F472B6","Bebidas":"#00D4FF","Vegetais":"#22D3A5",
+      "Refeições":"#FF6B6B","Suplementos":"#818CF8","Outros":"#888","":""
+    };
+    container.innerHTML=f2.map(f=>{
+      const cc=catColors[f.cat||""]||"#888";
+      const isOwn=!f.official&&f.addedById===uid();
+      return `<div class="frow" data-fn="${f.n.replace(/"/g,"&quot;")}">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
+            ${f.cat?`<span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:10px;background:${cc}20;color:${cc};letter-spacing:0.5px">${f.cat.toUpperCase()}</span>`:""}
+            ${f.brand?`<span style="font-size:10px;color:#888">${f.brand}</span>`:""}
+          </div>
+          <div class="fn">${f.n}</div>
+          <div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div>
+          <div style="font-size:10px;color:#555;margin-top:2px;display:flex;align-items:center;gap:4px">
+            ${f.official?`<span style="color:#22D3A5;font-weight:700">✅ Oficial</span>`:`<span>👤 ${f.addedBy||"Usuário"}</span>`}
+            ${(!f.official&&f.addedAt)?`<span>· ${f.addedAt}</span>`:""}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+          <div class="fcal">${f.cal} kcal</div>
+          ${f.serving?`<div style="font-size:10px;color:#555">${f.serving}g</div>`:""}
+          ${isOwn?`<button class="fi-del" data-del-community="${f.id||f.n}" style="font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(255,80,80,0.12);color:#FF6B6B;border:1px solid rgba(255,80,80,0.2);cursor:pointer">Excluir</button>`:""}
+        </div>
+      </div>`;
+    }).join("");
     container.querySelectorAll("[data-fn]").forEach(row=>row.onclick=async(e)=>{
+      if(e.target.closest("[data-del-community]"))return;
       if(e.target.closest("[data-del-community]"))return;
       const fname=row.dataset.fn;
       const all2=getAllFoods();const f=all2.find(x=>x.n===fname);
-      if(f){S.foods.push({...f,grams:f.serving||100});await saveFoods(S.foods);S.foodSearch="";S.foodCat="";closeModal();}
+      if(!f)return;
+      // Show quantity picker
+      const overlay=document.createElement("div");
+      overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px";
+      let qty=f.serving||100;
+      const renderQty=()=>{
+        const ratio=qty/(f.serving||100);
+        overlay.innerHTML=`<div style="background:var(--bg2);border-radius:20px;padding:24px;width:100%;max-width:340px;border:1px solid var(--border)">
+          <div style="font-weight:800;font-size:18px;margin-bottom:4px">${f.n}</div>
+          ${f.brand?`<div style="font-size:12px;color:#888;margin-bottom:12px">${f.brand}</div>`:""}
+          <div style="font-size:13px;color:#aaa;margin-bottom:16px">Selecione a quantidade:</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">
+            <button id="qm" style="width:44px;height:44px;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:24px;cursor:pointer">−</button>
+            <div style="text-align:center">
+              <input id="qtyInp" type="number" value="${qty}" min="1" max="5000" style="width:80px;padding:10px;background:var(--bg3);border:1.5px solid var(--orange);border-radius:10px;color:var(--text);font-size:22px;font-weight:800;text-align:center"/>
+              <div style="font-size:12px;color:#888;margin-top:4px">gramas</div>
+            </div>
+            <button id="qp" style="width:44px;height:44px;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:24px;cursor:pointer">+</button>
+          </div>
+          <div style="background:var(--bg3);border-radius:12px;padding:12px;margin-bottom:16px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:var(--orange)">${Math.round((f.cal||0)*ratio)} kcal</div>
+            <div style="font-size:12px;color:#888;margin-top:4px">P:${+((f.p||0)*ratio).toFixed(1)}g · C:${+((f.c||0)*ratio).toFixed(1)}g · G:${+((f.f||0)*ratio).toFixed(1)}g</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="qCancel" style="flex:1;padding:13px;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;color:var(--text2);font-size:15px;font-weight:600;cursor:pointer">Cancelar</button>
+            <button id="qAdd" style="flex:2;padding:13px;background:var(--orange);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer">✓ Adicionar</button>
+          </div>
+        </div>`;
+        overlay.querySelector("#qm").onclick=()=>{qty=Math.max(1,qty-10);renderQty();};
+        overlay.querySelector("#qp").onclick=()=>{qty=qty+10;renderQty();};
+        overlay.querySelector("#qtyInp").oninput=e=>{qty=parseFloat(e.target.value)||1;renderQty();};
+        overlay.querySelector("#qCancel").onclick=()=>overlay.remove();
+        overlay.querySelector("#qAdd").onclick=async()=>{
+          S.foods.push({...f,grams:qty});
+          await saveFoods(S.foods);
+          S.foodSearch="";S.foodCat="";
+          overlay.remove();
+          closeModal();
+        };
+      };
+      renderQty();
+      document.body.appendChild(overlay);
     });
     container.querySelectorAll("[data-del-community]").forEach(btn=>btn.onclick=async e=>{
       e.stopPropagation();
@@ -909,42 +1015,116 @@ function rExDetailModal(){
 }
 
 function muscleSVG(group,color="#FF6B00"){
-  const body=`
-    <ellipse cx="50" cy="8" rx="7.5" ry="8.5" fill="#444"/>
-    <rect x="46.5" y="15.5" width="7" height="5" fill="#3A3A3A"/>
-    <path d="M30 22 C35 18 44 17 50 17 C56 17 65 18 70 22 L68 27 C62 24 56 23 50 23 C44 23 38 24 32 27Z" fill="#333"/>
-    <path d="M32 27 C36 25 44 24 50 24 L50 24 C56 24 64 25 68 27 L70 43 L50 46 L30 43Z" fill="#2E2E2E"/>
-    <line x1="50" y1="24" x2="50" y2="46" stroke="#252525" stroke-width="1"/>
-    <path d="M35 46 L50 49 L65 46 L67 66 L50 68 L33 66Z" fill="#2A2A2A"/>
-    <line x1="36" y1="53" x2="64" y2="53" stroke="#1A1A1A" stroke-width="1"/>
-    <line x1="35" y1="60" x2="65" y2="60" stroke="#1A1A1A" stroke-width="1"/>
-    <line x1="50" y1="46" x2="50" y2="68" stroke="#1A1A1A" stroke-width="1"/>
-    <path d="M33 53 L30 66 L35 68Z" fill="#262626"/>
-    <path d="M67 53 L70 66 L65 68Z" fill="#262626"/>
-    <path d="M32 27 C26 25 18 28 15 35 C13 40 14 46 16 50 L22 47 C20 43 20 38 22 34 C24 30 28 28 32 27Z" fill="#2A2A2A"/>
-    <path d="M68 27 C74 25 82 28 85 35 C87 40 86 46 84 50 L78 47 C80 43 80 38 78 34 C76 30 72 28 68 27Z" fill="#2A2A2A"/>
-    <path d="M16 50 L22 47 L22 62 L16 64Z" fill="#272727"/>
-    <path d="M84 50 L78 47 L78 62 L84 64Z" fill="#272727"/>
-    <path d="M16 64 L22 62 L21 76 L15 77Z" fill="#242424"/>
-    <path d="M84 64 L78 62 L79 76 L85 77Z" fill="#242424"/>
-    <path d="M33 66 L67 66 L70 75 L30 75Z" fill="#2A2A2A"/>
-    <path d="M30 75 L48 75 L47 92 L31 91Z" fill="#272727"/>
-    <path d="M52 75 L70 75 L69 91 L53 92Z" fill="#272727"/>
-    <line x1="40" y1="75" x2="39" y2="92" stroke="#1A1A1A" stroke-width="0.7"/>
-    <line x1="60" y1="75" x2="61" y2="92" stroke="#1A1A1A" stroke-width="0.7"/>`;
-  const H={
-    peito:`<path d="M32 27 C36 25 44 24 49 24 L49 46 L30 43Z" fill="${color}" opacity="0.9"/><path d="M68 27 C64 25 56 24 51 24 L51 46 L70 43Z" fill="${color}" opacity="0.9"/>`,
-    costas:`<path d="M33 27 C36 25 44 24 49 24 L49 46 L31 43Z" fill="${color}" opacity="0.5"/><path d="M67 27 C64 25 56 24 51 24 L51 46 L69 43Z" fill="${color}" opacity="0.5"/><path d="M16 50 L22 47 L22 62 L16 64Z" fill="${color}" opacity="0.5"/><path d="M84 50 L78 47 L78 62 L84 64Z" fill="${color}" opacity="0.5"/>`,
-    pernas:`<path d="M30 75 L48 75 L47 92 L31 91Z" fill="${color}" opacity="0.9"/><path d="M52 75 L70 75 L69 91 L53 92Z" fill="${color}" opacity="0.9"/>`,
-    ombros:`<path d="M32 27 C26 25 18 28 15 35 C13 40 14 46 16 50 L22 47 C20 43 20 38 22 34 C24 30 28 28 32 27Z" fill="${color}" opacity="0.9"/><path d="M68 27 C74 25 82 28 85 35 C87 40 86 46 84 50 L78 47 C80 43 80 38 78 34 C76 30 72 28 68 27Z" fill="${color}" opacity="0.9"/>`,
-    biceps:`<path d="M16 50 L22 47 L22 62 L16 64Z" fill="${color}" opacity="0.95"/><path d="M84 50 L78 47 L78 62 L84 64Z" fill="${color}" opacity="0.95"/>`,
-    triceps:`<path d="M14 36 L18 34 L19 48 L15 50Z" fill="${color}" opacity="0.85"/><path d="M86 36 L82 34 L81 48 L85 50Z" fill="${color}" opacity="0.85"/>`,
-    abdomen:`<path d="M35 46 L50 49 L65 46 L67 66 L50 68 L33 66Z" fill="${color}" opacity="0.9"/>`,
-    gluteos:`<path d="M33 66 L67 66 L70 75 L30 75Z" fill="${color}" opacity="0.9"/>`,
-    trapezio:`<path d="M30 22 C35 18 44 17 50 17 C56 17 65 18 70 22 L68 27 C62 24 56 23 50 23 C44 23 38 24 32 27Z" fill="${color}" opacity="0.9"/>`,
-    antebraco:`<path d="M16 64 L22 62 L21 76 L15 77Z" fill="${color}" opacity="0.95"/><path d="M84 64 L78 62 L79 76 L85 77Z" fill="${color}" opacity="0.95"/>`,
+  // Highly detailed anatomical front-view SVG
+  // Based on realistic human anatomy proportions
+  const base=`
+    <!-- CABEÇA -->
+    <ellipse cx="50" cy="7.5" rx="7" ry="8" fill="#4A4A4A" stroke="#555" stroke-width="0.3"/>
+    <!-- ORELHAS -->
+    <ellipse cx="42.5" cy="7.5" rx="1.5" ry="2.5" fill="#424242"/>
+    <ellipse cx="57.5" cy="7.5" rx="1.5" ry="2.5" fill="#424242"/>
+    <!-- PESCOÇO -->
+    <path d="M46 15 L47 20 L53 20 L54 15" fill="#3D3D3D" stroke="#444" stroke-width="0.3"/>
+    <!-- TRAPÉZIO SUPERIOR -->
+    <path d="M47 20 C40 20 30 22 28 25 L33 26 C36 22 43 21 47 21Z" fill="#383838" stroke="#3A3A3A" stroke-width="0.3"/>
+    <path d="M53 20 C60 20 70 22 72 25 L67 26 C64 22 57 21 53 21Z" fill="#383838" stroke="#3A3A3A" stroke-width="0.3"/>
+    <!-- CLAVÍCULAS -->
+    <path d="M47 21 C44 21 38 22 33 24" stroke="#555" stroke-width="1" fill="none"/>
+    <path d="M53 21 C56 21 62 22 67 24" stroke="#555" stroke-width="1" fill="none"/>
+    <!-- DELTÓIDE ESQUERDO -->
+    <path d="M28 25 C22 27 17 31 15 37 C13 43 14 49 16 53 L20 51 C18 47 18 42 19 37 C21 32 25 28 28 26Z" fill="#323232" stroke="#3A3A3A" stroke-width="0.3"/>
+    <!-- DELTÓIDE DIREITO -->
+    <path d="M72 25 C78 27 83 31 85 37 C87 43 86 49 84 53 L80 51 C82 47 82 42 81 37 C79 32 75 28 72 26Z" fill="#323232" stroke="#3A3A3A" stroke-width="0.3"/>
+    <!-- PEITORAL ESQUERDO -->
+    <path d="M33 26 C37 24 44 23 49 23 L49 42 C44 44 38 44 33 41 C30 39 29 36 29 33Z" fill="#2E2E2E" stroke="#383838" stroke-width="0.3"/>
+    <!-- PEITORAL DIREITO -->
+    <path d="M67 26 C63 24 56 23 51 23 L51 42 C56 44 62 44 67 41 C70 39 71 36 71 33Z" fill="#2E2E2E" stroke="#383838" stroke-width="0.3"/>
+    <!-- LINHA CENTRAL DO PEITO -->
+    <line x1="50" y1="22" x2="50" y2="43" stroke="#252525" stroke-width="0.8"/>
+    <!-- SERRÁTIL ANTERIOR ESQ -->
+    <path d="M29 38 L34 42 L30 47 L33 48 L30 52 L35 50Z" fill="#2B2B2B"/>
+    <!-- SERRÁTIL ANTERIOR DIR -->
+    <path d="M71 38 L66 42 L70 47 L67 48 L70 52 L65 50Z" fill="#2B2B2B"/>
+    <!-- RETO ABDOMINAL -->
+    <path d="M36 43 L50 46 L64 43 L65 65 L50 68 L35 65Z" fill="#292929" stroke="#222" stroke-width="0.3"/>
+    <!-- LINHAS DO ABDOMINAL -->
+    <line x1="37" y1="51" x2="63" y2="51" stroke="#1E1E1E" stroke-width="1"/>
+    <line x1="36" y1="59" x2="64" y2="59" stroke="#1E1E1E" stroke-width="1"/>
+    <line x1="50" y1="43" x2="50" y2="68" stroke="#1E1E1E" stroke-width="0.8"/>
+    <!-- OBLÍQUOS ESQUERDOS -->
+    <path d="M35 50 L30 52 L29 65 L36 65Z" fill="#272727" stroke="#222" stroke-width="0.3"/>
+    <!-- OBLÍQUOS DIREITOS -->
+    <path d="M65 50 L70 52 L71 65 L64 65Z" fill="#272727" stroke="#222" stroke-width="0.3"/>
+    <!-- BÍCEPS ESQUERDO -->
+    <path d="M16 53 L22 50 L23 65 L17 67Z" fill="#2A2A2A" stroke="#333" stroke-width="0.3"/>
+    <!-- CABEÇA CURTA DO BÍCEPS ESQ -->
+    <path d="M22 50 L26 49 L27 63 L23 65Z" fill="#282828"/>
+    <!-- BÍCEPS DIREITO -->
+    <path d="M84 53 L78 50 L77 65 L83 67Z" fill="#2A2A2A" stroke="#333" stroke-width="0.3"/>
+    <!-- CABEÇA CURTA DO BÍCEPS DIR -->
+    <path d="M78 50 L74 49 L73 63 L77 65Z" fill="#282828"/>
+    <!-- ANTEBRAÇO ESQUERDO -->
+    <path d="M17 67 L23 65 L22 80 L16 80Z" fill="#252525" stroke="#2E2E2E" stroke-width="0.3"/>
+    <!-- DIVISÃO ANTEBRAÇO ESQ -->
+    <line x1="19" y1="67" x2="18.5" y2="80" stroke="#1E1E1E" stroke-width="0.6"/>
+    <!-- ANTEBRAÇO DIREITO -->
+    <path d="M83 67 L77 65 L78 80 L84 80Z" fill="#252525" stroke="#2E2E2E" stroke-width="0.3"/>
+    <!-- QUADRIL -->
+    <path d="M35 65 L65 65 L68 75 L32 75Z" fill="#2B2B2B" stroke="#333" stroke-width="0.3"/>
+    <!-- TENSOR DA FÁSCIA LATA ESQ -->
+    <path d="M31 68 L35 65 L35 75 L31 76Z" fill="#282828"/>
+    <!-- QUADRÍCEPS ESQ - VASTO LATERAL -->
+    <path d="M32 75 L42 75 L41 93 L31 91Z" fill="#292929" stroke="#222" stroke-width="0.3"/>
+    <!-- QUADRÍCEPS ESQ - RETO FEMORAL -->
+    <path d="M42 75 L48 75 L47 93 L41 93Z" fill="#2D2D2D" stroke="#222" stroke-width="0.3"/>
+    <!-- QUADRÍCEPS DIR - RETO FEMORAL -->
+    <path d="M52 75 L58 75 L59 93 L53 93Z" fill="#2D2D2D" stroke="#222" stroke-width="0.3"/>
+    <!-- QUADRÍCEPS DIR - VASTO LATERAL -->
+    <path d="M58 75 L68 75 L69 91 L59 93Z" fill="#292929" stroke="#222" stroke-width="0.3"/>
+    <!-- SARTÓRIO ESQ -->
+    <path d="M40 75 L43 75 L44 93 L41 93Z" fill="#252525"/>
+    <!-- SARTÓRIO DIR -->
+    <path d="M57 75 L60 75 L59 93 L56 93Z" fill="#252525"/>
+    <!-- LINHA DO JOELHO ESQ -->
+    <ellipse cx="38" cy="93" rx="6" ry="2" fill="#252525"/>
+    <!-- LINHA DO JOELHO DIR -->
+    <ellipse cx="62" cy="93" rx="6" ry="2" fill="#252525"/>`;
+
+  const highlights={
+    peito:`
+      <path d="M33 26 C37 24 44 23 49 23 L49 42 C44 44 38 44 33 41 C30 39 29 36 29 33Z" fill="${color}" opacity="0.85"/>
+      <path d="M67 26 C63 24 56 23 51 23 L51 42 C56 44 62 44 67 41 C70 39 71 36 71 33Z" fill="${color}" opacity="0.85"/>`,
+    costas:`
+      <path d="M33 26 C37 24 44 23 49 23 L49 42 C38 44 33 41 30 38Z" fill="${color}" opacity="0.5"/>
+      <path d="M67 26 C63 24 56 23 51 23 L51 42 C62 44 67 41 70 38Z" fill="${color}" opacity="0.5"/>
+      <path d="M16 53 L22 50 L23 65 L17 67Z" fill="${color}" opacity="0.5"/>
+      <path d="M84 53 L78 50 L77 65 L83 67Z" fill="${color}" opacity="0.5"/>`,
+    pernas:`
+      <path d="M32 75 L48 75 L47 93 L31 91Z" fill="${color}" opacity="0.85"/>
+      <path d="M52 75 L68 75 L69 91 L53 93Z" fill="${color}" opacity="0.85"/>`,
+    ombros:`
+      <path d="M28 25 C22 27 17 31 15 37 C13 43 14 49 16 53 L20 51 C18 47 18 42 19 37 C21 32 25 28 28 26Z" fill="${color}" opacity="0.9"/>
+      <path d="M72 25 C78 27 83 31 85 37 C87 43 86 49 84 53 L80 51 C82 47 82 42 81 37 C79 32 75 28 72 26Z" fill="${color}" opacity="0.9"/>`,
+    biceps:`
+      <path d="M16 53 L22 50 L23 65 L17 67Z" fill="${color}" opacity="0.9"/>
+      <path d="M22 50 L26 49 L27 63 L23 65Z" fill="${color}" opacity="0.8"/>
+      <path d="M84 53 L78 50 L77 65 L83 67Z" fill="${color}" opacity="0.9"/>
+      <path d="M78 50 L74 49 L73 63 L77 65Z" fill="${color}" opacity="0.8"/>`,
+    triceps:`
+      <path d="M14 35 L18 33 L19 50 L15 52Z" fill="${color}" opacity="0.9"/>
+      <path d="M86 35 L82 33 L81 50 L85 52Z" fill="${color}" opacity="0.9"/>`,
+    abdomen:`
+      <path d="M36 43 L50 46 L64 43 L65 65 L50 68 L35 65Z" fill="${color}" opacity="0.85"/>`,
+    gluteos:`
+      <path d="M35 65 L65 65 L68 75 L32 75Z" fill="${color}" opacity="0.9"/>`,
+    trapezio:`
+      <path d="M47 20 C40 20 30 22 28 25 L33 26 C36 22 43 21 47 21Z" fill="${color}" opacity="0.9"/>
+      <path d="M53 20 C60 20 70 22 72 25 L67 26 C64 22 57 21 53 21Z" fill="${color}" opacity="0.9"/>`,
+    antebraco:`
+      <path d="M17 67 L23 65 L22 80 L16 80Z" fill="${color}" opacity="0.95"/>
+      <path d="M83 67 L77 65 L78 80 L84 80Z" fill="${color}" opacity="0.95"/>`,
   };
-  return `<svg viewBox="0 0 100 100" width="100%" height="100%" style="max-height:160px">${body}${H[group]||H.peito}</svg>`;
+  return `<svg viewBox="0 0 100 100" width="100%" height="100%" style="max-height:180px">${base}${highlights[group]||highlights.peito}</svg>`;
 }
 
 
@@ -1222,7 +1402,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 @keyframes fadeOut{from{opacity:1}to{opacity:0}}
 .overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.65);z-index:200;display:flex;align-items:flex-end;animation:fadeIn 0.25s ease forwards;}
 .overlay.closing{animation:fadeOut 0.25s ease forwards;}
-.modal-sheet{width:100%;background:var(--bg2);border-radius:20px 20px 0 0;border-top:1px solid var(--border);padding:14px 20px;padding-bottom:calc(24px + var(--safe-bot));height:92vh;display:flex;flex-direction:column;animation:slideUp 0.32s cubic-bezier(0.32,0.72,0,1) forwards;box-shadow:0 -10px 50px rgba(0,0,0,0.6);}
+.modal-sheet{width:100%;background:var(--bg2);border-radius:20px 20px 0 0;border-top:1px solid var(--border);padding:14px 20px;padding-bottom:max(32px, calc(24px + var(--safe-bot) + 56px));height:94vh;max-height:94dvh;display:flex;flex-direction:column;animation:slideUp 0.32s cubic-bezier(0.32,0.72,0,1) forwards;box-shadow:0 -10px 50px rgba(0,0,0,0.6);}
 .modal-sheet.closing{animation:slideDown 0.28s cubic-bezier(0.32,0.72,0,1) forwards;}
 .modal-handle{width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 14px;flex-shrink:0;}
 .modal-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-shrink:0;}
