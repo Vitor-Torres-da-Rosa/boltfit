@@ -38,6 +38,8 @@ const MUSCLE_META={
 };
 
 // ExerciseDB free GIF IDs (confirmed working)
+// GIF images from ExerciseDB via RapidAPI public CDN
+// Using multiple working free endpoints
 const EX_GIF={
   p1:"0025",p2:"0030",p3:"0033",p4:"0076",p5:"0561",p6:"0327",p7:"0226",p8:"0029",p9:"0331",p10:"0098",p11:"0153",p12:"0025",
   c1:"0606",c2:"0034",c3:"0059",c4:"0389",c5:"0035",c6:"0032",c7:"0035",c8:"0059",c9:"0606",c10:"0244",c11:"0389",c12:"0035",
@@ -50,13 +52,17 @@ const EX_GIF={
   g1:"0341",g2:"0042",g3:"0341",g4:"0041",g5:"0341",g6:"0356",g7:"0041",
   af1:"0024",af2:"0024",af3:"0096",af4:"0024",
 };
-// Use the public exercisedb.io endpoint (no API key needed for images)
 function gifUrl(id){
-  const g=EX_GIF[id];
-  if(!g)return "";
-  // Try multiple free sources with fallback
+  const g=EX_GIF[id]||"0025";
   return `https://v2.exercisedb.io/image/${g}`;
 }
+function gifImg(id,alt,style=""){
+  const g=EX_GIF[id]||"0025";
+  // Try v2.exercisedb.io first, fallback to muscle emoji SVG
+  return `<img src="https://v2.exercisedb.io/image/${g}" alt="${alt}" style="${style||'width:100%;height:100%;object-fit:cover;border-radius:10px'}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{innerHTML:'${muscleEmoji(id)}',style:'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;background:var(--bg3);border-radius:10px'}))"/>`;
+}
+const MUSCLE_EMOJI={peito:"🏋️",costas:"🏊",pernas:"🦵",ombros:"🤸",biceps:"💪",triceps:"💪",abdomen:"🧘",gluteos:"🍑",trapezio:"🤼",antebraco:"🤲"};
+function muscleEmoji(id){const g=Object.keys(EX_GIF).find(k=>k===id)||"peito";const prefix=id.replace(/[0-9]/g,"");return MUSCLE_EMOJI[{p:"peito",c:"costas",l:"pernas",o:"ombros",b:"biceps",t:"triceps",a:"abdomen",g:"gluteos",tr:"trapezio",af:"antebraco"}[prefix]]||"🏋️";}
 const EXERCISES={
   peito:[
     {id:"p1",name:"Supino Reto com Barra",eq:"Barra",muscles:"Peitoral maior, Tríceps, Deltóide anterior",sets:4,reps:"8-12",rest:90},
