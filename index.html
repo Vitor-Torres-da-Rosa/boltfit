@@ -331,7 +331,7 @@ let S={
   modal:null,mCtx:null,
   session:null,
   exFilter:"",exGroup:"",
-  foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,
+  foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,aiRawResult:null,aiWeightStep:false,aiPlateWeight:0,aiError:null,
   darkMode:true,
 };
 let restTimer=null;
@@ -658,7 +658,7 @@ function rCalorias(){
 
   // Button handlers
   d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.modal="food";r();});
-  d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.modal="food";S.aiLoading=false;S.aiResult=null;r();});
+  d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;r();});
 
   // Add to specific meal category
   d.querySelectorAll("[data-addcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.addcat;S.modal="food";r();});
@@ -910,8 +910,37 @@ function rFoodModal(){
   };
 
   const buildAIHtml=()=>{
-    if(S.aiLoading)return `<div style="text-align:center;padding:16px 0"><div style="font-size:32px">⏳</div><div style="font-weight:600;margin-top:8px;color:#fff">Analisando imagem com IA...</div><div style="font-size:12px;color:#888;margin-top:4px">Isso pode levar alguns segundos</div></div>`;
-    if(S.aiResult)return `<div>${S.aiImg?`<img src="${S.aiImg}" style="width:100%;max-height:100px;object-fit:cover;border-radius:10px;margin-bottom:10px"/>`:""}<div style="font-size:12px;color:#888;margin-bottom:4px">🤖 Estimativa IA:</div><div style="font-weight:700;font-size:17px;color:#fff">${S.aiResult.n}</div><div style="font-size:12px;color:#888;margin:3px 0">${S.aiResult.desc||""}</div><div style="font-size:16px;color:#FF6B00;font-weight:800;margin:8px 0">${S.aiResult.cal} kcal &nbsp;·&nbsp; P:${S.aiResult.p}g · C:${S.aiResult.c}g · G:${S.aiResult.f}g</div><div style="display:flex;gap:8px"><button class="btn-primary" id="bAddAI" style="flex:1;padding:12px">✓ Adicionar</button><button class="btn-sec" id="bRetryAI" style="flex:1;padding:12px">↺ Nova foto</button></div></div>`;
+    if(S.aiLoading)return `<div style="text-align:center;padding:16px 0"><div style="font-size:32px;animation:spin 1.5s linear infinite;display:inline-block">⏳</div><div style="font-weight:600;margin-top:8px;color:#fff">Analisando com IA...</div><div style="font-size:12px;color:#888;margin-top:4px">Verificando se é comida e identificando ingredientes...</div></div>`;
+    if(S.aiError)return `<div style="text-align:center;padding:8px 0">${S.aiImg?`<img src="${S.aiImg}" style="width:100%;max-height:80px;object-fit:cover;border-radius:10px;margin-bottom:10px"/>`:""}<div style="font-size:28px;margin-bottom:8px">🚫</div><div style="font-weight:700;font-size:15px;color:#FF6B6B;margin-bottom:6px">Isso não é comida!</div><div style="font-size:12px;color:#aaa;margin-bottom:12px">${S.aiError}</div><button class="btn-sec" id="bRetryAI" style="width:100%;padding:10px">↺ Tirar outra foto</button></div>`;
+    if(S.aiWeightStep){
+      // Step 2: ask for plate weight
+      const r=S.aiRawResult;
+      return `<div>
+        ${S.aiImg?`<img src="${S.aiImg}" style="width:100%;max-height:80px;object-fit:cover;border-radius:10px;margin-bottom:10px"/>`:""}
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:2px">🍽️ ${r.n}</div>
+        <div style="font-size:11px;color:#888;margin-bottom:12px">${r.desc||""}</div>
+        <div style="background:var(--bg3);border-radius:12px;padding:12px;margin-bottom:12px">
+          <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:700">INGREDIENTES IDENTIFICADOS</div>
+          <div style="font-size:12px;color:#aaa;line-height:1.6">${(r.ingredients||[]).map(i=>`• ${i}`).join("<br>")}</div>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:6px">⚖️ Qual o peso do prato? <span style="font-size:11px;font-weight:400;color:#888">(opcional, melhora a precisão)</span></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <button id="aiWm" style="width:36px;height:36px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:20px;cursor:pointer;flex-shrink:0">−</button>
+          <input id="aiWinp" type="number" value="${S.aiPlateWeight||0}" min="0" max="3000" style="flex:1;padding:10px;background:var(--bg3);border:1.5px solid var(--orange);border-radius:10px;color:var(--text);font-size:18px;font-weight:800;text-align:center;outline:none"/>
+          <button id="aiWp" style="width:36px;height:36px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:20px;cursor:pointer;flex-shrink:0">+</button>
+          <span style="font-size:13px;color:#888">g</span>
+        </div>
+        <div style="font-size:11px;color:#555;margin-bottom:12px;line-height:1.4">Inclui tudo: parte sólida, caldo, molho, salada, água da comida. Se não souber, deixe 0.</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sec" id="bSkipWeight" style="flex:1;padding:11px;font-size:13px">Pular</button>
+          <button class="btn-primary" id="bConfirmWeight" style="flex:2;padding:11px">✓ Calcular calorias</button>
+        </div>
+      </div>`;
+    }
+    if(S.aiResult){
+      const w=S.aiPlateWeight>0?`<div style="font-size:11px;color:#555;margin-top:2px">Baseado em ${S.aiPlateWeight}g do prato</div>`:"";
+      return `<div>${S.aiImg?`<img src="${S.aiImg}" style="width:100%;max-height:90px;object-fit:cover;border-radius:10px;margin-bottom:10px"/>`:""}<div style="font-size:11px;color:#888;margin-bottom:3px">🤖 Estimativa IA:</div><div style="font-weight:700;font-size:16px;color:#fff">${S.aiResult.n}</div>${w}<div style="font-size:16px;color:#FF6B00;font-weight:800;margin:8px 0">${S.aiResult.cal} kcal &nbsp;·&nbsp; P:${S.aiResult.p}g · C:${S.aiResult.c}g · G:${S.aiResult.f}g</div><div style="display:flex;gap:8px"><button class="btn-primary" id="bAddAI" style="flex:1;padding:12px">✓ Adicionar</button><button class="btn-sec" id="bRetryAI" style="flex:1;padding:12px">↺ Nova foto</button></div></div>`;
+    }
     return `<div style="display:flex;align-items:center;gap:12px"><div style="font-size:32px">📸</div><div style="flex:1"><div style="font-weight:700;font-size:15px">Analisar com IA</div><div style="font-size:12px;color:#888;margin-top:2px">Tire uma foto e a IA estima as calorias</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><label style="padding:12px;background:var(--orange);border-radius:var(--radius);text-align:center;font-weight:700;font-size:14px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;gap:6px">📷 Câmera<input type="file" accept="image/*" capture="environment" id="bCamInput" style="display:none"/></label><label style="padding:12px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius);text-align:center;font-weight:700;font-size:14px;cursor:pointer;color:var(--orange);display:flex;align-items:center;justify-content:center;gap:6px">🖼️ Galeria<input type="file" accept="image/*" id="bGalInput" style="display:none"/></label></div>`;
   };
 
@@ -936,14 +965,17 @@ function rFoodModal(){
         <button class="mf ${!S.foodCat?"mf-on":""}" data-fc="">Todos</button>
         ${FOOD_CATS.map(c=>`<button class="mf ${S.foodCat===c?"mf-on":""}" data-fc="${c}">${c}</button>`).join("")}
       </div>
-      <div class="food-list" id="foodListEl">${filtered.map(f=>`<div class="frow" data-fn="${f.n.replace(/"/g,"&quot;")}"><div><div class="fn">${f.n}</div><div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div></div><div class="fcal">${f.cal} kcal</div></div>`).join("")}</div>
+      <div class="food-list" id="foodListEl"></div>
     </div>`;
 
     d.querySelector("#bCloseFood").onclick=()=>closeModal();
     d.onclick=e=>{if(e.target===d)closeModal();};
     d.querySelector("#bManualAdd")?.addEventListener("click",()=>{S.modal="addFoodManual";r();});
+    // Populate list immediately with all foods including community
+    const initListEl=d.querySelector("#foodListEl");
+    if(initListEl)updateList(initListEl,(S.foodSearch||"").toLowerCase(),S.foodCat);
     d.querySelector("#bAddAI")?.addEventListener("click",async()=>{if(S.aiResult){const ni=S.foods.length;S.foods.push({...S.aiResult,grams:S.aiResult.serving||100});if(!S.mealCat)S.mealCat={};S.mealCat[ni]=S.pendingMealCat||"sem_categoria";await saveFoods(S.foods);S.aiResult=null;S.aiImg=null;S.pendingMealCat=null;closeModal();}});
-    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();bindCam();});
+    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;S.aiError=null;const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();bindCam();});
 
     // Search — only update list, no full re-render
     const fS=d.querySelector("#fS");
@@ -957,9 +989,21 @@ function rFoodModal(){
     }
 
     // Category filters — update list without re-render
+    const catFilterColors={"Proteínas":"#4B9EFF","Carboidratos":"#FF8C42","Frutas":"#4ADE80","Laticínios":"#A78BFA","Gorduras":"#FFD700","Lanches":"#F472B6","Bebidas":"#00D4FF","Vegetais":"#22D3A5","Refeições":"#FF6B6B","Suplementos":"#818CF8","Outros":"#888"};
+    const applyFilterColors=()=>{
+      d.querySelectorAll("[data-fc]").forEach(x=>{
+        const cat=x.dataset.fc;
+        const cc=cat?catFilterColors[cat]||null:null;
+        const isActive=x.dataset.fc===S.foodCat;
+        x.classList.toggle("mf-on",isActive);
+        if(cc){x.style.color=cc;x.style.borderColor=isActive?cc:cc+"50";x.style.background=isActive?cc+"20":"transparent";}
+        else{x.style.color="";x.style.borderColor="";x.style.background=isActive?"rgba(255,107,0,0.12)":"transparent";}
+      });
+    };
+    applyFilterColors();
     d.querySelectorAll("[data-fc]").forEach(b=>b.onclick=()=>{
       S.foodCat=b.dataset.fc;
-      d.querySelectorAll("[data-fc]").forEach(x=>x.classList.toggle("mf-on",x.dataset.fc===S.foodCat));
+      applyFilterColors();
       const listEl=d.querySelector("#foodListEl");
       if(listEl)updateList(listEl,(S.foodSearch||"").toLowerCase(),S.foodCat);
     });
@@ -980,7 +1024,7 @@ function rFoodModal(){
     if(galInput){galInput.onchange=camInput.onchange=processFile;}
     async function processFile(e){
       const file=e.target.files?.[0];if(!file)return;
-      S.aiLoading=true;
+      S.aiLoading=true;S.aiError=null;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;
       const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();
       try{
         const base64=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(reader.result.split(",")[1]);reader.onerror=rej;reader.readAsDataURL(file);});
@@ -990,19 +1034,27 @@ function rFoodModal(){
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
-            model:"claude-sonnet-4-20250514",
-            max_tokens:300,
+            model:"claude-haiku-4-5-20251001",
+            max_tokens:600,
             messages:[{role:"user",content:[
               {type:"image",source:{type:"base64",media_type:mimeType,data:base64}},
-              {type:"text",text:"Analise esta foto de refeição. Estime os valores nutricionais. Retorne SOMENTE JSON válido sem markdown: {\"n\":\"nome do prato em português\",\"cal\":numero,\"p\":numero_proteina_g,\"c\":numero_carbs_g,\"f\":numero_gordura_g,\"desc\":\"descrição breve\"}"}
+              {type:"text",text:'Analise esta imagem. Se NAO for comida/refeicao/bebida comestivel, retorne: {"isFood":false,"reason":"motivo em portugues"}. Se FOR comida, retorne SOMENTE JSON: {"isFood":true,"n":"nome do prato em portugues","desc":"descricao breve","ingredients":["ingrediente 1","ingrediente 2"],"cal":numero,"p":proteina_g,"c":carbs_g,"f":gordura_g,"serving":peso_estimado_g}. Considere tudo no prato: solidos, caldos, molhos, agua da comida, salada. Seja preciso.'}
             ]}]
           })
         });
         const data=await resp.json();
-        const txt=data.content.map(i=>i.text||"").join("");
-        S.aiResult=JSON.parse(txt.replace(/```json|```/g,"").trim());
+        const txt=data.content.map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
+        const result=JSON.parse(txt);
+        if(!result.isFood){
+          S.aiError=result.reason||"Isso nao parece ser comida. Tire uma foto de uma refeicao.";
+          S.aiImg=null;
+        }else{
+          S.aiRawResult=result;
+          S.aiWeightStep=true;
+          S.aiPlateWeight=result.serving||0;
+        }
       }catch(err){
-        S.aiResult={n:"Refeição estimada",cal:480,p:25,c:52,f:16,desc:"Estimativa baseada na imagem"};
+        S.aiError="Erro ao analisar imagem. Tente novamente.";
       }
       S.aiLoading=false;
       const az2=d.querySelector("#aiZone");
@@ -1011,8 +1063,49 @@ function rFoodModal(){
   };
 
   const bindAIButtons=()=>{
-    d.querySelector("#bAddAI")?.addEventListener("click",async()=>{if(S.aiResult){const ni=S.foods.length;S.foods.push({...S.aiResult,grams:S.aiResult.serving||100});if(!S.mealCat)S.mealCat={};S.mealCat[ni]=S.pendingMealCat||"sem_categoria";await saveFoods(S.foods);S.aiResult=null;S.aiImg=null;S.pendingMealCat=null;closeModal();}});
-    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindCam();}});
+    // Weight step controls
+    const aiWm=d.querySelector("#aiWm");
+    const aiWp=d.querySelector("#aiWp");
+    const aiWinp=d.querySelector("#aiWinp");
+    if(aiWm)aiWm.onclick=()=>{S.aiPlateWeight=Math.max(0,(S.aiPlateWeight||0)-10);if(aiWinp)aiWinp.value=S.aiPlateWeight;};
+    if(aiWp)aiWp.onclick=()=>{S.aiPlateWeight=(S.aiPlateWeight||0)+10;if(aiWinp)aiWinp.value=S.aiPlateWeight;};
+    if(aiWinp)aiWinp.oninput=e=>{S.aiPlateWeight=parseFloat(e.target.value)||0;};
+    d.querySelector("#bSkipWeight")?.addEventListener("click",()=>{calcAndShowResult(0);});
+    d.querySelector("#bConfirmWeight")?.addEventListener("click",()=>{calcAndShowResult(S.aiPlateWeight||0);});
+    d.querySelector("#bAddAI")?.addEventListener("click",async()=>{
+      if(S.aiResult){
+        const ni=S.foods.length;
+        S.foods.push({...S.aiResult,grams:S.aiResult.serving||100});
+        if(!S.mealCat)S.mealCat={};
+        S.mealCat[ni]=S.pendingMealCat||"sem_categoria";
+        await saveFoods(S.foods);
+        S.aiResult=null;S.aiImg=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.pendingMealCat=null;
+        closeModal();
+      }
+    });
+    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;S.aiError=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindCam();}});
+  };
+
+  const calcAndShowResult=(plateWeight)=>{
+    const r=S.aiRawResult;if(!r)return;
+    let ratio=1;
+    if(plateWeight>0&&r.serving>0){
+      ratio=plateWeight/r.serving;
+    }
+    S.aiResult={
+      n:r.n,desc:r.desc,
+      cal:Math.round(r.cal*ratio),
+      p:+(r.p*ratio).toFixed(1),
+      c:+(r.c*ratio).toFixed(1),
+      f:+(r.f*ratio).toFixed(1),
+      serving:plateWeight>0?plateWeight:r.serving||100,
+      cat:"Refeições"
+    };
+    S.aiPlateWeight=plateWeight;
+    S.aiWeightStep=false;
+    const az=d.querySelector("#aiZone");
+    if(az){az.innerHTML=buildAIHtml();bindAIButtons();}
+
   };
 
   render();
