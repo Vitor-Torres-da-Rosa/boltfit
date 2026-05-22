@@ -303,6 +303,7 @@ const FOOD_CATS=[...new Set(FOODS.map(f=>f.cat))];
 let S={
   user:null,profile:null,phase:"splash",
   tab:"agenda",
+  communityFoods:[],
   onboard:{step:0,data:{sex:"",age:"",weight:"",height:"",activity:"",goal:"",trainDays:[],split:""}},
   tmb:null,targetCal:null,
   foods:[],workouts:[],schedule:{},
@@ -516,7 +517,8 @@ function rCalorias(){
   <div class="foods-list">${S.foods.length===0?`<div class="empty" style="padding:24px 0"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}${S.foods.map((f,i)=>`<div class="food-item"><div class="fi-info"><div class="fi-name">${f.n}</div><div class="fi-mac">P:${f.p}g · C:${f.c}g · G:${f.f}g</div></div><div class="fi-cal">${f.cal} kcal</div><button class="fi-del" data-fi="${i}">×</button></div>`).join("")}</div>`;
   d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.modal="food";r();});
   d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.modal="food";S.aiLoading=false;S.aiResult=null;r();setTimeout(()=>document.getElementById("bAiTrigger")?.click(),100);});
-  d.querySelectorAll("[data-fi]").forEach(b=>b.onclick=async()=>{S.foods.splice(parseInt(b.dataset.fi),1);await saveFoods(S.foods);r();});
+  d.querySelectorAll("[data-fi]").forEach(b=>{if(b.classList.contains("fi-del"))b.onclick=async()=>{S.foods.splice(parseInt(b.dataset.fi),1);await saveFoods(S.foods);r();};});
+  d.querySelectorAll(".fi-grams").forEach(inp=>inp.oninput=async e=>{const i=parseInt(inp.dataset.fi);S.foods[i].grams=parseFloat(e.target.value)||100;await saveFoods(S.foods);r();});
   return d;
 }
 
@@ -585,23 +587,57 @@ function rFoodModal(){
   const d=document.createElement("div");
   d.className="overlay";
 
+  const getAllFoods=()=>{
+    // Official foods with metadata
+    const official=FOODS.map(f=>({...f,addedBy:"✅ Oficial",addedAt:"",addedById:"official",official:true,brand:f.brand||""}));
+    // Community foods
+    const community=S.communityFoods||[];
+    return [...official,...community];
+  };
   const updateList=(container,q2,cat2)=>{
-    const f2=FOODS.filter(x=>{
+    const all=getAllFoods();
+    const f2=all.filter(x=>{
       const catOk=!cat2||x.cat===cat2;
-      const sOk=!q2||x.n.toLowerCase().includes(q2);
+      const sOk=!q2||x.n.toLowerCase().includes(q2)||(x.brand||"").toLowerCase().includes(q2);
       return catOk&&sOk;
     }).slice(0,60);
-    container.innerHTML=f2.map(f=>`<div class="frow" data-fn="${f.n.replace(/"/g,"&quot;")}"><div><div class="fn">${f.n}</div><div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div></div><div class="fcal">${f.cal} kcal</div></div>`).join("");
-    container.querySelectorAll("[data-fn]").forEach(row=>row.onclick=async()=>{
-      const fname=row.dataset.fn;const f=FOODS.find(x=>x.n===fname);
-      if(f){S.foods.push({...f});await saveFoods(S.foods);S.foodSearch="";S.foodCat="";closeModal();}
+    container.innerHTML=f2.map(f=>`<div class="frow" data-fn="${f.n.replace(/"/g,"&quot;")}">
+      <div style="flex:1;min-width:0">
+        <div class="fn">${f.n}${f.brand?` <span style="font-size:11px;color:#888;font-weight:400">${f.brand}</span>`:""}</div>
+        <div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div>
+        <div style="font-size:10px;color:#555;margin-top:2px">${f.addedBy?`👤 ${f.addedBy}`:""}${f.addedAt?` · ${f.addedAt}`:""}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div class="fcal">${f.cal} kcal</div>
+        ${!f.official&&f.addedById===uid()?`<button class="fi-del" data-del-community="${f.id||f.n}" style="font-size:11px;padding:2px 6px;border-radius:6px;background:rgba(255,80,80,0.15);color:#FF6B6B;border:none;cursor:pointer">Excluir</button>`:""}
+      </div>
+    </div>`).join("");
+    container.querySelectorAll("[data-fn]").forEach(row=>row.onclick=async(e)=>{
+      if(e.target.closest("[data-del-community]"))return;
+      const fname=row.dataset.fn;
+      const all2=getAllFoods();const f=all2.find(x=>x.n===fname);
+      if(f){S.foods.push({...f,grams:f.serving||100});await saveFoods(S.foods);S.foodSearch="";S.foodCat="";closeModal();}
+    });
+    container.querySelectorAll("[data-del-community]").forEach(btn=>btn.onclick=async e=>{
+      e.stopPropagation();
+      const id=btn.dataset.delCommunity;
+      if(!confirm("Excluir este alimento do banco?"))return;
+      try{
+        // Find by id or name — only if addedById matches current user
+        const food=S.communityFoods.find(f=>f.id===id||f.n===id);
+        if(food&&food.addedById===uid()){
+          await deleteDoc(doc(db,"communityFoods",food.id));
+          S.communityFoods=S.communityFoods.filter(f=>f.id!==food.id);
+          updateList(container,(S.foodSearch||"").toLowerCase(),S.foodCat);
+        }
+      }catch(err){console.error(err);}
     });
   };
 
   const buildAIHtml=()=>{
     if(S.aiLoading)return `<div style="text-align:center;padding:16px 0"><div style="font-size:32px">⏳</div><div style="font-weight:600;margin-top:8px;color:#fff">Analisando imagem com IA...</div><div style="font-size:12px;color:#888;margin-top:4px">Isso pode levar alguns segundos</div></div>`;
     if(S.aiResult)return `<div>${S.aiImg?`<img src="${S.aiImg}" style="width:100%;max-height:100px;object-fit:cover;border-radius:10px;margin-bottom:10px"/>`:""}<div style="font-size:12px;color:#888;margin-bottom:4px">🤖 Estimativa IA:</div><div style="font-weight:700;font-size:17px;color:#fff">${S.aiResult.n}</div><div style="font-size:12px;color:#888;margin:3px 0">${S.aiResult.desc||""}</div><div style="font-size:16px;color:#FF6B00;font-weight:800;margin:8px 0">${S.aiResult.cal} kcal &nbsp;·&nbsp; P:${S.aiResult.p}g · C:${S.aiResult.c}g · G:${S.aiResult.f}g</div><div style="display:flex;gap:8px"><button class="btn-primary" id="bAddAI" style="flex:1;padding:12px">✓ Adicionar</button><button class="btn-sec" id="bRetryAI" style="flex:1;padding:12px">↺ Nova foto</button></div></div>`;
-    return `<div style="display:flex;align-items:center;gap:12px"><div style="font-size:32px">📸</div><div style="flex:1"><div style="font-weight:700;font-size:15px">Analisar com IA</div><div style="font-size:12px;color:#888;margin-top:2px">Tire uma foto e a IA estima as calorias</div></div></div><label style="display:block;margin-top:12px;padding:12px;background:var(--orange);border-radius:var(--radius);text-align:center;font-weight:700;font-size:15px;cursor:pointer;color:#fff">📷 Tirar / Escolher Foto<input type="file" accept="image/*" capture="environment" id="bCamInput" style="display:none"/></label>`;
+    return `<div style="display:flex;align-items:center;gap:12px"><div style="font-size:32px">📸</div><div style="flex:1"><div style="font-weight:700;font-size:15px">Analisar com IA</div><div style="font-size:12px;color:#888;margin-top:2px">Tire uma foto e a IA estima as calorias</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><label style="padding:12px;background:var(--orange);border-radius:var(--radius);text-align:center;font-weight:700;font-size:14px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;gap:6px">📷 Câmera<input type="file" accept="image/*" capture="environment" id="bCamInput" style="display:none"/></label><label style="padding:12px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius);text-align:center;font-weight:700;font-size:14px;cursor:pointer;color:var(--orange);display:flex;align-items:center;justify-content:center;gap:6px">🖼️ Galeria<input type="file" accept="image/*" id="bGalInput" style="display:none"/></label></div>`;
   };
 
   const render=()=>{
@@ -665,7 +701,9 @@ function rFoodModal(){
   const bindCam=()=>{
     const camInput=d.querySelector("#bCamInput");
     if(!camInput)return;
-    camInput.onchange=async(e)=>{
+    const galInput=d.querySelector("#bGalInput");
+    if(galInput){galInput.onchange=camInput.onchange=processFile;}
+    async function processFile(e){
       const file=e.target.files?.[0];if(!file)return;
       S.aiLoading=true;
       const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();
@@ -707,27 +745,73 @@ function rFoodModal(){
 }
 // ─── ADD FOOD MANUAL ───
 function rAddFoodManualModal(){
-  const d=sheet("Inserir Manualmente","Adicione uma refeição personalizada",`
-    <div style="display:flex;flex-direction:column;gap:12px;padding-bottom:20px">
-      <div><label class="lbl">Nome da refeição</label><input class="inp" id="mfN" placeholder="Ex: Marmita do almoço" style="margin-top:6px"/></div>
-      <div class="g2" style="gap:10px">
-        <div><label class="lbl">Calorias (kcal)</label><input class="inp" id="mfC" type="number" placeholder="0" style="margin-top:6px"/></div>
+  const d=sheet("Adicionar Alimento","Contribua com o banco de dados",`
+    <div style="overflow-y:auto;flex:1;padding-bottom:20px">
+      <div class="sec-lbl" style="margin-bottom:8px">IDENTIFICAÇÃO</div>
+      <div class="g2" style="gap:10px;margin-bottom:12px">
+        <div style="grid-column:span 2"><label class="lbl">Nome do alimento *</label><input class="inp" id="mfN" placeholder="Ex: Iogurte Natural Integral" style="margin-top:6px"/></div>
+        <div><label class="lbl">Marca</label><input class="inp" id="mfBrand" placeholder="Ex: Nestlé" style="margin-top:6px"/></div>
+        <div><label class="lbl">Porção (g)</label><input class="inp" id="mfServing" type="number" placeholder="100" style="margin-top:6px"/></div>
+      </div>
+      <div class="sec-lbl" style="margin-bottom:8px">MACROS (por porção)</div>
+      <div class="g2" style="gap:10px;margin-bottom:12px">
+        <div><label class="lbl">Calorias (kcal) *</label><input class="inp" id="mfC" type="number" placeholder="0" style="margin-top:6px"/></div>
         <div><label class="lbl">Proteína (g)</label><input class="inp" id="mfP" type="number" placeholder="0" style="margin-top:6px"/></div>
-      </div>
-      <div class="g2" style="gap:10px">
         <div><label class="lbl">Carboidratos (g)</label><input class="inp" id="mfCb" type="number" placeholder="0" style="margin-top:6px"/></div>
-        <div><label class="lbl">Gordura (g)</label><input class="inp" id="mfF" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Gorduras (g)</label><input class="inp" id="mfF" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Gord. saturada (g)</label><input class="inp" id="mfFs" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Gord. trans (g)</label><input class="inp" id="mfFt" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Fibras (g)</label><input class="inp" id="mfFib" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Açúcares (g)</label><input class="inp" id="mfSug" type="number" placeholder="0" style="margin-top:6px"/></div>
       </div>
-      <button class="btn-primary" id="bSaveMF" style="margin-top:8px">Adicionar refeição</button>
+      <div class="sec-lbl" style="margin-bottom:8px">MICRONUTRIENTES</div>
+      <div class="g2" style="gap:10px;margin-bottom:12px">
+        <div><label class="lbl">Sódio (mg)</label><input class="inp" id="mfNa" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Potássio (mg)</label><input class="inp" id="mfK" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Cálcio (mg)</label><input class="inp" id="mfCa" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Ferro (mg)</label><input class="inp" id="mfFe" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Vitamina C (mg)</label><input class="inp" id="mfVc" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Vitamina D (mcg)</label><input class="inp" id="mfVd" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Colesterol (mg)</label><input class="inp" id="mfCol" type="number" placeholder="0" style="margin-top:6px"/></div>
+        <div><label class="lbl">Magnésio (mg)</label><input class="inp" id="mfMg" type="number" placeholder="0" style="margin-top:6px"/></div>
+      </div>
+      <div class="sec-lbl" style="margin-bottom:8px">CATEGORIA</div>
+      <select class="inp" id="mfCat" style="margin-bottom:16px;color:var(--text);background:var(--bg3)">
+        <option value="Proteínas">Proteínas</option><option value="Carboidratos">Carboidratos</option>
+        <option value="Frutas">Frutas</option><option value="Laticínios">Laticínios</option>
+        <option value="Gorduras">Gorduras</option><option value="Lanches">Lanches</option>
+        <option value="Bebidas">Bebidas</option><option value="Vegetais">Vegetais</option>
+        <option value="Refeições">Refeições</option><option value="Suplementos">Suplementos</option>
+        <option value="Outros">Outros</option>
+      </select>
+      <button class="btn-primary" id="bSaveMF">✓ Adicionar ao banco de dados</button>
     </div>
   `);
   d.querySelector("#bSaveMF")?.addEventListener("click",async()=>{
-    const n=d.querySelector("#mfN").value||"Refeição personalizada";
+    const n=d.querySelector("#mfN").value;
+    if(!n){alert("Nome é obrigatório!");return;}
+    const serving=parseFloat(d.querySelector("#mfServing").value)||100;
     const cal=parseFloat(d.querySelector("#mfC").value)||0;
     const p=parseFloat(d.querySelector("#mfP").value)||0;
     const c=parseFloat(d.querySelector("#mfCb").value)||0;
     const f=parseFloat(d.querySelector("#mfF").value)||0;
-    S.foods.push({n,cal,p,c,f});
+    const userName=S.profile?.name||S.user?.displayName||S.user?.email?.split("@")[0]||"Usuário";
+    const newFood={n,cal,p,c,f,
+      brand:d.querySelector("#mfBrand").value||"",serving,cat:d.querySelector("#mfCat").value||"Outros",
+      fatSat:parseFloat(d.querySelector("#mfFs").value)||0,fatTrans:parseFloat(d.querySelector("#mfFt").value)||0,
+      fiber:parseFloat(d.querySelector("#mfFib").value)||0,sugar:parseFloat(d.querySelector("#mfSug").value)||0,
+      sodium:parseFloat(d.querySelector("#mfNa").value)||0,potassium:parseFloat(d.querySelector("#mfK").value)||0,
+      calcium:parseFloat(d.querySelector("#mfCa").value)||0,iron:parseFloat(d.querySelector("#mfFe").value)||0,
+      vitaminC:parseFloat(d.querySelector("#mfVc").value)||0,vitaminD:parseFloat(d.querySelector("#mfVd").value)||0,
+      cholesterol:parseFloat(d.querySelector("#mfCol").value)||0,magnesium:parseFloat(d.querySelector("#mfMg").value)||0,
+      addedBy:userName,addedById:uid(),addedAt:new Date().toISOString().split("T")[0],official:false,
+    };
+    try{
+      const ref=await addDoc(collection(db,"communityFoods"),newFood);
+      if(!S.communityFoods)S.communityFoods=[];
+      S.communityFoods.push({...newFood,id:ref.id});
+    }catch(e){console.error(e);}
+    S.foods.push({n,cal,p,c,f,grams:serving});
     await saveFoods(S.foods);
     closeModal();
   });
@@ -819,33 +903,44 @@ function rExDetailModal(){
 }
 
 function muscleSVG(group,color="#FF6B00"){
-  const highlights={
-    peito:`<ellipse cx="50" cy="38" rx="17" ry="11" fill="${color}" opacity="0.85"/>`,
-    costas:`<path d="M30 26 L70 26 L72 56 L28 56Z" fill="${color}" opacity="0.7"/>`,
-    pernas:`<ellipse cx="38" cy="72" rx="9" ry="16" fill="${color}" opacity="0.85"/><ellipse cx="62" cy="72" rx="9" ry="16" fill="${color}" opacity="0.85"/>`,
-    ombros:`<ellipse cx="24" cy="32" rx="8" ry="8" fill="${color}" opacity="0.85"/><ellipse cx="76" cy="32" rx="8" ry="8" fill="${color}" opacity="0.85"/>`,
-    biceps:`<ellipse cx="21" cy="44" rx="5" ry="10" fill="${color}" opacity="0.85"/><ellipse cx="79" cy="44" rx="5" ry="10" fill="${color}" opacity="0.85"/>`,
-    triceps:`<ellipse cx="19" cy="44" rx="5" ry="10" fill="${color}" opacity="0.6"/><ellipse cx="81" cy="44" rx="5" ry="10" fill="${color}" opacity="0.6"/>`,
-    abdomen:`<ellipse cx="50" cy="50" rx="11" ry="12" fill="${color}" opacity="0.85"/>`,
-    gluteos:`<ellipse cx="50" cy="60" rx="15" ry="9" fill="${color}" opacity="0.85"/>`,
-    trapezio:`<ellipse cx="50" cy="26" rx="14" ry="8" fill="${color}" opacity="0.85"/>`,
-    antebraco:`<ellipse cx="19" cy="57" rx="4" ry="9" fill="${color}" opacity="0.85"/><ellipse cx="81" cy="57" rx="4" ry="9" fill="${color}" opacity="0.85"/>`,
+  const body=`
+    <ellipse cx="50" cy="8" rx="7.5" ry="8.5" fill="#444"/>
+    <rect x="46.5" y="15.5" width="7" height="5" fill="#3A3A3A"/>
+    <path d="M30 22 C35 18 44 17 50 17 C56 17 65 18 70 22 L68 27 C62 24 56 23 50 23 C44 23 38 24 32 27Z" fill="#333"/>
+    <path d="M32 27 C36 25 44 24 50 24 L50 24 C56 24 64 25 68 27 L70 43 L50 46 L30 43Z" fill="#2E2E2E"/>
+    <line x1="50" y1="24" x2="50" y2="46" stroke="#252525" stroke-width="1"/>
+    <path d="M35 46 L50 49 L65 46 L67 66 L50 68 L33 66Z" fill="#2A2A2A"/>
+    <line x1="36" y1="53" x2="64" y2="53" stroke="#1A1A1A" stroke-width="1"/>
+    <line x1="35" y1="60" x2="65" y2="60" stroke="#1A1A1A" stroke-width="1"/>
+    <line x1="50" y1="46" x2="50" y2="68" stroke="#1A1A1A" stroke-width="1"/>
+    <path d="M33 53 L30 66 L35 68Z" fill="#262626"/>
+    <path d="M67 53 L70 66 L65 68Z" fill="#262626"/>
+    <path d="M32 27 C26 25 18 28 15 35 C13 40 14 46 16 50 L22 47 C20 43 20 38 22 34 C24 30 28 28 32 27Z" fill="#2A2A2A"/>
+    <path d="M68 27 C74 25 82 28 85 35 C87 40 86 46 84 50 L78 47 C80 43 80 38 78 34 C76 30 72 28 68 27Z" fill="#2A2A2A"/>
+    <path d="M16 50 L22 47 L22 62 L16 64Z" fill="#272727"/>
+    <path d="M84 50 L78 47 L78 62 L84 64Z" fill="#272727"/>
+    <path d="M16 64 L22 62 L21 76 L15 77Z" fill="#242424"/>
+    <path d="M84 64 L78 62 L79 76 L85 77Z" fill="#242424"/>
+    <path d="M33 66 L67 66 L70 75 L30 75Z" fill="#2A2A2A"/>
+    <path d="M30 75 L48 75 L47 92 L31 91Z" fill="#272727"/>
+    <path d="M52 75 L70 75 L69 91 L53 92Z" fill="#272727"/>
+    <line x1="40" y1="75" x2="39" y2="92" stroke="#1A1A1A" stroke-width="0.7"/>
+    <line x1="60" y1="75" x2="61" y2="92" stroke="#1A1A1A" stroke-width="0.7"/>`;
+  const H={
+    peito:`<path d="M32 27 C36 25 44 24 49 24 L49 46 L30 43Z" fill="${color}" opacity="0.9"/><path d="M68 27 C64 25 56 24 51 24 L51 46 L70 43Z" fill="${color}" opacity="0.9"/>`,
+    costas:`<path d="M33 27 C36 25 44 24 49 24 L49 46 L31 43Z" fill="${color}" opacity="0.5"/><path d="M67 27 C64 25 56 24 51 24 L51 46 L69 43Z" fill="${color}" opacity="0.5"/><path d="M16 50 L22 47 L22 62 L16 64Z" fill="${color}" opacity="0.5"/><path d="M84 50 L78 47 L78 62 L84 64Z" fill="${color}" opacity="0.5"/>`,
+    pernas:`<path d="M30 75 L48 75 L47 92 L31 91Z" fill="${color}" opacity="0.9"/><path d="M52 75 L70 75 L69 91 L53 92Z" fill="${color}" opacity="0.9"/>`,
+    ombros:`<path d="M32 27 C26 25 18 28 15 35 C13 40 14 46 16 50 L22 47 C20 43 20 38 22 34 C24 30 28 28 32 27Z" fill="${color}" opacity="0.9"/><path d="M68 27 C74 25 82 28 85 35 C87 40 86 46 84 50 L78 47 C80 43 80 38 78 34 C76 30 72 28 68 27Z" fill="${color}" opacity="0.9"/>`,
+    biceps:`<path d="M16 50 L22 47 L22 62 L16 64Z" fill="${color}" opacity="0.95"/><path d="M84 50 L78 47 L78 62 L84 64Z" fill="${color}" opacity="0.95"/>`,
+    triceps:`<path d="M14 36 L18 34 L19 48 L15 50Z" fill="${color}" opacity="0.85"/><path d="M86 36 L82 34 L81 48 L85 50Z" fill="${color}" opacity="0.85"/>`,
+    abdomen:`<path d="M35 46 L50 49 L65 46 L67 66 L50 68 L33 66Z" fill="${color}" opacity="0.9"/>`,
+    gluteos:`<path d="M33 66 L67 66 L70 75 L30 75Z" fill="${color}" opacity="0.9"/>`,
+    trapezio:`<path d="M30 22 C35 18 44 17 50 17 C56 17 65 18 70 22 L68 27 C62 24 56 23 50 23 C44 23 38 24 32 27Z" fill="${color}" opacity="0.9"/>`,
+    antebraco:`<path d="M16 64 L22 62 L21 76 L15 77Z" fill="${color}" opacity="0.95"/><path d="M84 64 L78 62 L79 76 L85 77Z" fill="${color}" opacity="0.95"/>`,
   };
-  const h=highlights[group]||highlights.peito;
-  return `<svg viewBox="0 0 100 100" width="100%" style="max-height:140px">
-    <ellipse cx="50" cy="11" rx="9" ry="10" fill="#3A3A3A"/>
-    <rect x="46" y="20" width="8" height="5" fill="#3A3A3A"/>
-    <path d="M28 26 C28 23 72 23 72 26 L75 60 L25 60Z" fill="#2E2E2E"/>
-    <path d="M28 26 C22 28 15 35 14 45 C13 52 15 60 16 64 L22 63 C21 57 20 50 21 44 C22 38 26 32 28 26Z" fill="#2A2A2A"/>
-    <path d="M72 26 C78 28 85 35 86 45 C87 52 85 60 84 64 L78 63 C79 57 80 50 79 44 C78 38 74 32 72 26Z" fill="#2A2A2A"/>
-    <path d="M16 64 L22 63 L20 78 L14 79Z" fill="#252525"/>
-    <path d="M84 64 L78 63 L80 78 L86 79Z" fill="#252525"/>
-    <path d="M25 60 L75 60 L73 68 L27 68Z" fill="#2A2A2A"/>
-    <path d="M27 68 L48 68 L47 90 L29 90Z" fill="#2A2A2A"/>
-    <path d="M52 68 L73 68 L71 90 L53 90Z" fill="#2A2A2A"/>
-    ${h}
-  </svg>`;
+  return `<svg viewBox="0 0 100 100" width="100%" height="100%" style="max-height:160px">${body}${H[group]||H.peito}</svg>`;
 }
+
 
 // ═══════════════════════════════════════════
 // SESSION
@@ -913,6 +1008,8 @@ async function authOk(user){
       try{S.foods=await loadFoods();}catch(e){S.foods=[];}
       try{S.workouts=await loadWorkouts();}catch(e){S.workouts=[];}
       try{S.schedule=await loadSchedule();}catch(e){S.schedule={};}
+      // Load community foods from Firestore
+      try{const cSnap=await getDocs(collection(db,"communityFoods"));S.communityFoods=cSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){S.communityFoods=[];}
       S.phase="home";
     }else{S.phase="onboard";S.onboard={step:0,data:{sex:"",age:"",weight:"",height:"",activity:"",goal:"",trainDays:[],split:""}};}
   }catch(e){S.phase="onboard";}
