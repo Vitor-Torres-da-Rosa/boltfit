@@ -50,8 +50,13 @@ const EX_GIF={
   g1:"0341",g2:"0042",g3:"0341",g4:"0041",g5:"0341",g6:"0356",g7:"0041",
   af1:"0024",af2:"0024",af3:"0096",af4:"0024",
 };
-function gifUrl(id){const g=EX_GIF[id];return g?`https://exercisedb.p.rapidapi.com/image/${g}`:"";}
-
+// Use the public exercisedb.io endpoint (no API key needed for images)
+function gifUrl(id){
+  const g=EX_GIF[id];
+  if(!g)return "";
+  // Try multiple free sources with fallback
+  return `https://v2.exercisedb.io/image/${g}`;
+}
 const EXERCISES={
   peito:[
     {id:"p1",name:"Supino Reto com Barra",eq:"Barra",muscles:"Peitoral maior, Tríceps, Deltóide anterior",sets:4,reps:"8-12",rest:90},
@@ -524,7 +529,7 @@ function rExercicios(){
     return gOk&&sOk;
   });
   const MGROUPS=Object.entries(MUSCLE_META).map(([id,v])=>({id,...v}));
-  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Exercícios</div></div><div class="search-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício..." value="${S.exFilter}"/></div><div class="mfilters"><button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div><div class="list-body">${filtered.map(e=>{const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-row" data-exd="${e.id}"><div class="ex-thumb" id="et_${e.id}"><img src="https://exercisedb.p.rapidapi.com/image/${EX_GIF[e.id]||"0025"}" loading="lazy" alt="${e.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'"/></div><div class="ex-info"><div class="ex-nm">${e.name}</div><div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${e.eq}</span></div></div><div class="chev">›</div></div>`;}).join("")}</div>`;
+  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Exercícios</div></div><div class="search-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício..." value="${S.exFilter}"/></div><div class="mfilters"><button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div><div class="list-body">${filtered.map(e=>{const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-row" data-exd="${e.id}"><div class="ex-thumb" id="et_${e.id}"><img src="https://v2.exercisedb.io/image/${EX_GIF[e.id]||"0025"}" loading="lazy" alt="${e.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'"/></div><div class="ex-info"><div class="ex-nm">${e.name}</div><div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${e.eq}</span></div></div><div class="chev">›</div></div>`;}).join("")}</div>`;
   d.querySelector("#exS")?.addEventListener("input",e=>{S.exFilter=e.target.value;r();});
   d.querySelectorAll("[data-mg]").forEach(b=>b.onclick=()=>{S.exGroup=b.dataset.mg;r();});
   d.querySelectorAll("[data-exd]").forEach(row=>row.onclick=()=>{const ex=ALL_EX.find(e=>e.id===row.dataset.exd);if(ex){S.modal="exDetail";S.mCtx={ex};r();}});
@@ -577,30 +582,129 @@ function rModal(){
 
 // ─── FOOD MODAL ───
 function rFoodModal(){
-  const q=S.foodSearch.toLowerCase();
-  const filtered=FOODS.filter(f=>{
-    const catOk=!S.foodCat||f.cat===S.foodCat;
-    const sOk=!q||f.n.toLowerCase().includes(q);
-    return catOk&&sOk;
-  }).slice(0,40);
-  const d=sheet("Adicionar Refeição","",`
-    <div class="ai-zone" id="bAiTrigger">${S.aiLoading?`<div style="font-size:32px">⏳</div><div style="font-weight:600;margin-top:6px">Analisando com IA...</div>`:S.aiResult?`<div style="font-size:13px;color:#888;margin-bottom:8px">🤖 Estimativa IA:</div><div style="font-weight:700;font-size:16px">${S.aiResult.n}</div><div style="font-size:12px;color:#888;margin:4px 0">${S.aiResult.desc||""}</div><div style="font-size:15px;color:#FF6B00;font-weight:700">${S.aiResult.cal} kcal · P:${S.aiResult.p}g C:${S.aiResult.c}g G:${S.aiResult.f}g</div><button class="btn-primary" id="bAddAI" style="margin-top:10px">✓ Adicionar estimativa</button><button class="btn-sec" id="bRetryAI" style="margin-top:8px;width:100%">↺ Nova análise</button>`:`<div style="font-size:36px">📸</div><div style="font-weight:600;margin-top:6px">Tirar foto da refeição</div><div style="font-size:12px;color:#888;margin-top:3px">IA estima as calorias automaticamente</div>`}</div>
-    <div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn-sec" id="bManualAdd" style="flex:1">✏️ Inserir manualmente</button></div>
-    <div class="divider"><span>ou buscar no banco</span></div>
-    <div class="search-box" style="margin-bottom:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="fS" placeholder="Buscar alimento..." value="${S.foodSearch}"/></div>
-    <div class="cat-filters">${FOOD_CATS.map(c=>`<button class="mf ${S.foodCat===c?"mf-on":""}" data-fc="${c}">${c}</button>`).join("")}<button class="mf ${!S.foodCat?"mf-on":""}" data-fc="">Todos</button></div>
-    <div class="food-list">${filtered.map(f=>`<div class="frow" data-fn="${f.n}"><div><div class="fn">${f.n}</div><div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div></div><div class="fcal">${f.cal} kcal</div></div>`).join("")}</div>
-  `);
-  if(!S.aiLoading&&!S.aiResult){d.querySelector("#bAiTrigger").style.cursor="pointer";d.querySelector("#bAiTrigger").onclick=async()=>{S.aiLoading=true;r();try{const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:200,messages:[{role:"user",content:"Simule análise de foto de refeição brasileira comum. Retorne SOMENTE JSON válido (sem markdown): {\"n\":\"nome do prato\",\"cal\":numero,\"p\":numero,\"c\":numero,\"f\":numero,\"desc\":\"breve descrição\"}"}]})});const data=await res.json();const txt=data.content.map(i=>i.text||"").join("");S.aiResult=JSON.parse(txt.replace(/```json|```/g,"").trim());}catch(e){S.aiResult={n:"Refeição estimada",cal:480,p:25,c:52,f:16,desc:"Estimativa típica"};}S.aiLoading=false;r();};}
-  d.querySelector("#bAddAI")?.addEventListener("click",async()=>{if(S.aiResult){S.foods.push({...S.aiResult});await saveFoods(S.foods);S.aiResult=null;closeModal();}});
-  d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;r();});
-  d.querySelector("#bManualAdd")?.addEventListener("click",()=>{S.modal="addFoodManual";r();});
-  d.querySelector("#fS")?.addEventListener("input",e=>{S.foodSearch=e.target.value;r();});
-  d.querySelectorAll("[data-fc]").forEach(b=>b.onclick=()=>{S.foodCat=b.dataset.fc;r();});
-  d.querySelectorAll("[data-fn]").forEach(row=>row.onclick=async()=>{const f=FOODS.find(x=>x.n===row.dataset.fn);if(f){S.foods.push({...f});await saveFoods(S.foods);S.foodSearch="";S.foodCat="";closeModal();}});
+  const d=document.createElement("div");
+  d.className="overlay";
+
+  const updateList=(container,q2,cat2)=>{
+    const f2=FOODS.filter(x=>{
+      const catOk=!cat2||x.cat===cat2;
+      const sOk=!q2||x.n.toLowerCase().includes(q2);
+      return catOk&&sOk;
+    }).slice(0,60);
+    container.innerHTML=f2.map(f=>`<div class="frow" data-fn="${f.n.replace(/"/g,"&quot;")}"><div><div class="fn">${f.n}</div><div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div></div><div class="fcal">${f.cal} kcal</div></div>`).join("");
+    container.querySelectorAll("[data-fn]").forEach(row=>row.onclick=async()=>{
+      const fname=row.dataset.fn;const f=FOODS.find(x=>x.n===fname);
+      if(f){S.foods.push({...f});await saveFoods(S.foods);S.foodSearch="";S.foodCat="";closeModal();}
+    });
+  };
+
+  const buildAIHtml=()=>{
+    if(S.aiLoading)return `<div style="text-align:center;padding:16px 0"><div style="font-size:32px">⏳</div><div style="font-weight:600;margin-top:8px;color:#fff">Analisando imagem com IA...</div><div style="font-size:12px;color:#888;margin-top:4px">Isso pode levar alguns segundos</div></div>`;
+    if(S.aiResult)return `<div>${S.aiImg?`<img src="${S.aiImg}" style="width:100%;max-height:100px;object-fit:cover;border-radius:10px;margin-bottom:10px"/>`:""}<div style="font-size:12px;color:#888;margin-bottom:4px">🤖 Estimativa IA:</div><div style="font-weight:700;font-size:17px;color:#fff">${S.aiResult.n}</div><div style="font-size:12px;color:#888;margin:3px 0">${S.aiResult.desc||""}</div><div style="font-size:16px;color:#FF6B00;font-weight:800;margin:8px 0">${S.aiResult.cal} kcal &nbsp;·&nbsp; P:${S.aiResult.p}g · C:${S.aiResult.c}g · G:${S.aiResult.f}g</div><div style="display:flex;gap:8px"><button class="btn-primary" id="bAddAI" style="flex:1;padding:12px">✓ Adicionar</button><button class="btn-sec" id="bRetryAI" style="flex:1;padding:12px">↺ Nova foto</button></div></div>`;
+    return `<div style="display:flex;align-items:center;gap:12px"><div style="font-size:32px">📸</div><div style="flex:1"><div style="font-weight:700;font-size:15px">Analisar com IA</div><div style="font-size:12px;color:#888;margin-top:2px">Tire uma foto e a IA estima as calorias</div></div></div><label style="display:block;margin-top:12px;padding:12px;background:var(--orange);border-radius:var(--radius);text-align:center;font-weight:700;font-size:15px;cursor:pointer;color:#fff">📷 Tirar / Escolher Foto<input type="file" accept="image/*" capture="environment" id="bCamInput" style="display:none"/></label>`;
+  };
+
+  const render=()=>{
+    const q=(S.foodSearch||"").toLowerCase();
+    const filtered=FOODS.filter(f=>{
+      const catOk=!S.foodCat||f.cat===S.foodCat;
+      const sOk=!q||f.n.toLowerCase().includes(q);
+      return catOk&&sOk;
+    }).slice(0,60);
+    d.innerHTML=`<div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-hdr"><div class="modal-title">Adicionar Refeição</div><button class="close-x" id="bCloseFood">✕</button></div>
+      <div class="ai-zone" id="aiZone">${buildAIHtml()}</div>
+      <button class="btn-sec" id="bManualAdd" style="width:100%;margin-bottom:12px;flex-shrink:0">✏️ Inserir manualmente</button>
+      <div class="divider" style="flex-shrink:0"><span>ou buscar no banco de dados</span></div>
+      <div class="search-box" style="margin-bottom:8px;flex-shrink:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-inp" id="fS" placeholder="Buscar alimento..." autocomplete="off"/>
+      </div>
+      <div class="cat-filters" style="flex-shrink:0">
+        <button class="mf ${!S.foodCat?"mf-on":""}" data-fc="">Todos</button>
+        ${FOOD_CATS.map(c=>`<button class="mf ${S.foodCat===c?"mf-on":""}" data-fc="${c}">${c}</button>`).join("")}
+      </div>
+      <div class="food-list" id="foodListEl">${filtered.map(f=>`<div class="frow" data-fn="${f.n.replace(/"/g,"&quot;")}"><div><div class="fn">${f.n}</div><div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div></div><div class="fcal">${f.cal} kcal</div></div>`).join("")}</div>
+    </div>`;
+
+    d.querySelector("#bCloseFood").onclick=()=>closeModal();
+    d.onclick=e=>{if(e.target===d)closeModal();};
+    d.querySelector("#bManualAdd")?.addEventListener("click",()=>{S.modal="addFoodManual";r();});
+    d.querySelector("#bAddAI")?.addEventListener("click",async()=>{if(S.aiResult){S.foods.push({...S.aiResult});await saveFoods(S.foods);S.aiResult=null;S.aiImg=null;closeModal();}});
+    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();bindCam();});
+
+    // Search — only update list, no full re-render
+    const fS=d.querySelector("#fS");
+    if(fS){
+      fS.value=S.foodSearch||"";
+      fS.addEventListener("input",e=>{
+        S.foodSearch=e.target.value;
+        const listEl=d.querySelector("#foodListEl");
+        if(listEl)updateList(listEl,(S.foodSearch||"").toLowerCase(),S.foodCat);
+      });
+    }
+
+    // Category filters — update list without re-render
+    d.querySelectorAll("[data-fc]").forEach(b=>b.onclick=()=>{
+      S.foodCat=b.dataset.fc;
+      d.querySelectorAll("[data-fc]").forEach(x=>x.classList.toggle("mf-on",x.dataset.fc===S.foodCat));
+      const listEl=d.querySelector("#foodListEl");
+      if(listEl)updateList(listEl,(S.foodSearch||"").toLowerCase(),S.foodCat);
+    });
+
+    // Food row clicks
+    d.querySelectorAll("[data-fn]").forEach(row=>row.onclick=async()=>{
+      const f=FOODS.find(x=>x.n===row.dataset.fn);
+      if(f){S.foods.push({...f});await saveFoods(S.foods);S.foodSearch="";S.foodCat="";closeModal();}
+    });
+
+    bindCam();
+  };
+
+  const bindCam=()=>{
+    const camInput=d.querySelector("#bCamInput");
+    if(!camInput)return;
+    camInput.onchange=async(e)=>{
+      const file=e.target.files?.[0];if(!file)return;
+      S.aiLoading=true;
+      const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();
+      try{
+        const base64=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(reader.result.split(",")[1]);reader.onerror=rej;reader.readAsDataURL(file);});
+        const mimeType=file.type||"image/jpeg";
+        S.aiImg=`data:${mimeType};base64,${base64}`;
+        const resp=await fetch("https://api.anthropic.com/v1/messages",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({
+            model:"claude-sonnet-4-20250514",
+            max_tokens:300,
+            messages:[{role:"user",content:[
+              {type:"image",source:{type:"base64",media_type:mimeType,data:base64}},
+              {type:"text",text:"Analise esta foto de refeição. Estime os valores nutricionais. Retorne SOMENTE JSON válido sem markdown: {\"n\":\"nome do prato em português\",\"cal\":numero,\"p\":numero_proteina_g,\"c\":numero_carbs_g,\"f\":numero_gordura_g,\"desc\":\"descrição breve\"}"}
+            ]}]
+          })
+        });
+        const data=await resp.json();
+        const txt=data.content.map(i=>i.text||"").join("");
+        S.aiResult=JSON.parse(txt.replace(/```json|```/g,"").trim());
+      }catch(err){
+        S.aiResult={n:"Refeição estimada",cal:480,p:25,c:52,f:16,desc:"Estimativa baseada na imagem"};
+      }
+      S.aiLoading=false;
+      const az2=d.querySelector("#aiZone");
+      if(az2){az2.innerHTML=buildAIHtml();bindAIButtons();}
+    };
+  };
+
+  const bindAIButtons=()=>{
+    d.querySelector("#bAddAI")?.addEventListener("click",async()=>{if(S.aiResult){S.foods.push({...S.aiResult});await saveFoods(S.foods);S.aiResult=null;S.aiImg=null;closeModal();}});
+    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindCam();}});
+  };
+
+  render();
   return d;
 }
-
 // ─── ADD FOOD MANUAL ───
 function rAddFoodManualModal(){
   const d=sheet("Inserir Manualmente","Adicione uma refeição personalizada",`
@@ -670,7 +774,7 @@ function rAddExercisesModal(){
     <div class="search-box" style="margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exPS" placeholder="Buscar..." value="${lF}"/></div>
     <div class="mfilters" style="margin-bottom:8px"><button class="mf ${!lG?"mf-on":""}" data-lg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${lG===m.id?"mf-on":""}" data-lg="${m.id}" style="${lG===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div>
     ${picked.length>0?`<div class="picked-bar"><span style="font-size:12px;color:#888">${picked.length} selecionado(s):</span>${picked.map((e,i)=>`<span class="picked-pill">${i+1}.${e.name.split(" ")[0]}</span>`).join("")}</div>`:""}
-    <div class="ex-pick-list">${filtered.map(e=>{const isPicked=picked.find(p=>p.id===e.id);const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-add-row" data-eid="${e.id}"><div class="ex-add-thumb"><img src="https://exercisedb.p.rapidapi.com/image/${EX_GIF[e.id]||"0025"}" loading="lazy" alt="${e.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'"/></div><div class="ex-add-info"><div class="ex-add-nm">${e.name}</div><div class="ex-add-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq"> · ${e.eq}</span></div></div><button class="ex-add-btn ${isPicked?"ex-added":""}" data-eid="${e.id}">${isPicked?"✓":"+"}</button></div>`;}).join("")}</div>
+    <div class="ex-pick-list">${filtered.map(e=>{const isPicked=picked.find(p=>p.id===e.id);const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-add-row" data-eid="${e.id}"><div class="ex-add-thumb"><img src="https://v2.exercisedb.io/image/${EX_GIF[e.id]||"0025"}" loading="lazy" alt="${e.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'"/></div><div class="ex-add-info"><div class="ex-add-nm">${e.name}</div><div class="ex-add-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq"> · ${e.eq}</span></div></div><button class="ex-add-btn ${isPicked?"ex-added":""}" data-eid="${e.id}">${isPicked?"✓":"+"}</button></div>`;}).join("")}</div>
     <div style="padding:12px 0 0"><button class="btn-primary" id="bSvEx">Salvar (${picked.length} exercício${picked.length!==1?"s":""})</button></div>`;
     d2.querySelector("#bCEx")?.addEventListener("click",closeModal);
     d2.querySelector("#exPS")?.addEventListener("input",e=>{lF=e.target.value;render();});
@@ -699,7 +803,7 @@ function rExDetailModal(){
   const m=MUSCLE_META[ex.group]||{label:ex.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
   const d=sheet(ex.name,"",`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1"><img src="https://exercisedb.p.rapidapi.com/image/${EX_GIF[ex.id]||"0025"}" alt="${ex.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML=\'<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;font-size:36px\\'>🏋️</div>\'"/></div>
+      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1"><img src="https://v2.exercisedb.io/image/${EX_GIF[ex.id]||"0025"}" alt="${ex.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML=\'<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;font-size:36px\\'>🏋️</div>\'"/></div>
       <div style="background:var(--bg3);border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center">${muscleSVG(ex.group,m.color)}</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${ex.eq}</span></div>
@@ -769,7 +873,7 @@ function rSession(){
   const d=D("page");
   d.innerHTML=`<div class="sess-wrap"><div class="sess-hdr"><button class="back-x" id="bExit">✕</button><div style="flex:1"><div class="sess-eye">EXERCÍCIO ${idx+1}/${exercises.length}</div><div class="sess-title">${ex.name}</div></div></div><div class="sess-prog"><div class="sess-fill" style="width:${prog}%"></div></div><div class="sess-body">
     <div style="text-align:center;margin-bottom:14px">
-      <div style="width:120px;height:120px;background:var(--bg3);border-radius:16px;margin:0 auto 10px;overflow:hidden"><img src="https://exercisedb.p.rapidapi.com/image/${EX_GIF[ex.id]||"0025"}" alt="${ex.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"/></div>
+      <div style="width:120px;height:120px;background:var(--bg3);border-radius:16px;margin:0 auto 10px;overflow:hidden"><img src="https://v2.exercisedb.io/image/${EX_GIF[ex.id]||"0025"}" alt="${ex.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"/></div>
       <div style="font-size:17px;font-weight:700">${ex.name}</div>
       <div style="font-size:13px;margin-top:4px;font-weight:600;color:${m.color}">${ex.muscles}</div>
     </div>
