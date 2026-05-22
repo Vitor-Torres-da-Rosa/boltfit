@@ -291,15 +291,17 @@ async function loadSchedule(){const s=await getDoc(doc(db,'users',uid(),'data','
 // ── RENDER ──
 function r(){
   const root=document.getElementById('app');
+  const modalRoot=document.getElementById('modalRoot');
   root.innerHTML='';
+  if(modalRoot)modalRoot.innerHTML='';
   if(S.phase==='splash')root.appendChild(rSplash());
   else if(S.phase==='login')root.appendChild(rLogin());
   else if(S.phase==='onboard')root.appendChild(rOnboard());
   else{
     if(S.session){root.appendChild(rSession());return;}
     root.appendChild(rHome());
-    const overlays=['food','newWorkout','addExercises','assignWorkout'];
-    if(overlays.includes(S.modal))root.appendChild(rModal());
+    const overlays=['food','newWorkout','addExercises','assignWorkout','exDetail'];
+    if(overlays.includes(S.modal)&&modalRoot)modalRoot.appendChild(rModal());
   }
 }
 
@@ -788,11 +790,21 @@ function rExDetailModal(){
   return d;
 }
 
+function closeModal(){
+  const sheet=document.querySelector('.modal-sheet');
+  const overlay=document.querySelector('.overlay');
+  if(sheet&&overlay){
+    sheet.classList.add('closing');
+    overlay.classList.add('closing');
+    setTimeout(()=>{S.modal=null;S.modalCtx=null;r();},280);
+  }else{S.modal=null;S.modalCtx=null;r();}
+}
+
 function modal(title,content){
   const d=D('overlay');
   d.innerHTML=`<div class="modal-sheet"><div class="modal-handle"></div><div class="modal-hdr"><div class="modal-title">${title}</div><button class="close-x" id="bClose">✕</button></div>${content}</div>`;
-  d.querySelector('#bClose').onclick=()=>{S.modal=null;S.modalCtx=null;r();};
-  d.onclick=e=>{if(e.target===d){S.modal=null;S.modalCtx=null;r();}};
+  d.querySelector('#bClose').onclick=()=>closeModal();
+  d.onclick=e=>{if(e.target===d)closeModal();};
   return d;
 }
 
@@ -816,9 +828,9 @@ function rFoodModal(){
     catch(e){S.aiResult={name:'Refeição estimada',cal:480,protein:25,carb:52,fat:16,desc:'Estimativa baseada em refeição típica'};}
     S.aiLoading=false;r();
   };
-  d.querySelector('#bAddAi')?.addEventListener('click',async()=>{S.foods.push({...S.aiResult});await saveFoods(S.foods);S.modal=null;S.aiResult=null;r();});
+  d.querySelector('#bAddAi')?.addEventListener('click',async()=>{S.foods.push({...S.aiResult});await saveFoods(S.foods);S.aiResult=null;closeModal();});
   const fs=d.querySelector('#fSearch');if(fs)fs.oninput=e=>{S.foodSearch=e.target.value;r();};
-  d.querySelectorAll('[data-fn]').forEach(row=>row.onclick=async()=>{const f=FOODS_DB.find(x=>x.name===row.dataset.fn);if(f){S.foods.push({...f});await saveFoods(S.foods);S.modal=null;S.foodSearch='';r();}});
+  d.querySelectorAll('[data-fn]').forEach(row=>row.onclick=async()=>{const f=FOODS_DB.find(x=>x.name===row.dataset.fn);if(f){S.foods.push({...f});await saveFoods(S.foods);S.foodSearch='';closeModal();}});
   return d;
 }
 
@@ -901,8 +913,8 @@ function rAddExercisesModal(){
       </div>
       <div style="padding:12px 0 0"><button class="btn-primary" id="bSaveEx" style="${picked.length===0?'opacity:0.5':''}">Salvar (${picked.length} exercício${picked.length!==1?'s':''})</button></div>
     </div>`;
-    d.querySelector('#bClose2').onclick=()=>{S.modal=null;S.modalCtx=null;r();};
-    d.onclick=e=>{if(e.target===d){S.modal=null;S.modalCtx=null;r();}};
+    d.querySelector('#bClose2').onclick=()=>closeModal();
+    d.onclick=e=>{if(e.target===d)closeModal();};
     const ps=d.querySelector('#exPSearch');
     if(ps){ps.oninput=e=>{localFilter=e.target.value;render();};setTimeout(()=>ps.focus(),100);}
     d.querySelectorAll('[data-lg]').forEach(b=>b.onclick=()=>{localGroup=b.dataset.lg;render();});
@@ -1251,8 +1263,27 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .ex-hero-muscle-map{background:var(--bg3);border-radius:14px;display:flex;align-items:center;justify-content:center;padding:8px;}
 
 /* OVERLAY / MODAL */
-.overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:100;}
-.modal-sheet{position:fixed;top:0;left:0;width:100vw;background:var(--bg2);border-radius:0;border-top:none;padding:16px 20px;padding-bottom:calc(24px + var(--safe-bot));height:100vh;height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;z-index:101;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes slideDown{from{transform:translateY(0)}to{transform:translateY(100%)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+.overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.6);z-index:100;animation:fadeIn 0.3s ease forwards;}
+.overlay.closing{animation:fadeOut 0.3s ease forwards;}
+.modal-sheet{
+  position:fixed;bottom:0;left:0;width:100vw;
+  background:var(--bg2);
+  border-radius:20px 20px 0 0;
+  border-top:1px solid var(--border);
+  padding:16px 20px;
+  padding-bottom:calc(24px + var(--safe-bot));
+  height:95vh;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:flex;flex-direction:column;
+  z-index:101;
+  animation:slideUp 0.35s cubic-bezier(0.32,0.72,0,1) forwards;
+  box-shadow:0 -8px 40px rgba(0,0,0,0.5);
+}
+.modal-sheet.closing{animation:slideDown 0.3s cubic-bezier(0.32,0.72,0,1) forwards;}
 .modal-tall{height:100vh;height:100dvh;border-radius:0;}
 .modal-handle{width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 14px;}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
@@ -1311,5 +1342,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .done-sub{font-size:14px;color:var(--text2);}
 </style>
 </head>
-<body><div id="app"></div></body>
+<body>
+<div id="app"></div>
+<div id="modalRoot"></div>
+</body>
 </html>
