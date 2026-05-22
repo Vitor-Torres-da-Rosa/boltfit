@@ -54,12 +54,6 @@ const EX_GIF={
 };
 // Exercise GIFs — using ExerciseDB public image CDN
 // These IDs are confirmed working on the free public endpoint
-function gifUrl(id){
-  const g=EX_GIF[id];
-  if(!g)return "";
-  return `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${encodeExerciseName(id)}/images/0.jpg`;
-}
-// Map exercise IDs to their directory names in the free exercise DB
 const EX_DIR={
   p1:"Barbell_Bench_Press_-_Medium_Grip",p2:"Dumbbell_Incline_Bench_Press",
   p3:"Barbell_Decline_Bench_Press",p4:"Cable_Crossover",p5:"Push-Up",
