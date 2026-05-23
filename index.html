@@ -85,7 +85,7 @@ function encodeExerciseName(id){return EX_DIR[id]||"Barbell_Bench_Press_-_Medium
 function gifUrl(id){
   const name=EX_DIR[id];
   if(!name)return "";
-  return `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${name}/images/0.jpg`;
+  return `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${name}/0.jpg`;
 }
 const EXERCISES={
   peito:[
@@ -331,10 +331,9 @@ let S={
   modal:null,mCtx:null,
   session:null,
   exFilter:"",exGroup:"",
-  foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,aiRawResult:null,aiWeightStep:false,aiPlateWeight:0,aiError:null,aiImg:null,mealCatNames:{},geminiKey:"",foodModalMode:"add",
+  foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,aiRawResult:null,aiWeightStep:false,aiPlateWeight:0,aiError:null,aiImg:null,mealCatNames:{},foodModalMode:"add",
   darkMode:true,
 };
-try{S.geminiKey=localStorage.getItem("geminiKey")||"";}catch(e){}
 let restTimer=null;
 
 // ═══════════════════════════════════════════
@@ -431,10 +430,16 @@ function rOnboard(){
   d.querySelector("#bBk")?.addEventListener("click",()=>{S.onboard.step--;r();});
   d.querySelector("#bNx").addEventListener("click",async()=>{
     collectOb(d,step);
+    // Username obrigatório no passo 1
+    if(step===0&&(!S.onboard.data.username||!S.onboard.data.username.trim())){
+      alert("Por favor, escolha um nome de usuário para continuar.");
+      return;
+    }
     if(step===total-1){
       const b=d.querySelector("#bNx");b.textContent="Salvando...";b.disabled=true;
       computeTMB();
-      S.profile={...S.onboard.data,tmb:S.tmb,targetCal:S.targetCal,name:S.onboard.data.name||S.user.displayName||S.user.email.split("@")[0],email:S.user.email,darkMode:typeof S.darkMode!=="undefined"?S.darkMode:true,createdAt:S.onboard.data.createdAt||new Date().toISOString()};
+      const uname=S.onboard.data.username||S.user.displayName||S.user.email.split("@")[0];
+      S.profile={...S.onboard.data,username:uname,tmb:S.tmb,targetCal:S.targetCal,name:uname,email:S.user.email,darkMode:typeof S.darkMode!=="undefined"?S.darkMode:true,createdAt:S.onboard.data.createdAt||new Date().toISOString()};
       try{await saveProfile(S.profile);}catch(e){}
       S.phase="home";r();
     }else{S.onboard.step++;r();}
@@ -444,13 +449,13 @@ function rOnboard(){
 function obStep(step){
   const d=S.onboard.data;
   const steps=[
-    `<div class="ob-num">PASSO 1 DE 7</div><h2 class="ob-title">Bem-vindo!</h2><p class="ob-sub">Vamos configurar seu perfil para personalizar seus treinos e nutrição.</p><div style="text-align:center;padding:40px 0"><div style="width:80px;height:80px;background:#FF6B00;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><svg width="40" height="40" viewBox="0 0 80 80"><polygon points="46,4 18,44 38,44 34,76 62,36 42,36" fill="white"/></svg></div><p style="color:#888">Olá, <strong style="color:#fff">${S.user?.displayName||S.user?.email?.split("@")[0]||""}!</strong></p></div>`,
+    `<div class="ob-num">PASSO 1 DE 7</div><h2 class="ob-title">Bem-vindo!</h2><p class="ob-sub">Vamos configurar seu perfil para personalizar seus treinos e nutrição.</p><div style="text-align:center;padding:24px 0 20px"><div style="width:80px;height:80px;background:#FF6B00;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><svg width="40" height="40" viewBox="0 0 80 80"><polygon points="46,4 18,44 38,44 34,76 62,36 42,36" fill="white"/></svg></div></div><label class="lbl">Nome de usuário <span style="color:var(--orange)">*</span></label><input class="inp" id="fuser" placeholder="ex: vitor_torres" value="${d.username||""}" style="margin-top:6px" maxlength="24"/><p style="font-size:12px;color:#888;margin-top:8px">Esse nome aparece nos alimentos que você criar no banco de dados.</p>`,
     `<div class="ob-num">PASSO 2 DE 7</div><h2 class="ob-title">Sobre você</h2><p class="ob-sub">Para calcular seu metabolismo basal.</p><div class="g2"><div class="opt-card ${d.sex==="M"?"sel":""}" data-sex="M"><div class="opt-e">♂️</div><div>Masculino</div></div><div class="opt-card ${d.sex==="F"?"sel":""}" data-sex="F"><div class="opt-e">♀️</div><div>Feminino</div></div></div><label class="lbl" style="margin-top:20px">Idade</label><input class="inp" id="fa" type="number" placeholder="Ex: 25" value="${d.age}"/>`,
     `<div class="ob-num">PASSO 3 DE 7</div><h2 class="ob-title">Medidas</h2><p class="ob-sub">Seu peso e altura atual.</p><div class="g2" style="gap:14px"><div><label class="lbl">Peso (kg)</label><input class="inp" id="fw" type="number" placeholder="75" value="${d.weight}" style="margin-top:6px"/></div><div><label class="lbl">Altura (cm)</label><input class="inp" id="fh" type="number" placeholder="175" value="${d.height}" style="margin-top:6px"/></div></div>`,
     `<div class="ob-num">PASSO 4 DE 7</div><h2 class="ob-title">Nível de atividade</h2><p class="ob-sub">Como é seu dia a dia?</p><div class="opt-list">${[{v:"sed",e:"🪑",n:"Sedentário",d:"Trabalho de escritório"},{v:"light",e:"🚶",n:"Levemente ativo",d:"1-3 dias/semana"},{v:"mod",e:"🏃",n:"Moderado",d:"3-5 dias/semana"},{v:"active",e:"⚡",n:"Muito ativo",d:"6-7 dias intenso"},{v:"very",e:"🔥",n:"Extremamente ativo",d:"Atleta profissional"}].map(a=>`<div class="opt-row ${d.activity===a.v?"sel":""}" data-act="${a.v}"><span style="font-size:22px">${a.e}</span><div><div class="opt-rn">${a.n}</div><div class="opt-rd">${a.d}</div></div></div>`).join("")}</div>`,
-    `<div class="ob-num">PASSO 5 DE 7</div><h2 class="ob-title">Seu objetivo</h2><p class="ob-sub">Vamos ajustar suas calorias.</p><div class="g3"><div class="opt-card ${d.goal==="lose"?"sel":""}" data-goal="lose" style="padding:18px 8px"><div style="font-size:44px">🫃</div><div style="font-weight:700;font-size:12px;margin-top:6px">EMAGRECER</div><div style="font-size:11px;color:#888">Déficit ~400 kcal</div></div><div class="opt-card ${d.goal==="maintain"?"sel":""}" data-goal="maintain" style="padding:18px 8px"><div style="font-size:44px">❤️</div><div style="font-weight:700;font-size:12px;margin-top:6px">SAÚDE</div><div style="font-size:11px;color:#888">Manutenção</div></div><div class="opt-card ${d.goal==="gain"?"sel":""}" data-goal="gain" style="padding:18px 8px"><div style="font-size:44px">💪</div><div style="font-weight:700;font-size:12px;margin-top:6px">GANHAR MASSA</div><div style="font-size:11px;color:#888">Superávit ~350 kcal</div></div></div>`,
+    `<div class="ob-num">PASSO 5 DE 7</div><h2 class="ob-title">Seu objetivo</h2><p class="ob-sub">Vamos ajustar suas calorias.</p><div class="g3"><div class="opt-card ${d.goal==="lose"?"sel":""}" data-goal="lose" style="padding:18px 8px"><div style="font-size:44px">🏃‍♂️</div><div style="font-weight:700;font-size:12px;margin-top:6px">EMAGRECER</div><div style="font-size:11px;color:#888">Déficit ~400 kcal</div></div><div class="opt-card ${d.goal==="maintain"?"sel":""}" data-goal="maintain" style="padding:18px 8px"><div style="font-size:44px">⚖️</div><div style="font-weight:700;font-size:12px;margin-top:6px">SAÚDE</div><div style="font-size:11px;color:#888">Manutenção</div></div><div class="opt-card ${d.goal==="gain"?"sel":""}" data-goal="gain" style="padding:18px 8px"><div style="font-size:44px">💪</div><div style="font-weight:700;font-size:12px;margin-top:6px">GANHAR MASSA</div><div style="font-size:11px;color:#888">Superávit ~350 kcal</div></div></div>`,
     `<div class="ob-num">PASSO 6 DE 7</div><h2 class="ob-title">Dias de treino</h2><p class="ob-sub">Quais dias você vai à academia?</p><div class="week-sel">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<button class="wpill ${d.trainDays.includes(i)?"sel":""}" data-day="${i}">${w}</button>`).join("")}</div><p style="color:#888;font-size:13px;margin-top:12px" id="dayCount">${d.trainDays.length} dia(s) selecionado(s)</p>`,
-    `<div class="ob-num">PASSO 7 DE 7</div><h2 class="ob-title">Divisão de treino</h2><p class="ob-sub">Como divide seus treinos?</p><div class="g2">${["AB","ABC","ABCD","ABCDE","Full Body","Upper/Lower"].map(sp=>`<div class="opt-card ${d.split===sp?"sel":""}" data-split="${sp}" style="padding:14px"><div style="font-size:18px;font-weight:800">${sp}</div></div>`).join("")}</div>`,
+    `<div class="ob-num">PASSO 7 DE 7</div><h2 class="ob-title">Divisão de treino</h2><p class="ob-sub">Como divide seus treinos?</p><div class="g2">${["AB","ABC","ABCD","ABCDE","ABCDEF","Full Body"].map(sp=>`<div class="opt-card ${d.split===sp?"sel":""}" data-split="${sp}" style="padding:14px"><div style="font-size:18px;font-weight:800">${sp}</div></div>`).join("")}</div>`,
   ];
   return steps[step]||"";
 }
@@ -468,6 +473,7 @@ function bindOb(d,step){
   });
 }
 function collectOb(d,step){
+  if(step===0&&d.querySelector("#fuser")?.value)S.onboard.data.username=d.querySelector("#fuser").value.trim();
   if(step===1&&d.querySelector("#fa")?.value)S.onboard.data.age=d.querySelector("#fa").value;
   if(step===2){if(d.querySelector("#fw")?.value)S.onboard.data.weight=d.querySelector("#fw").value;if(d.querySelector("#fh")?.value)S.onboard.data.height=d.querySelector("#fh").value;}
 }
@@ -478,13 +484,13 @@ function collectOb(d,step){
 function rHome(){
   const d=D("page");
   const TABS=[
-    {id:"agenda",label:"Agenda",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`},
-    {id:"treinos",label:"Treinos",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4"/></svg>`},
+    {id:"agenda",label:"Treinar",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`},
     {id:"calorias",label:"Calorias",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>`},
     {id:"exercicios",label:"Exercícios",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>`},
     {id:"perfil",label:"Perfil",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`},
   ];
-  const tabFns={agenda:rAgenda,treinos:rTreinos,calorias:rCalorias,exercicios:rExercicios,perfil:rPerfil};
+  if(S.tab==="treinos")S.tab="agenda";
+  const tabFns={agenda:rAgenda,treinos:rAgenda,calorias:rCalorias,exercicios:rExercicios,perfil:rPerfil};
   d.innerHTML=`<div class="home-body" id="hBody"></div><nav class="bottom-nav">${TABS.map(t=>`<div class="nav-item ${S.tab===t.id?"active":""}" data-tab="${t.id}"><div class="nav-icon">${t.icon}</div><div class="nav-label">${t.label}</div></div>`).join("")}</nav>`;
   try{const tabEl=(tabFns[S.tab]||rAgenda)();d.querySelector("#hBody").appendChild(tabEl);}catch(e){console.error("Tab error:",e);const errDiv=D("tab-page");errDiv.innerHTML=`<div style="padding:40px;text-align:center;color:#FF6B6B"><p>Erro ao carregar aba</p><p style="font-size:12px;margin-top:8px">${e.message}</p></div>`;d.querySelector("#hBody").appendChild(errDiv);}
   d.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;r();});
@@ -520,10 +526,13 @@ function rAgenda(){
       const isTrain=trainDays.includes(i);const isTd=i===today();const sched=S.schedule[i];
       return `<div class="day-card ${isTd?"today":""}" id="dayc${i}"><div class="day-top"><div class="day-nm">${wd}${isTd?"<span class='tdot'></span>":""}</div><span class="day-badge ${isTrain?"badge-t":"badge-r"}">${isTrain?"Treino":"Descanso"}</span></div>${isTrain?sched?`<div class="assigned-row" data-open="${i}"><div class="aw-lt">${sched.letter||"A"}</div><div class="aw-nm">${sched.name}</div><button class="aw-btn" data-ed="${i}">✏️</button><button class="aw-btn aw-play" data-play="${sched.id}">▶</button></div>`:`<button class="assign-btn" data-ass="${i}">⊕ Atribuir treino</button>`:""}</div>`;
     }).join("")}
+    <button class="btn-sec" id="bManageWorkouts" style="margin-top:6px;width:100%">🏋️ Meus treinos</button>
+    <div class="info-sec" style="margin-top:16px"><div class="sec-lbl">TREINO</div><div class="kv"><span class="kk">Atividade</span><span class="kv2">${({sed:"Sedentário",light:"Levemente ativo",mod:"Moderadamente ativo",active:"Muito ativo",very:"Extremamente ativo"})[p?.activity]||"—"}</span></div><div class="kv"><span class="kk">Divisão</span><span class="kv2">${p?.split||"—"}</span></div><div class="tpills">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<span class="tpill ${(p?.trainDays||[]).includes(i)?"tp-on":""}">${w}</span>`).join("")}</div></div>
   </div>`;
+  d.querySelector("#bManageWorkouts")?.addEventListener("click",()=>{S.mCtx={};S.modal="treinos";r();});
   d.querySelectorAll("[data-jump]").forEach(b=>b.onclick=()=>{const i=parseInt(b.dataset.jump);const el=d.querySelector("#dayc"+i);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});});
-  d.querySelectorAll("[data-ass]").forEach(b=>b.onclick=()=>{S.mCtx={day:parseInt(b.dataset.ass)};S.modal="assignWorkout";r();});
-  d.querySelectorAll("[data-ed]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.mCtx={day:parseInt(b.dataset.ed)};S.modal="assignWorkout";r();});
+  d.querySelectorAll("[data-ass]").forEach(b=>b.onclick=()=>{S.mCtx={day:parseInt(b.dataset.ass)};S.modal="treinos";r();});
+  d.querySelectorAll("[data-ed]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.mCtx={day:parseInt(b.dataset.ed)};S.modal="treinos";r();});
   // Clicking the assigned workout row opens the exercise selection (which exercises to do)
   d.querySelectorAll("[data-open]").forEach(row=>row.onclick=e=>{
     if(e.target.closest("[data-ed]")||e.target.closest("[data-play]"))return;
@@ -540,12 +549,41 @@ function rTreinos(){
   d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Meus Treinos</div><button class="icon-add" id="bNew">+</button></div><div class="list-body">${S.workouts.length===0?`<div class="empty"><div style="font-size:48px">🏋️</div><p>Nenhum treino ainda</p><p style="font-size:13px;color:#666;margin-top:4px">Toque em + para criar</p></div>`:""}${S.workouts.map(w=>`<div class="wrow" data-wid="${w.id}"><div class="wlt">${(w.letter||w.name[0]).slice(0,2)}</div><div class="wi"><div class="wn">${w.name}</div><div class="wm">${(w.muscles||[]).map(m=>(MUSCLE_META[m]?.label||m)).join(" · ")}</div></div><button class="del-btn" data-del="${w.id}">🗑️</button><div class="chev">›</div></div>`).join("")}</div>`;
   d.querySelector("#bNew")?.addEventListener("click",()=>{S.modal="newWorkout";S.mCtx={};r();});
   d.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!confirm("Excluir?"))return;const did=b.dataset.del;await deleteWorkout(did);S.workouts=S.workouts.filter(w=>w.id!==did);
-    // Remove any schedule references to the deleted workout
     let schedChanged=false;
     Object.keys(S.schedule||{}).forEach(k=>{if(S.schedule[k]&&S.schedule[k].id===did){delete S.schedule[k];schedChanged=true;}});
     if(schedChanged)await saveSchedule(S.schedule);
     r();});
   d.querySelectorAll("[data-wid]").forEach(row=>row.onclick=e=>{if(e.target.closest("[data-del]"))return;const w=S.workouts.find(x=>x.id===row.dataset.wid);if(w){S.modal="addExercises";S.mCtx={workout:w};r();}});
+  return d;
+}
+
+// ─── TREINOS (modal version, opened from Agenda) ───
+function rTreinosModal(){
+  const render=()=>{
+    d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div class="modal-title">Meus Treinos</div><button class="close-x" id="bCloseTr">✕</button></div>
+      <button class="btn-primary" id="bNewTr" style="margin-bottom:14px">+ Criar novo treino</button>
+      <div class="list-body" style="padding:0;max-height:55vh;overflow-y:auto">${S.workouts.length===0?`<div class="empty" style="padding:30px 0"><div style="font-size:44px">🏋️</div><p>Nenhum treino ainda</p><p style="font-size:13px;color:#666;margin-top:4px">Toque em "Criar novo treino"</p></div>`:""}${S.workouts.map(w=>`<div class="wrow" data-wid="${w.id}" style="cursor:pointer"><div class="wlt">${(w.letter||w.name[0]).slice(0,2)}</div><div class="wi"><div class="wn">${w.name}</div><div class="wm">${(w.muscles||[]).map(m=>(MUSCLE_META[m]?.label||m)).join(" · ")||"Toque para editar exercícios"}</div></div><button class="del-btn" data-del="${w.id}">🗑️</button><div class="chev">›</div></div>`).join("")}</div>`;
+    d2.querySelector("#bCloseTr").onclick=closeModal;
+    d2.querySelector("#bNewTr").onclick=()=>{S.modal="newWorkout";S.mCtx={fromAgenda:true};r();};
+    d2.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!confirm("Excluir?"))return;const did=b.dataset.del;await deleteWorkout(did);S.workouts=S.workouts.filter(w=>w.id!==did);let sc=false;Object.keys(S.schedule||{}).forEach(k=>{if(S.schedule[k]&&S.schedule[k].id===did){delete S.schedule[k];sc=true;}});if(sc)await saveSchedule(S.schedule);render();});
+    d2.querySelectorAll("[data-wid]").forEach(row=>row.onclick=e=>{
+      if(e.target.closest("[data-del]"))return;
+      const w=S.workouts.find(x=>x.id===row.dataset.wid);if(!w)return;
+      // If opened to assign to a day, assign; otherwise edit exercises
+      if(S.mCtx&&typeof S.mCtx.day==="number"){
+        if(!S.schedule)S.schedule={};
+        S.schedule[S.mCtx.day]={id:w.id,name:w.name,letter:w.letter||w.name[0]};
+        saveSchedule(S.schedule).then(()=>{closeModal();});
+      }else{
+        S.modal="addExercises";S.mCtx={workout:w};r();
+      }
+    });
+  };
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+  render();
   return d;
 }
 
@@ -678,6 +716,7 @@ function rCalorias(){
       <div class="mbar"><div class="mbar-label"><span style="color:#FF8C42">Carbs</span><span id="pt-c">${Math.round(totalC)}g / ${mc2}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-c" style="width:${Math.min((totalC/mc2)*100,100)}%;background:#FF8C42"></div></div></div>
       <div class="mbar"><div class="mbar-label"><span style="color:#22D3A5">Gordura</span><span id="pt-f">${Math.round(totalF)}g / ${mf2}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-f" style="width:${Math.min((totalF/mf2)*100,100)}%;background:#22D3A5"></div></div></div>
     </div>
+    <div class="info-sec" style="margin-bottom:16px"><div class="sec-lbl">METABOLISMO</div><div class="info-grid"><div class="ic"><div class="iv" style="color:var(--orange)">${S.tmb||"—"} kcal</div><div class="il">TMB</div></div><div class="ic"><div class="iv" style="color:var(--orange)">${cal||"—"} kcal</div><div class="il">Meta diária</div></div></div><div class="goal-tag">↗ ${({lose:"Emagrecer",maintain:"Manutenção",gain:"Ganhar massa"})[S.profile?.goal]||"—"}</div></div>
     <div class="sec-title">REFEIÇÕES DE HOJE</div>
     <div class="foods-list" id="foodsList">
       ${S.foods.length===0?`<div class="empty" style="padding:24px 0;text-align:center"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}
@@ -695,13 +734,34 @@ function rCalorias(){
     e.stopPropagation();
     const catId=btn.dataset.rename;
     const current=btn.dataset.current;
-    const newName=prompt("Renomear categoria:",current);
-    if(newName&&newName.trim()){
-      if(!S.mealCatNames)S.mealCatNames={};
-      S.mealCatNames[catId]=newName.trim();
-      await saveFoods(S.foods);
-      r();
-    }
+    // Custom modal instead of ugly prompt()
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px";
+    ov.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:360px">
+      <div style="font-weight:800;font-size:18px;margin-bottom:4px;color:var(--text)">Renomear refeição</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Digite o novo nome desta categoria</div>
+      <input id="rcInp" value="${(current||"").replace(/"/g,"&quot;")}" style="width:100%;padding:14px;background:var(--bg3);border:1.5px solid var(--orange);border-radius:12px;color:var(--text);font-size:16px;font-weight:600;outline:none;margin-bottom:18px"/>
+      <div style="display:flex;gap:10px">
+        <button id="rcCancel" style="flex:1;padding:13px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-weight:700;cursor:pointer">Cancelar</button>
+        <button id="rcOk" style="flex:1;padding:13px;background:var(--orange);border:none;border-radius:12px;color:#fff;font-weight:700;cursor:pointer">Salvar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const inp=ov.querySelector("#rcInp");
+    inp.focus();inp.select();
+    ov.onclick=ev=>{if(ev.target===ov)ov.remove();};
+    ov.querySelector("#rcCancel").onclick=()=>ov.remove();
+    ov.querySelector("#rcOk").onclick=async()=>{
+      const newName=inp.value;
+      if(newName&&newName.trim()){
+        if(!S.mealCatNames)S.mealCatNames={};
+        S.mealCatNames[catId]=newName.trim();
+        await saveFoods(S.foods);
+        ov.remove();
+        r();
+      }else{ov.remove();}
+    };
+    inp.onkeydown=ev=>{if(ev.key==="Enter")ov.querySelector("#rcOk").click();};
   });
 
   // Delete food
@@ -764,7 +824,7 @@ function rExercicios(){
     return gOk&&sOk;
   });
   const MGROUPS=Object.entries(MUSCLE_META).map(([id,v])=>({id,...v}));
-  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Exercícios</div></div><div class="search-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício..." value="${S.exFilter}"/></div><div class="mfilters"><button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div><div class="list-body">${filtered.map(e=>{const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-row" data-exd="${e.id}"><div class="ex-thumb" id="et_${e.id}" style="display:flex;align-items:center;justify-content:center;background:${m.bg}">${muscleSVG(e.group,m.color)}</div><div class="ex-info"><div class="ex-nm">${e.name}</div><div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${e.eq}</span></div></div><div class="chev">›</div></div>`;}).join("")}</div>`;
+  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Exercícios</div></div><div class="search-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício..." value="${S.exFilter}"/></div><div class="mfilters"><button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div><div class="list-body">${filtered.map(e=>{const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-row" data-exd="${e.id}"><div class="ex-thumb" id="et_${e.id}" style="display:flex;align-items:center;justify-content:center;background:${m.bg};overflow:hidden;position:relative"><img src="${gifUrl(e.id)}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center">${muscleSVG(e.group,m.color)}</div></div><div class="ex-info"><div class="ex-nm">${e.name}</div><div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${e.eq}</span></div></div><div class="chev">›</div></div>`;}).join("")}</div>`;
   d.querySelector("#exS")?.addEventListener("input",e=>{S.exFilter=e.target.value;r();});
   d.querySelectorAll("[data-mg]").forEach(b=>b.onclick=()=>{S.exGroup=b.dataset.mg;r();});
   d.querySelectorAll("[data-exd]").forEach(row=>row.onclick=()=>{const ex=ALL_EX.find(e=>e.id===row.dataset.exd);if(ex){S.modal="exDetail";S.mCtx={ex};r();}});
@@ -780,7 +840,7 @@ function rPerfil(){
   const acts={sed:"Sedentário",light:"Levemente ativo",mod:"Moderadamente ativo",active:"Muito ativo",very:"Extremamente ativo"};
   const goal=p?.goal==="lose"?"Emagrecer":p?.goal==="gain"?"Ganhar massa":"Saúde";
   const cal=S.targetCal||0;
-  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av">${ini}</div><div class="pf-nm">${name}</div><div class="pf-em">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">METABOLISMO</div><div class="info-grid"><div class="ic"><div class="iv" style="color:var(--orange)">${S.tmb||"—"} kcal</div><div class="il">TMB</div></div><div class="ic"><div class="iv" style="color:var(--orange)">${cal||"—"} kcal</div><div class="il">Meta diária</div></div></div><div class="goal-tag">↗ ${goal}</div></div><div class="info-sec"><div class="sec-lbl">TREINO</div><div class="kv"><span class="kk">Atividade</span><span class="kv2">${acts[p?.activity]||"—"}</span></div><div class="kv"><span class="kk">Divisão</span><span class="kv2">${p?.split||"—"}</span></div><div class="tpills">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<span class="tpill ${(p?.trainDays||[]).includes(i)?"tp-on":""}">${w}</span>`).join("")}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
+  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av">${ini}</div><div class="pf-nm">${name}</div><div class="pf-em">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
       <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>`;
   d.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
   d.querySelector("#bEdit")?.addEventListener("click",()=>{S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
@@ -828,6 +888,7 @@ function rModal(){
   if(S.modal==="assignWorkout")return rAssignModal();
   if(S.modal==="exDetail")return rExDetailModal();
   if(S.modal==="pickSessionExercises")return rPickSessionModal();
+  if(S.modal==="treinos")return rTreinosModal();
   return D("div");
 }
 
@@ -916,15 +977,25 @@ function rFoodModal(){
         overlay.querySelector("#qtyInp").oninput=e=>{qty=parseFloat(e.target.value)||1;renderQty();};
         overlay.querySelector("#qCancel").onclick=()=>overlay.remove();
         const capturedCat=S.pendingMealCat||"sem_categoria";
-        overlay.querySelector("#qAdd").onclick=async()=>{
-          const ni=S.foods.length;
-          S.foods.push({...f,grams:qty});
-          if(!S.mealCat)S.mealCat={};
-          S.mealCat[ni]=capturedCat;
-          await saveFoods(S.foods);
-          S.foodSearch="";S.foodCat="";S.pendingMealCat=null;
-          overlay.remove();
-          closeModal();
+        let qAdding=false;
+        overlay.querySelector("#qAdd").onclick=async(ev)=>{
+          if(qAdding)return;
+          qAdding=true;
+          const btn=ev.currentTarget;
+          btn.disabled=true;btn.style.opacity="0.6";btn.textContent="Adicionando...";
+          try{
+            const ni=S.foods.length;
+            S.foods.push({...f,grams:qty});
+            if(!S.mealCat)S.mealCat={};
+            S.mealCat[ni]=capturedCat;
+            await saveFoods(S.foods);
+            S.foodSearch="";S.foodCat="";S.pendingMealCat=null;
+            overlay.remove();
+            closeModal();
+          }catch(err){
+            qAdding=false;btn.disabled=false;btn.style.opacity="1";btn.textContent="Adicionar";
+            alert("Erro ao adicionar. Tente novamente.");
+          }
         };
       };
       renderQty();
@@ -1060,23 +1131,14 @@ function rFoodModal(){
     if(galInput){galInput.onchange=camInput.onchange=processFile;}
     async function processFile(e){
       const file=e.target.files?.[0];if(!file)return;
-      // Get or ask for Gemini API key (free, works from any website)
-      let key=S.geminiKey||localStorage.getItem("geminiKey")||"";
-      if(!key){
-        key=prompt("Para a IA analisar suas fotos, cole sua chave gratuita do Google Gemini.\n\nComo obter (1 minuto, grátis):\n1. Acesse aistudio.google.com/apikey\n2. Toque em 'Criar chave de API'\n3. Copie e cole aqui\n\nA chave fica salva no seu aparelho.");
-        if(!key||!key.trim()){return;}
-        key=key.trim();
-        S.geminiKey=key;
-        try{localStorage.setItem("geminiKey",key);}catch(e){}
-      }
       S.aiLoading=true;S.aiError=null;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;
       const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();
       try{
         const base64=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(reader.result.split(",")[1]);reader.onerror=rej;reader.readAsDataURL(file);});
         const mimeType=file.type||"image/jpeg";
         S.aiImg=`data:${mimeType};base64,${base64}`;
-        const prompt2='Analise esta imagem com atencao. Primeiro determine se mostra comida, refeicao ou bebida comestivel de verdade. Se NAO for comida (objeto, pessoa, paisagem, etc), retorne SOMENTE: {"isFood":false,"reason":"motivo curto em portugues"}. Se FOR comida, identifique tudo no prato e retorne SOMENTE JSON valido (sem markdown, sem texto extra): {"isFood":true,"n":"nome do prato em portugues","desc":"descricao breve","ingredients":["item 1","item 2"],"cal":numero_total_kcal,"p":proteina_g,"c":carboidrato_g,"f":gordura_g,"serving":peso_total_estimado_g}. Considere TUDO: parte solida, caldos, molhos, agua da comida, saladas, acompanhamentos. Seja preciso nos valores.';
-        const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{
+        const prompt2='Voce e um nutricionista. Analise a imagem. Se NAO mostrar comida/refeicao/bebida comestivel, responda com isFood=false e um motivo curto em portugues. Se FOR comida, identifique os itens e estime os valores nutricionais totais (considerando solidos, caldos, molhos, saladas e acompanhamentos). Responda sempre em portugues.';
+        const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
@@ -1084,33 +1146,68 @@ function rFoodModal(){
               {text:prompt2},
               {inline_data:{mime_type:mimeType,data:base64}}
             ]}],
-            generationConfig:{temperature:0.2,maxOutputTokens:800}
+            generationConfig:{
+              temperature:0.2,
+              maxOutputTokens:1024,
+              responseMimeType:"application/json",
+              responseSchema:{
+                type:"OBJECT",
+                properties:{
+                  isFood:{type:"BOOLEAN"},
+                  reason:{type:"STRING"},
+                  n:{type:"STRING"},
+                  desc:{type:"STRING"},
+                  ingredients:{type:"ARRAY",items:{type:"STRING"}},
+                  cal:{type:"NUMBER"},
+                  p:{type:"NUMBER"},
+                  c:{type:"NUMBER"},
+                  f:{type:"NUMBER"},
+                  serving:{type:"NUMBER"}
+                },
+                required:["isFood"]
+              }
+            }
           })
         });
         if(!resp.ok){
-          const errTxt=await resp.text();
-          if(resp.status===400||resp.status===403){
-            // bad/expired key
-            S.geminiKey="";try{localStorage.removeItem("geminiKey");}catch(e){}
-            throw new Error("Chave invalida. Tente novamente e cole uma chave valida do Google AI Studio.");
-          }
-          if(resp.status===429)throw new Error("Limite de uso atingido. Aguarde um minuto e tente de novo.");
-          throw new Error("Falha na IA ("+resp.status+").");
+          let errTxt="";try{errTxt=await resp.text();}catch(e){}
+          if(resp.status===429)throw new Error("Limite de uso da IA atingido. Aguarde 1 minuto e tente de novo.");
+          throw new Error("Falha na IA ("+resp.status+"). Tente novamente.");
         }
         const data=await resp.json();
-        let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
+        const cand=data?.candidates?.[0];
+        let txt=cand?.content?.parts?.map(p=>p.text||"").join("")||"";
         txt=txt.replace(/```json|```/g,"").trim();
-        // extract first {...} block defensively
-        const mjson=txt.match(/\{[\s\S]*\}/);
-        if(mjson)txt=mjson[0];
-        const result=JSON.parse(txt);
+        let result=null;
+        try{
+          result=JSON.parse(txt);
+        }catch(e1){
+          // tenta extrair o maior bloco JSON balanceado
+          const start=txt.indexOf("{");
+          if(start>=0){
+            let depth=0,end=-1;
+            for(let i=start;i<txt.length;i++){
+              if(txt[i]==="{")depth++;
+              else if(txt[i]==="}"){depth--;if(depth===0){end=i;break;}}
+            }
+            if(end>start){try{result=JSON.parse(txt.slice(start,end+1));}catch(e2){}}
+          }
+        }
+        if(!result){
+          throw new Error("A IA respondeu de forma incompleta. Tire a foto novamente com boa iluminacao.");
+        }
         if(!result.isFood){
           S.aiError=result.reason||"Isso nao parece ser comida. Tire uma foto de uma refeicao.";
           S.aiImg=null;
         }else{
-          S.aiRawResult=result;
+          S.aiRawResult={
+            n:result.n||"Refeicao",desc:result.desc||"",
+            ingredients:Array.isArray(result.ingredients)?result.ingredients:[],
+            cal:Number(result.cal)||0,p:Number(result.p)||0,c:Number(result.c)||0,f:Number(result.f)||0,
+            serving:Number(result.serving)||0
+          };
           S.aiWeightStep=true;
-          S.aiPlateWeight=result.serving||0;
+          S.aiPlateWeight=S.aiRawResult.serving||0;
         }
       }catch(err){
         S.aiError=(err&&err.message)?err.message:"Erro ao analisar imagem. Tente novamente.";
@@ -1215,17 +1312,22 @@ function rAddFoodManualModal(){
       <button class="btn-primary" id="bSaveMF">✓ Adicionar ao banco de dados</button>
     </div>
   `);
-  d.querySelector("#bSaveMF")?.addEventListener("click",async()=>{
+  d.querySelector("#bSaveMF")?.addEventListener("click",async(ev)=>{
+    const saveBtn=ev.currentTarget;
+    if(saveBtn.dataset.saving==="1")return;
     const n=d.querySelector("#mfN").value;
     if(!n){alert("Nome é obrigatório!");return;}
+    saveBtn.dataset.saving="1";saveBtn.disabled=true;saveBtn.style.opacity="0.6";const oldTxt=saveBtn.textContent;saveBtn.textContent="Salvando...";
     const serving=parseFloat(d.querySelector("#mfServing").value)||100;
     const cal=parseFloat(d.querySelector("#mfC").value)||0;
     const p=parseFloat(d.querySelector("#mfP").value)||0;
     const c=parseFloat(d.querySelector("#mfCb").value)||0;
     const f=parseFloat(d.querySelector("#mfF").value)||0;
-    const userName=S.profile?.name||S.user?.displayName||S.user?.email?.split("@")[0]||"Usuário";
+    const brand=d.querySelector("#mfBrand").value||"";
+    const cat=d.querySelector("#mfCat").value||"Outros";
+    const userName=S.profile?.username||S.profile?.name||S.user?.displayName||S.user?.email?.split("@")[0]||"Usuário";
     const newFood={n,cal,p,c,f,
-      brand:d.querySelector("#mfBrand").value||"",serving,cat:d.querySelector("#mfCat").value||"Outros",
+      brand,serving,cat,
       fatSat:parseFloat(d.querySelector("#mfFs").value)||0,fatTrans:parseFloat(d.querySelector("#mfFt").value)||0,
       fiber:parseFloat(d.querySelector("#mfFib").value)||0,sugar:parseFloat(d.querySelector("#mfSug").value)||0,
       sodium:parseFloat(d.querySelector("#mfNa").value)||0,potassium:parseFloat(d.querySelector("#mfK").value)||0,
@@ -1238,9 +1340,9 @@ function rAddFoodManualModal(){
       const ref=await addDoc(collection(db,"communityFoods"),newFood);
       if(!S.communityFoods)S.communityFoods=[];
       S.communityFoods.push({...newFood,id:ref.id});
-    }catch(e){console.error(e);}
+    }catch(e){console.error(e);saveBtn.dataset.saving="0";saveBtn.disabled=false;saveBtn.style.opacity="1";saveBtn.textContent=oldTxt;alert("Erro ao salvar o alimento. Tente novamente.");return;}
     const niM=S.foods.length;
-    S.foods.push({n,cal,p,c,f,grams:serving});
+    S.foods.push({n,cal,p,c,f,grams:serving,brand,serving,cat});
     if(!S.mealCat)S.mealCat={};
     S.mealCat[niM]=S.pendingMealCat||"sem_categoria";
     await saveFoods(S.foods);
@@ -1268,11 +1370,19 @@ function rNewWorkoutModal(){
     if(selMuscles.includes(m)){selMuscles=selMuscles.filter(x=>x!==m);b.style.background="transparent";}
     else{selMuscles.push(m);b.style.background=meta.bg;}
   });
-  d.querySelector("#bCW")?.addEventListener("click",async()=>{
+  d.querySelector("#bCW")?.addEventListener("click",async(ev)=>{
+    const btn=ev.currentTarget;if(btn.dataset.saving==="1")return;btn.dataset.saving="1";btn.disabled=true;btn.style.opacity="0.6";btn.textContent="Criando...";
     const name=d.querySelector("#wN").value||"Novo Treino";
     const letter=d.querySelector("#wL").value||name[0].toUpperCase();
     const w={name,letter,muscles:selMuscles,exercises:[]};
-    const id=await saveWorkout(w);S.workouts.push({id,...w});closeModal();
+    try{
+      const id=await saveWorkout(w);
+      const saved={id,...w};
+      S.workouts.push(saved);
+      // Go straight to adding exercises to the new workout
+      const day=S.mCtx?.day;
+      S.modal="addExercises";S.mCtx={workout:saved,day};r();
+    }catch(e){btn.dataset.saving="0";btn.disabled=false;btn.style.opacity="1";btn.textContent="Criar Treino";alert("Erro ao criar treino. Tente novamente.");}
   });
   return d;
 }
@@ -1290,13 +1400,17 @@ function rAddExercisesModal(){
     <div class="search-box" style="margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exPS" placeholder="Buscar..." value="${lF}"/></div>
     <div class="mfilters" style="margin-bottom:8px"><button class="mf ${!lG?"mf-on":""}" data-lg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${lG===m.id?"mf-on":""}" data-lg="${m.id}" style="${lG===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div>
     ${picked.length>0?`<div class="picked-bar"><span style="font-size:12px;color:#888">${picked.length} selecionado(s):</span>${picked.map((e,i)=>`<span class="picked-pill">${i+1}.${e.name.split(" ")[0]}</span>`).join("")}</div>`:""}
-    <div class="ex-pick-list">${filtered.map(e=>{const isPicked=picked.find(p=>p.id===e.id);const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-add-row" data-eid="${e.id}"><div class="ex-add-thumb" style="display:flex;align-items:center;justify-content:center;background:${m.bg}">${muscleSVG(e.group,m.color)}</div><div class="ex-add-info"><div class="ex-add-nm">${e.name}</div><div class="ex-add-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq"> · ${e.eq}</span></div></div><button class="ex-add-btn ${isPicked?"ex-added":""}" data-eid="${e.id}">${isPicked?"✓":"+"}</button></div>`;}).join("")}</div>
+    <div class="ex-pick-list">${filtered.map(e=>{const isPicked=picked.find(p=>p.id===e.id);const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-add-row" data-eid="${e.id}"><div class="ex-add-thumb" style="display:flex;align-items:center;justify-content:center;background:${m.bg};overflow:hidden;position:relative"><img src="${gifUrl(e.id)}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center">${muscleSVG(e.group,m.color)}</div></div><div class="ex-add-info"><div class="ex-add-nm">${e.name}</div><div class="ex-add-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq"> · ${e.eq}</span></div></div><button class="ex-add-btn ${isPicked?"ex-added":""}" data-eid="${e.id}">${isPicked?"✓":"+"}</button></div>`;}).join("")}</div>
     <div style="padding:12px 0 0"><button class="btn-primary" id="bSvEx">Salvar (${picked.length} exercício${picked.length!==1?"s":""})</button></div>`;
     d2.querySelector("#bCEx")?.addEventListener("click",closeModal);
     d2.querySelector("#exPS")?.addEventListener("input",e=>{lF=e.target.value;render();});
     d2.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{lG=b.dataset.lg;render();});
     d2.querySelectorAll("[data-eid]").forEach(btn=>btn.onclick=e=>{e.stopPropagation();const id=btn.dataset.eid;const ex=ALL_EX.find(e=>e.id===id);if(!ex)return;if(picked.find(p=>p.id===id))picked=picked.filter(p=>p.id!==id);else picked.push(ex);render();});
-    d2.querySelector("#bSvEx")?.addEventListener("click",async()=>{w.exercises=picked;const updated={...w};await setDoc(doc(db,"users",uid(),"workouts",w.id),updated);S.workouts=S.workouts.map(x=>x.id===w.id?updated:x);closeModal();});
+    d2.querySelector("#bSvEx")?.addEventListener("click",async(ev)=>{const btn=ev.currentTarget;if(btn.dataset.saving==="1")return;btn.dataset.saving="1";btn.disabled=true;btn.style.opacity="0.6";w.exercises=picked;const updated={...w};try{await setDoc(doc(db,"users",uid(),"workouts",w.id),updated);S.workouts=S.workouts.map(x=>x.id===w.id?updated:x);
+      const day=S.mCtx?.day;
+      if(typeof day==="number"){if(!S.schedule)S.schedule={};S.schedule[day]={id:w.id,name:w.name,letter:w.letter||w.name[0]};await saveSchedule(S.schedule);}
+      closeModal();
+    }catch(e){btn.dataset.saving="0";btn.disabled=false;btn.style.opacity="1";alert("Erro ao salvar. Tente novamente.");}});
   };
   const d=D("overlay");
   d.innerHTML=`<div class="modal-sheet"></div>`;
@@ -1319,7 +1433,7 @@ function rExDetailModal(){
   const m=MUSCLE_META[ex.group]||{label:ex.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
   const d=sheet(ex.name,"",`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;padding:10px">${exerciseAnimation(ex.group,m.color)}</div>
+      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;padding:0;position:relative"><img src="${gifUrl(ex.id)}" alt="${ex.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;padding:10px">${exerciseAnimation(ex.group,m.color)}</div></div>
       <div style="background:var(--bg3);border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center">${muscleSVG(ex.group,m.color)}</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${ex.eq}</span></div>
@@ -1464,7 +1578,7 @@ function rSession(){
   const d=D("page");
   d.innerHTML=`<div class="sess-wrap"><div class="sess-hdr"><button class="back-x" id="bExit">✕</button><div style="flex:1"><div class="sess-eye">EXERCÍCIO ${idx+1}/${exercises.length}</div><div class="sess-title">${ex.name}</div></div></div><div class="sess-prog"><div class="sess-fill" style="width:${prog}%"></div></div><div class="sess-body">
     <div style="text-align:center;margin-bottom:14px">
-      <div style="width:140px;height:140px;background:var(--bg3);border-radius:16px;margin:0 auto 10px;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:10px">${exerciseAnimation(ex.group,(MUSCLE_META[ex.group]||{color:"#FF6B00"}).color)}</div>
+      <div style="width:140px;height:140px;background:var(--bg3);border-radius:16px;margin:0 auto 10px;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:0;position:relative"><img src="${gifUrl(ex.id)}" alt="${ex.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;padding:10px">${exerciseAnimation(ex.group,(MUSCLE_META[ex.group]||{color:"#FF6B00"}).color)}</div></div>
       <div style="font-size:17px;font-weight:700">${ex.name}</div>
       <div style="font-size:13px;margin-top:4px;font-weight:600;color:${m.color}">${ex.muscles||"Músculos diversos"}</div>
     </div>
@@ -1690,7 +1804,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .cal-lbl{font-size:12px;color:var(--text2);margin-top:2px;}
 .macro-bar-wrap{display:flex;flex-direction:column;gap:12px;margin-bottom:20px;}
 .mbar-label{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px;}
-.mbar-track{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;}
+.mbar-track{height:8px;background:#2A2A2A;border-radius:4px;overflow:hidden;}
 .mbar-fill{height:100%;border-radius:4px;transition:width 0.6s ease;}
 .sec-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:2px;margin-bottom:12px;}
 .foods-list{display:flex;flex-direction:column;gap:0;}
