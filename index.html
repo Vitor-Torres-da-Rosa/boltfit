@@ -331,9 +331,10 @@ let S={
   modal:null,mCtx:null,
   session:null,
   exFilter:"",exGroup:"",
-  foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,aiRawResult:null,aiWeightStep:false,aiPlateWeight:0,aiError:null,aiImg:null,mealCatNames:{},
+  foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,aiRawResult:null,aiWeightStep:false,aiPlateWeight:0,aiError:null,aiImg:null,mealCatNames:{},geminiKey:"",foodModalMode:"add",
   darkMode:true,
 };
+try{S.geminiKey=localStorage.getItem("geminiKey")||"";}catch(e){}
 let restTimer=null;
 
 // ═══════════════════════════════════════════
@@ -497,17 +498,39 @@ function rAgenda(){
   const name=(p?.name||"Atleta").split(" ")[0];
   const trainDays=p?.trainDays||[];
   const isToday=trainDays.includes(today());
-  d.innerHTML=`<div class="tab-hdr"><div><div class="tab-eye">${isToday?"BOM TREINO!":"BOM DIA!"}</div><div class="tab-title">Olá, ${name}</div></div><button class="cal-badge" id="bGoCal">⚡ ${S.targetCal||0} kcal</button></div><div class="agenda-body">
+  // Auto-clean: remove schedule entries pointing to deleted workouts
+  let schedDirty=false;
+  Object.keys(S.schedule||{}).forEach(k=>{
+    const sc=S.schedule[k];
+    if(sc&&sc.id&&!S.workouts.find(w=>w.id===sc.id)){delete S.schedule[k];schedDirty=true;}
+  });
+  if(schedDirty)saveSchedule(S.schedule);
+  const dayInitials=["D","S","T","Q","Q","S","S"];
+  const dayShort=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  d.innerHTML=`<div class="tab-hdr"><div><div class="tab-eye">${isToday?"BOM TREINO!":"BOM DIA!"}</div><div class="tab-title">Olá, ${name}</div></div></div>
+  <div class="week-bubbles">
     ${WD.map((wd,i)=>{
       const isTrain=trainDays.includes(i);const isTd=i===today();const sched=S.schedule[i];
-      return `<div class="day-card ${isTd?"today":""}"><div class="day-top"><div class="day-nm">${wd}${isTd?"<span class='tdot'></span>":""}</div><span class="day-badge ${isTrain?"badge-t":"badge-r"}">${isTrain?"Treino":"Descanso"}</span></div>${isTrain?sched?`<div class="assigned-row"><div class="aw-lt">${sched.letter||"A"}</div><div class="aw-nm">${sched.name}</div><button class="aw-btn" data-ed="${i}">✏️</button><button class="aw-btn aw-play" data-play="${sched.id}">▶</button></div>`:`<button class="assign-btn" data-ass="${i}">⊕ Atribuir treino</button>`:""}</div>`;
+      const has=isTrain&&sched;
+      return `<button class="wbub ${isTd?"wbub-today":""} ${has?"wbub-has":isTrain?"wbub-train":"wbub-rest"}" data-jump="${i}"><span class="wbub-l">${dayInitials[i]}</span>${has?`<span class="wbub-dot"></span>`:""}</button>`;
     }).join("")}
-    <div class="macro-summary"><div class="macro-st">Metas diárias</div><div class="macro-row"><div class="mc"><div class="mv" style="color:#4B9EFF">${Math.round((S.targetCal||0)*0.3/4)}g</div><div class="ml">Proteína</div></div><div class="mc"><div class="mv" style="color:#FF8C42">${Math.round((S.targetCal||0)*0.45/4)}g</div><div class="ml">Carbs</div></div><div class="mc"><div class="mv" style="color:#22D3A5">${Math.round((S.targetCal||0)*0.25/9)}g</div><div class="ml">Gordura</div></div></div></div>
+  </div>
+  <div class="agenda-body">
+    ${WD.map((wd,i)=>{
+      const isTrain=trainDays.includes(i);const isTd=i===today();const sched=S.schedule[i];
+      return `<div class="day-card ${isTd?"today":""}" id="dayc${i}"><div class="day-top"><div class="day-nm">${wd}${isTd?"<span class='tdot'></span>":""}</div><span class="day-badge ${isTrain?"badge-t":"badge-r"}">${isTrain?"Treino":"Descanso"}</span></div>${isTrain?sched?`<div class="assigned-row" data-open="${i}"><div class="aw-lt">${sched.letter||"A"}</div><div class="aw-nm">${sched.name}</div><button class="aw-btn" data-ed="${i}">✏️</button><button class="aw-btn aw-play" data-play="${sched.id}">▶</button></div>`:`<button class="assign-btn" data-ass="${i}">⊕ Atribuir treino</button>`:""}</div>`;
+    }).join("")}
   </div>`;
-  d.querySelector("#bGoCal")?.addEventListener("click",()=>{S.tab="calorias";r();});
+  d.querySelectorAll("[data-jump]").forEach(b=>b.onclick=()=>{const i=parseInt(b.dataset.jump);const el=d.querySelector("#dayc"+i);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});});
   d.querySelectorAll("[data-ass]").forEach(b=>b.onclick=()=>{S.mCtx={day:parseInt(b.dataset.ass)};S.modal="assignWorkout";r();});
-  d.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>{S.mCtx={day:parseInt(b.dataset.ed)};S.modal="assignWorkout";r();});
-  d.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>{const w=S.workouts.find(x=>x.id===b.dataset.play);if(w)startSession(w.exercises||[]);});
+  d.querySelectorAll("[data-ed]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.mCtx={day:parseInt(b.dataset.ed)};S.modal="assignWorkout";r();});
+  // Clicking the assigned workout row opens the exercise selection (which exercises to do)
+  d.querySelectorAll("[data-open]").forEach(row=>row.onclick=e=>{
+    if(e.target.closest("[data-ed]")||e.target.closest("[data-play]"))return;
+    const i=parseInt(row.dataset.open);const sched=S.schedule[i];
+    if(sched){const w=S.workouts.find(x=>x.id===sched.id);if(w){S.mCtx={workout:w,fromAgenda:true};S.modal="pickSessionExercises";r();}}
+  });
+  d.querySelectorAll("[data-play]").forEach(b=>b.onclick=e=>{e.stopPropagation();const w=S.workouts.find(x=>x.id===b.dataset.play);if(w)startSession(w.exercises||[]);else alert("Esse treino foi removido.");});
   return d;
 }
 
@@ -516,7 +539,12 @@ function rTreinos(){
   const d=D("tab-page");
   d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Meus Treinos</div><button class="icon-add" id="bNew">+</button></div><div class="list-body">${S.workouts.length===0?`<div class="empty"><div style="font-size:48px">🏋️</div><p>Nenhum treino ainda</p><p style="font-size:13px;color:#666;margin-top:4px">Toque em + para criar</p></div>`:""}${S.workouts.map(w=>`<div class="wrow" data-wid="${w.id}"><div class="wlt">${(w.letter||w.name[0]).slice(0,2)}</div><div class="wi"><div class="wn">${w.name}</div><div class="wm">${(w.muscles||[]).map(m=>(MUSCLE_META[m]?.label||m)).join(" · ")}</div></div><button class="del-btn" data-del="${w.id}">🗑️</button><div class="chev">›</div></div>`).join("")}</div>`;
   d.querySelector("#bNew")?.addEventListener("click",()=>{S.modal="newWorkout";S.mCtx={};r();});
-  d.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!confirm("Excluir?"))return;await deleteWorkout(b.dataset.del);S.workouts=S.workouts.filter(w=>w.id!==b.dataset.del);r();});
+  d.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!confirm("Excluir?"))return;const did=b.dataset.del;await deleteWorkout(did);S.workouts=S.workouts.filter(w=>w.id!==did);
+    // Remove any schedule references to the deleted workout
+    let schedChanged=false;
+    Object.keys(S.schedule||{}).forEach(k=>{if(S.schedule[k]&&S.schedule[k].id===did){delete S.schedule[k];schedChanged=true;}});
+    if(schedChanged)await saveSchedule(S.schedule);
+    r();});
   d.querySelectorAll("[data-wid]").forEach(row=>row.onclick=e=>{if(e.target.closest("[data-del]"))return;const w=S.workouts.find(x=>x.id===row.dataset.wid);if(w){S.modal="addExercises";S.mCtx={workout:w};r();}});
   return d;
 }
@@ -657,12 +685,12 @@ function rCalorias(){
     </div>`;
 
   // Button handlers
-  d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.modal="food";r();});
-  d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;r();});
+  d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.foodModalMode="add";S.modal="food";r();});
+  d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.foodModalMode="ai";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;r();});
 
   // Add to specific meal category
-  d.querySelectorAll("[data-addcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.addcat;S.modal="food";r();});
-  d.querySelectorAll("[data-newcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.newcat;S.modal="food";r();});
+  d.querySelectorAll("[data-addcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.addcat;S.foodModalMode="add";S.modal="food";r();});
+  d.querySelectorAll("[data-newcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.newcat;S.foodModalMode="add";S.modal="food";r();});
   d.querySelectorAll(".meal-rename-btn").forEach(btn=>btn.onclick=async e=>{
     e.stopPropagation();
     const catId=btn.dataset.rename;
@@ -736,7 +764,7 @@ function rExercicios(){
     return gOk&&sOk;
   });
   const MGROUPS=Object.entries(MUSCLE_META).map(([id,v])=>({id,...v}));
-  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Exercícios</div></div><div class="search-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício..." value="${S.exFilter}"/></div><div class="mfilters"><button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div><div class="list-body">${filtered.map(e=>{const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-row" data-exd="${e.id}"><div class="ex-thumb" id="et_${e.id}"><img src="${gifUrl(e.id)}" loading="lazy" alt="${e.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'"/></div><div class="ex-info"><div class="ex-nm">${e.name}</div><div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${e.eq}</span></div></div><div class="chev">›</div></div>`;}).join("")}</div>`;
+  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Exercícios</div></div><div class="search-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício..." value="${S.exFilter}"/></div><div class="mfilters"><button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div><div class="list-body">${filtered.map(e=>{const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-row" data-exd="${e.id}"><div class="ex-thumb" id="et_${e.id}" style="display:flex;align-items:center;justify-content:center;background:${m.bg}">${muscleSVG(e.group,m.color)}</div><div class="ex-info"><div class="ex-nm">${e.name}</div><div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${e.eq}</span></div></div><div class="chev">›</div></div>`;}).join("")}</div>`;
   d.querySelector("#exS")?.addEventListener("input",e=>{S.exFilter=e.target.value;r();});
   d.querySelectorAll("[data-mg]").forEach(b=>b.onclick=()=>{S.exGroup=b.dataset.mg;r();});
   d.querySelectorAll("[data-exd]").forEach(row=>row.onclick=()=>{const ex=ALL_EX.find(e=>e.id===row.dataset.exd);if(ex){S.modal="exDetail";S.mCtx={ex};r();}});
@@ -752,7 +780,7 @@ function rPerfil(){
   const acts={sed:"Sedentário",light:"Levemente ativo",mod:"Moderadamente ativo",active:"Muito ativo",very:"Extremamente ativo"};
   const goal=p?.goal==="lose"?"Emagrecer":p?.goal==="gain"?"Ganhar massa":"Saúde";
   const cal=S.targetCal||0;
-  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av">${ini}</div><div class="pf-nm">${name}</div><div class="pf-em">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">METABOLISMO</div><div class="info-grid"><div class="ic"><div class="iv" style="color:var(--orange)">${S.tmb||"—"} kcal</div><div class="il">TMB</div></div><div class="ic"><div class="iv" style="color:var(--orange)">${cal||"—"} kcal</div><div class="il">Meta diária</div></div></div><div class="goal-tag">↗ ${goal}</div></div><div class="info-sec"><div class="sec-lbl">MACROS DIÁRIOS</div><div class="macro-row" style="padding:12px 0 0"><div class="mc"><div class="mv" style="color:#4B9EFF">${Math.round(cal*0.3/4)}g</div><div class="ml">Proteína</div></div><div class="mc"><div class="mv" style="color:#FF8C42">${Math.round(cal*0.45/4)}g</div><div class="ml">Carbs</div></div><div class="mc"><div class="mv" style="color:#22D3A5">${Math.round(cal*0.25/9)}g</div><div class="ml">Gordura</div></div></div></div><div class="info-sec"><div class="sec-lbl">TREINO</div><div class="kv"><span class="kk">Atividade</span><span class="kv2">${acts[p?.activity]||"—"}</span></div><div class="kv"><span class="kk">Divisão</span><span class="kv2">${p?.split||"—"}</span></div><div class="tpills">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<span class="tpill ${(p?.trainDays||[]).includes(i)?"tp-on":""}">${w}</span>`).join("")}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
+  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av">${ini}</div><div class="pf-nm">${name}</div><div class="pf-em">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">METABOLISMO</div><div class="info-grid"><div class="ic"><div class="iv" style="color:var(--orange)">${S.tmb||"—"} kcal</div><div class="il">TMB</div></div><div class="ic"><div class="iv" style="color:var(--orange)">${cal||"—"} kcal</div><div class="il">Meta diária</div></div></div><div class="goal-tag">↗ ${goal}</div></div><div class="info-sec"><div class="sec-lbl">TREINO</div><div class="kv"><span class="kk">Atividade</span><span class="kv2">${acts[p?.activity]||"—"}</span></div><div class="kv"><span class="kk">Divisão</span><span class="kv2">${p?.split||"—"}</span></div><div class="tpills">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<span class="tpill ${(p?.trainDays||[]).includes(i)?"tp-on":""}">${w}</span>`).join("")}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
       <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>`;
   d.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
   d.querySelector("#bEdit")?.addEventListener("click",()=>{S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
@@ -799,6 +827,7 @@ function rModal(){
   if(S.modal==="addExercises")return rAddExercisesModal();
   if(S.modal==="assignWorkout")return rAssignModal();
   if(S.modal==="exDetail")return rExDetailModal();
+  if(S.modal==="pickSessionExercises")return rPickSessionModal();
   return D("div");
 }
 
@@ -839,7 +868,7 @@ function rFoodModal(){
           <div class="fm">P:${f.p}g · C:${f.c}g · G:${f.f}g</div>
           <div style="font-size:10px;color:#555;margin-top:2px;display:flex;align-items:center;gap:4px">
             ${f.official?`<span style="color:#22D3A5;font-weight:700">✅ Oficial</span>`:`<span>👤 ${f.addedBy||"Usuário"}</span>`}
-            ${(!f.official&&f.addedAt)?`<span>· ${f.addedAt}</span>`:""}
+            ${(!f.official&&f.addedAt)?`<span>· ${(()=>{const p=String(f.addedAt).split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:f.addedAt;})()}</span>`:""}
           </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
@@ -959,10 +988,12 @@ function rFoodModal(){
       const sOk=!q||f.n.toLowerCase().includes(q);
       return catOk&&sOk;
     }).slice(0,60);
+    const mode=S.foodModalMode||"add";
+    const isAI=mode==="ai";
     d.innerHTML=`<div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-hdr"><div class="modal-title">Adicionar Refeição</div><button class="close-x" id="bCloseFood">✕</button></div>
-      <div class="ai-zone" id="aiZone">${buildAIHtml()}</div>
+      <div class="modal-hdr"><div class="modal-title">${isAI?"Analisar com IA":"Adicionar Refeição"}</div><button class="close-x" id="bCloseFood">✕</button></div>
+      ${isAI?`<div class="ai-zone" id="aiZone">${buildAIHtml()}</div>`:`
       <button class="btn-sec" id="bManualAdd" style="width:100%;margin-bottom:12px;flex-shrink:0">✏️ Inserir manualmente</button>
       <div class="divider" style="flex-shrink:0"><span>ou buscar no banco de dados</span></div>
       <div class="search-box" style="margin-bottom:8px;flex-shrink:0">
@@ -973,12 +1004,13 @@ function rFoodModal(){
         <button class="mf ${!S.foodCat?"mf-on":""}" data-fc="">Todos</button>
         ${FOOD_CATS.map(c=>`<button class="mf ${S.foodCat===c?"mf-on":""}" data-fc="${c}">${c}</button>`).join("")}
       </div>
-      <div class="food-list" id="foodListEl"></div>
+      <div class="food-list" id="foodListEl"></div>`}
     </div>`;
 
     d.querySelector("#bCloseFood").onclick=()=>closeModal();
     d.onclick=e=>{if(e.target===d)closeModal();};
     d.querySelector("#bManualAdd")?.addEventListener("click",()=>{S.modal="addFoodManual";r();});
+    if(isAI){bindAIButtons();bindCam();return;}
     // Populate list immediately with all foods including community
     const initListEl=d.querySelector("#foodListEl");
     if(initListEl)updateList(initListEl,(S.foodSearch||"").toLowerCase(),S.foodCat);
@@ -1028,26 +1060,49 @@ function rFoodModal(){
     if(galInput){galInput.onchange=camInput.onchange=processFile;}
     async function processFile(e){
       const file=e.target.files?.[0];if(!file)return;
+      // Get or ask for Gemini API key (free, works from any website)
+      let key=S.geminiKey||localStorage.getItem("geminiKey")||"";
+      if(!key){
+        key=prompt("Para a IA analisar suas fotos, cole sua chave gratuita do Google Gemini.\n\nComo obter (1 minuto, grátis):\n1. Acesse aistudio.google.com/apikey\n2. Toque em 'Criar chave de API'\n3. Copie e cole aqui\n\nA chave fica salva no seu aparelho.");
+        if(!key||!key.trim()){return;}
+        key=key.trim();
+        S.geminiKey=key;
+        try{localStorage.setItem("geminiKey",key);}catch(e){}
+      }
       S.aiLoading=true;S.aiError=null;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;
       const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();
       try{
         const base64=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(reader.result.split(",")[1]);reader.onerror=rej;reader.readAsDataURL(file);});
         const mimeType=file.type||"image/jpeg";
         S.aiImg=`data:${mimeType};base64,${base64}`;
-        const resp=await fetch("https://api.anthropic.com/v1/messages",{
+        const prompt2='Analise esta imagem com atencao. Primeiro determine se mostra comida, refeicao ou bebida comestivel de verdade. Se NAO for comida (objeto, pessoa, paisagem, etc), retorne SOMENTE: {"isFood":false,"reason":"motivo curto em portugues"}. Se FOR comida, identifique tudo no prato e retorne SOMENTE JSON valido (sem markdown, sem texto extra): {"isFood":true,"n":"nome do prato em portugues","desc":"descricao breve","ingredients":["item 1","item 2"],"cal":numero_total_kcal,"p":proteina_g,"c":carboidrato_g,"f":gordura_g,"serving":peso_total_estimado_g}. Considere TUDO: parte solida, caldos, molhos, agua da comida, saladas, acompanhamentos. Seja preciso nos valores.';
+        const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
-            model:"claude-haiku-4-5-20251001",
-            max_tokens:600,
-            messages:[{role:"user",content:[
-              {type:"image",source:{type:"base64",media_type:mimeType,data:base64}},
-              {type:"text",text:'Analise esta imagem. Se NAO for comida/refeicao/bebida comestivel, retorne: {"isFood":false,"reason":"motivo em portugues"}. Se FOR comida, retorne SOMENTE JSON: {"isFood":true,"n":"nome do prato em portugues","desc":"descricao breve","ingredients":["ingrediente 1","ingrediente 2"],"cal":numero,"p":proteina_g,"c":carbs_g,"f":gordura_g,"serving":peso_estimado_g}. Considere tudo no prato: solidos, caldos, molhos, agua da comida, salada. Seja preciso.'}
-            ]}]
+            contents:[{parts:[
+              {text:prompt2},
+              {inline_data:{mime_type:mimeType,data:base64}}
+            ]}],
+            generationConfig:{temperature:0.2,maxOutputTokens:800}
           })
         });
+        if(!resp.ok){
+          const errTxt=await resp.text();
+          if(resp.status===400||resp.status===403){
+            // bad/expired key
+            S.geminiKey="";try{localStorage.removeItem("geminiKey");}catch(e){}
+            throw new Error("Chave invalida. Tente novamente e cole uma chave valida do Google AI Studio.");
+          }
+          if(resp.status===429)throw new Error("Limite de uso atingido. Aguarde um minuto e tente de novo.");
+          throw new Error("Falha na IA ("+resp.status+").");
+        }
         const data=await resp.json();
-        const txt=data.content.map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
+        let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
+        txt=txt.replace(/```json|```/g,"").trim();
+        // extract first {...} block defensively
+        const mjson=txt.match(/\{[\s\S]*\}/);
+        if(mjson)txt=mjson[0];
         const result=JSON.parse(txt);
         if(!result.isFood){
           S.aiError=result.reason||"Isso nao parece ser comida. Tire uma foto de uma refeicao.";
@@ -1058,7 +1113,8 @@ function rFoodModal(){
           S.aiPlateWeight=result.serving||0;
         }
       }catch(err){
-        S.aiError="Erro ao analisar imagem. Tente novamente.";
+        S.aiError=(err&&err.message)?err.message:"Erro ao analisar imagem. Tente novamente.";
+        S.aiImg=null;
       }
       S.aiLoading=false;
       const az2=d.querySelector("#aiZone");
@@ -1234,7 +1290,7 @@ function rAddExercisesModal(){
     <div class="search-box" style="margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exPS" placeholder="Buscar..." value="${lF}"/></div>
     <div class="mfilters" style="margin-bottom:8px"><button class="mf ${!lG?"mf-on":""}" data-lg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${lG===m.id?"mf-on":""}" data-lg="${m.id}" style="${lG===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div>
     ${picked.length>0?`<div class="picked-bar"><span style="font-size:12px;color:#888">${picked.length} selecionado(s):</span>${picked.map((e,i)=>`<span class="picked-pill">${i+1}.${e.name.split(" ")[0]}</span>`).join("")}</div>`:""}
-    <div class="ex-pick-list">${filtered.map(e=>{const isPicked=picked.find(p=>p.id===e.id);const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-add-row" data-eid="${e.id}"><div class="ex-add-thumb"><img src="${gifUrl(e.id)}" loading="lazy" alt="${e.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'"/></div><div class="ex-add-info"><div class="ex-add-nm">${e.name}</div><div class="ex-add-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq"> · ${e.eq}</span></div></div><button class="ex-add-btn ${isPicked?"ex-added":""}" data-eid="${e.id}">${isPicked?"✓":"+"}</button></div>`;}).join("")}</div>
+    <div class="ex-pick-list">${filtered.map(e=>{const isPicked=picked.find(p=>p.id===e.id);const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-add-row" data-eid="${e.id}"><div class="ex-add-thumb" style="display:flex;align-items:center;justify-content:center;background:${m.bg}">${muscleSVG(e.group,m.color)}</div><div class="ex-add-info"><div class="ex-add-nm">${e.name}</div><div class="ex-add-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq"> · ${e.eq}</span></div></div><button class="ex-add-btn ${isPicked?"ex-added":""}" data-eid="${e.id}">${isPicked?"✓":"+"}</button></div>`;}).join("")}</div>
     <div style="padding:12px 0 0"><button class="btn-primary" id="bSvEx">Salvar (${picked.length} exercício${picked.length!==1?"s":""})</button></div>`;
     d2.querySelector("#bCEx")?.addEventListener("click",closeModal);
     d2.querySelector("#exPS")?.addEventListener("input",e=>{lF=e.target.value;render();});
@@ -1263,7 +1319,7 @@ function rExDetailModal(){
   const m=MUSCLE_META[ex.group]||{label:ex.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
   const d=sheet(ex.name,"",`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center"><img src="${gifUrl(ex.id)}" alt="${ex.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'font-size:36px\'>🏋️</div>')"/></div>
+      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;padding:10px">${exerciseAnimation(ex.group,m.color)}</div>
       <div style="background:var(--bg3);border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center">${muscleSVG(ex.group,m.color)}</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${ex.eq}</span></div>
@@ -1278,117 +1334,107 @@ function rExDetailModal(){
   return d;
 }
 
-function muscleSVG(group,color="#FF6B00"){
-  // Highly detailed anatomical front-view SVG
-  // Based on realistic human anatomy proportions
-  const base=`
-    <!-- CABEÇA -->
-    <ellipse cx="50" cy="7.5" rx="7" ry="8" fill="#4A4A4A" stroke="#555" stroke-width="0.3"/>
-    <!-- ORELHAS -->
-    <ellipse cx="42.5" cy="7.5" rx="1.5" ry="2.5" fill="#424242"/>
-    <ellipse cx="57.5" cy="7.5" rx="1.5" ry="2.5" fill="#424242"/>
-    <!-- PESCOÇO -->
-    <path d="M46 15 L47 20 L53 20 L54 15" fill="#3D3D3D" stroke="#444" stroke-width="0.3"/>
-    <!-- TRAPÉZIO SUPERIOR -->
-    <path d="M47 20 C40 20 30 22 28 25 L33 26 C36 22 43 21 47 21Z" fill="#383838" stroke="#3A3A3A" stroke-width="0.3"/>
-    <path d="M53 20 C60 20 70 22 72 25 L67 26 C64 22 57 21 53 21Z" fill="#383838" stroke="#3A3A3A" stroke-width="0.3"/>
-    <!-- CLAVÍCULAS -->
-    <path d="M47 21 C44 21 38 22 33 24" stroke="#555" stroke-width="1" fill="none"/>
-    <path d="M53 21 C56 21 62 22 67 24" stroke="#555" stroke-width="1" fill="none"/>
-    <!-- DELTÓIDE ESQUERDO -->
-    <path d="M28 25 C22 27 17 31 15 37 C13 43 14 49 16 53 L20 51 C18 47 18 42 19 37 C21 32 25 28 28 26Z" fill="#323232" stroke="#3A3A3A" stroke-width="0.3"/>
-    <!-- DELTÓIDE DIREITO -->
-    <path d="M72 25 C78 27 83 31 85 37 C87 43 86 49 84 53 L80 51 C82 47 82 42 81 37 C79 32 75 28 72 26Z" fill="#323232" stroke="#3A3A3A" stroke-width="0.3"/>
-    <!-- PEITORAL ESQUERDO -->
-    <path d="M33 26 C37 24 44 23 49 23 L49 42 C44 44 38 44 33 41 C30 39 29 36 29 33Z" fill="#2E2E2E" stroke="#383838" stroke-width="0.3"/>
-    <!-- PEITORAL DIREITO -->
-    <path d="M67 26 C63 24 56 23 51 23 L51 42 C56 44 62 44 67 41 C70 39 71 36 71 33Z" fill="#2E2E2E" stroke="#383838" stroke-width="0.3"/>
-    <!-- LINHA CENTRAL DO PEITO -->
-    <line x1="50" y1="22" x2="50" y2="43" stroke="#252525" stroke-width="0.8"/>
-    <!-- SERRÁTIL ANTERIOR ESQ -->
-    <path d="M29 38 L34 42 L30 47 L33 48 L30 52 L35 50Z" fill="#2B2B2B"/>
-    <!-- SERRÁTIL ANTERIOR DIR -->
-    <path d="M71 38 L66 42 L70 47 L67 48 L70 52 L65 50Z" fill="#2B2B2B"/>
-    <!-- RETO ABDOMINAL -->
-    <path d="M36 43 L50 46 L64 43 L65 65 L50 68 L35 65Z" fill="#292929" stroke="#222" stroke-width="0.3"/>
-    <!-- LINHAS DO ABDOMINAL -->
-    <line x1="37" y1="51" x2="63" y2="51" stroke="#1E1E1E" stroke-width="1"/>
-    <line x1="36" y1="59" x2="64" y2="59" stroke="#1E1E1E" stroke-width="1"/>
-    <line x1="50" y1="43" x2="50" y2="68" stroke="#1E1E1E" stroke-width="0.8"/>
-    <!-- OBLÍQUOS ESQUERDOS -->
-    <path d="M35 50 L30 52 L29 65 L36 65Z" fill="#272727" stroke="#222" stroke-width="0.3"/>
-    <!-- OBLÍQUOS DIREITOS -->
-    <path d="M65 50 L70 52 L71 65 L64 65Z" fill="#272727" stroke="#222" stroke-width="0.3"/>
-    <!-- BÍCEPS ESQUERDO -->
-    <path d="M16 53 L22 50 L23 65 L17 67Z" fill="#2A2A2A" stroke="#333" stroke-width="0.3"/>
-    <!-- CABEÇA CURTA DO BÍCEPS ESQ -->
-    <path d="M22 50 L26 49 L27 63 L23 65Z" fill="#282828"/>
-    <!-- BÍCEPS DIREITO -->
-    <path d="M84 53 L78 50 L77 65 L83 67Z" fill="#2A2A2A" stroke="#333" stroke-width="0.3"/>
-    <!-- CABEÇA CURTA DO BÍCEPS DIR -->
-    <path d="M78 50 L74 49 L73 63 L77 65Z" fill="#282828"/>
-    <!-- ANTEBRAÇO ESQUERDO -->
-    <path d="M17 67 L23 65 L22 80 L16 80Z" fill="#252525" stroke="#2E2E2E" stroke-width="0.3"/>
-    <!-- DIVISÃO ANTEBRAÇO ESQ -->
-    <line x1="19" y1="67" x2="18.5" y2="80" stroke="#1E1E1E" stroke-width="0.6"/>
-    <!-- ANTEBRAÇO DIREITO -->
-    <path d="M83 67 L77 65 L78 80 L84 80Z" fill="#252525" stroke="#2E2E2E" stroke-width="0.3"/>
-    <!-- QUADRIL -->
-    <path d="M35 65 L65 65 L68 75 L32 75Z" fill="#2B2B2B" stroke="#333" stroke-width="0.3"/>
-    <!-- TENSOR DA FÁSCIA LATA ESQ -->
-    <path d="M31 68 L35 65 L35 75 L31 76Z" fill="#282828"/>
-    <!-- QUADRÍCEPS ESQ - VASTO LATERAL -->
-    <path d="M32 75 L42 75 L41 93 L31 91Z" fill="#292929" stroke="#222" stroke-width="0.3"/>
-    <!-- QUADRÍCEPS ESQ - RETO FEMORAL -->
-    <path d="M42 75 L48 75 L47 93 L41 93Z" fill="#2D2D2D" stroke="#222" stroke-width="0.3"/>
-    <!-- QUADRÍCEPS DIR - RETO FEMORAL -->
-    <path d="M52 75 L58 75 L59 93 L53 93Z" fill="#2D2D2D" stroke="#222" stroke-width="0.3"/>
-    <!-- QUADRÍCEPS DIR - VASTO LATERAL -->
-    <path d="M58 75 L68 75 L69 91 L59 93Z" fill="#292929" stroke="#222" stroke-width="0.3"/>
-    <!-- SARTÓRIO ESQ -->
-    <path d="M40 75 L43 75 L44 93 L41 93Z" fill="#252525"/>
-    <!-- SARTÓRIO DIR -->
-    <path d="M57 75 L60 75 L59 93 L56 93Z" fill="#252525"/>
-    <!-- LINHA DO JOELHO ESQ -->
-    <ellipse cx="38" cy="93" rx="6" ry="2" fill="#252525"/>
-    <!-- LINHA DO JOELHO DIR -->
-    <ellipse cx="62" cy="93" rx="6" ry="2" fill="#252525"/>`;
-
-  const highlights={
-    peito:`
-      <path d="M33 26 C37 24 44 23 49 23 L49 42 C44 44 38 44 33 41 C30 39 29 36 29 33Z" fill="${color}" opacity="0.85"/>
-      <path d="M67 26 C63 24 56 23 51 23 L51 42 C56 44 62 44 67 41 C70 39 71 36 71 33Z" fill="${color}" opacity="0.85"/>`,
-    costas:`
-      <path d="M33 26 C37 24 44 23 49 23 L49 42 C38 44 33 41 30 38Z" fill="${color}" opacity="0.5"/>
-      <path d="M67 26 C63 24 56 23 51 23 L51 42 C62 44 67 41 70 38Z" fill="${color}" opacity="0.5"/>
-      <path d="M16 53 L22 50 L23 65 L17 67Z" fill="${color}" opacity="0.5"/>
-      <path d="M84 53 L78 50 L77 65 L83 67Z" fill="${color}" opacity="0.5"/>`,
-    pernas:`
-      <path d="M32 75 L48 75 L47 93 L31 91Z" fill="${color}" opacity="0.85"/>
-      <path d="M52 75 L68 75 L69 91 L53 93Z" fill="${color}" opacity="0.85"/>`,
-    ombros:`
-      <path d="M28 25 C22 27 17 31 15 37 C13 43 14 49 16 53 L20 51 C18 47 18 42 19 37 C21 32 25 28 28 26Z" fill="${color}" opacity="0.9"/>
-      <path d="M72 25 C78 27 83 31 85 37 C87 43 86 49 84 53 L80 51 C82 47 82 42 81 37 C79 32 75 28 72 26Z" fill="${color}" opacity="0.9"/>`,
-    biceps:`
-      <path d="M16 53 L22 50 L23 65 L17 67Z" fill="${color}" opacity="0.9"/>
-      <path d="M22 50 L26 49 L27 63 L23 65Z" fill="${color}" opacity="0.8"/>
-      <path d="M84 53 L78 50 L77 65 L83 67Z" fill="${color}" opacity="0.9"/>
-      <path d="M78 50 L74 49 L73 63 L77 65Z" fill="${color}" opacity="0.8"/>`,
-    triceps:`
-      <path d="M14 35 L18 33 L19 50 L15 52Z" fill="${color}" opacity="0.9"/>
-      <path d="M86 35 L82 33 L81 50 L85 52Z" fill="${color}" opacity="0.9"/>`,
-    abdomen:`
-      <path d="M36 43 L50 46 L64 43 L65 65 L50 68 L35 65Z" fill="${color}" opacity="0.85"/>`,
-    gluteos:`
-      <path d="M35 65 L65 65 L68 75 L32 75Z" fill="${color}" opacity="0.9"/>`,
-    trapezio:`
-      <path d="M47 20 C40 20 30 22 28 25 L33 26 C36 22 43 21 47 21Z" fill="${color}" opacity="0.9"/>
-      <path d="M53 20 C60 20 70 22 72 25 L67 26 C64 22 57 21 53 21Z" fill="${color}" opacity="0.9"/>`,
-    antebraco:`
-      <path d="M17 67 L23 65 L22 80 L16 80Z" fill="${color}" opacity="0.95"/>
-      <path d="M83 67 L77 65 L78 80 L84 80Z" fill="${color}" opacity="0.95"/>`,
+// ─── PICK SESSION EXERCISES (from Agenda: choose which exercises to do + edit) ───
+function rPickSessionModal(){
+  const w=S.mCtx?.workout;if(!w)return D("div");
+  const exs=(w.exercises||[]).map(e=>({...e}));
+  if(exs.length===0){
+    const d=sheet(w.name,"Sem exercícios",`<div class="empty" style="padding:30px 0"><div style="font-size:40px">📋</div><p>Esse treino ainda não tem exercícios.</p><p style="font-size:13px;color:#666;margin-top:6px">Adicione exercícios na aba Treinos.</p></div>`);
+    return d;
+  }
+  // Track selection (all selected by default) and editable params
+  let picked=exs.map((_,i)=>i);
+  const render=()=>{
+    d.querySelector("#psList").innerHTML=exs.map((e,i)=>{
+      const m=MUSCLE_META[e.group]||{label:e.group||"",color:"#888",bg:"rgba(136,136,136,0.15)"};
+      const on=picked.includes(i);
+      return `<div class="ps-ex" style="background:var(--bg2);border:1.5px solid ${on?"var(--orange)":"var(--border)"};border-radius:14px;padding:12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:${on?"10px":"0"}">
+          <button class="ps-tog" data-i="${i}" style="width:26px;height:26px;border-radius:8px;border:2px solid ${on?"var(--orange)":"var(--border)"};background:${on?"var(--orange)":"transparent"};color:#fff;font-size:14px;cursor:pointer;flex-shrink:0">${on?"✓":""}</button>
+          <div style="width:42px;height:42px;border-radius:10px;background:${m.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0">${muscleSVG(e.group,m.color)}</div>
+          <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${e.name}</div><div style="font-size:11px;color:${m.color}">${m.label}</div></div>
+        </div>
+        ${on?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">SÉRIES</label><input class="ps-inp" data-i="${i}" data-f="sets" type="number" min="1" max="10" value="${e.sets||3}" style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);text-align:center;font-weight:700;outline:none"/></div>
+          <div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">REPS</label><input class="ps-inp" data-i="${i}" data-f="reps" value="${e.reps||"10-12"}" style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);text-align:center;font-weight:700;outline:none"/></div>
+          <div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px">DESC (s)</label><input class="ps-inp" data-i="${i}" data-f="rest" type="number" min="0" max="600" value="${e.rest||60}" style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);text-align:center;font-weight:700;outline:none"/></div>
+        </div>`:""}
+      </div>`;
+    }).join("");
+    d.querySelectorAll(".ps-tog").forEach(b=>b.onclick=()=>{const i=parseInt(b.dataset.i);if(picked.includes(i))picked=picked.filter(x=>x!==i);else picked.push(i);render();});
+    d.querySelectorAll(".ps-inp").forEach(inp=>inp.oninput=e=>{const i=parseInt(inp.dataset.i);const f=inp.dataset.f;exs[i][f]=f==="reps"?inp.value:(parseInt(inp.value)||(f==="sets"?3:60));});
+    const cnt=d.querySelector("#psCount");if(cnt)cnt.textContent=picked.length;
   };
-  return `<svg viewBox="0 0 100 100" width="100%" height="100%" style="max-height:180px">${base}${highlights[group]||highlights.peito}</svg>`;
+  const d=sheet(w.name,"Escolha os exercícios para treinar",`
+    <div id="psList" style="max-height:50vh;overflow-y:auto;padding:2px"></div>
+    <button class="btn-primary" id="psStart" style="margin-top:14px">▶ Iniciar treino (<span id="psCount">${picked.length}</span>)</button>
+  `);
+  setTimeout(render,0);
+  d.querySelector("#psStart")?.addEventListener("click",()=>{
+    const chosen=picked.sort((a,b)=>a-b).map(i=>exs[i]);
+    if(chosen.length===0)return alert("Selecione pelo menos um exercício.");
+    closeModal();
+    startSession(chosen);
+  });
+  return d;
+}
+
+function muscleSVG(group,color="#FF6B00"){
+  // Clean professional front-view muscular silhouette
+  const muscles={
+    peito:[[50,32,18,10]],costas:[],pernas:[[40,68,9,20],[60,68,9,20]],
+    ombros:[[30,28,7,7],[70,28,7,7]],biceps:[[26,42,5,12],[74,42,5,12]],
+    triceps:[[26,42,5,12],[74,42,5,12]],abdomen:[[50,50,14,18]],
+    gluteos:[[50,63,20,8]],trapezio:[[50,22,24,5]],antebraco:[[24,58,5,14],[76,58,5,14]]
+  };
+  const hl=(muscles[group]||muscles.peito);
+  const body=`
+    <ellipse cx="50" cy="11" rx="7" ry="8" fill="#3a3a3a"/>
+    <path d="M43 19 Q50 22 57 19 L60 27 Q50 30 40 27Z" fill="#333"/>
+    <rect x="32" y="26" width="36" height="26" rx="10" fill="#333"/>
+    <rect x="36" y="48" width="28" height="22" rx="6" fill="#303030"/>
+    <ellipse cx="26" cy="30" rx="7" ry="8" fill="#333"/>
+    <ellipse cx="74" cy="30" rx="7" ry="8" fill="#333"/>
+    <rect x="21" y="36" width="9" height="22" rx="4" fill="#2e2e2e"/>
+    <rect x="70" y="36" width="9" height="22" rx="4" fill="#2e2e2e"/>
+    <rect x="20" y="56" width="8" height="20" rx="4" fill="#2c2c2c"/>
+    <rect x="72" y="56" width="8" height="20" rx="4" fill="#2c2c2c"/>
+    <rect x="38" y="68" width="10" height="24" rx="5" fill="#303030"/>
+    <rect x="52" y="68" width="10" height="24" rx="5" fill="#303030"/>`;
+  const highlights=hl.map(([cx,cy,rx,ry])=>`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${color}" opacity="0.9"/>`).join("");
+  return `<svg viewBox="0 0 100 100" width="100%" height="100%" style="max-height:180px">${body}${highlights}</svg>`;
+}
+
+function exerciseAnimation(group,color="#FF6B00"){
+  // Professional animated stick-figure performing the movement, pure CSS, no external assets
+  const uid="ax"+Math.random().toString(36).slice(2,8);
+  const anims={
+    peito:`@keyframes ${uid}{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-38deg)}}`,
+    costas:`@keyframes ${uid}{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px) rotate(8deg)}}`,
+    pernas:`@keyframes ${uid}{0%,100%{transform:translateY(0)}50%{transform:translateY(10px)}}`,
+    ombros:`@keyframes ${uid}{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-60deg)}}`,
+    biceps:`@keyframes ${uid}{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-75deg)}}`,
+    triceps:`@keyframes ${uid}{0%,100%{transform:rotate(-75deg)}50%{transform:rotate(0deg)}}`,
+    abdomen:`@keyframes ${uid}{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-30deg)}}`,
+    gluteos:`@keyframes ${uid}{0%,100%{transform:translateY(0)}50%{transform:translateY(9px)}}`,
+    trapezio:`@keyframes ${uid}{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}`,
+    antebraco:`@keyframes ${uid}{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}}`,
+  };
+  const kf=anims[group]||anims.peito;
+  // The moving limb depends on group
+  const arm=`<g style="transform-origin:50px 38px;animation:${uid} 1.6s ease-in-out infinite"><line x1="50" y1="38" x2="30" y2="50" stroke="${color}" stroke-width="4" stroke-linecap="round"/><circle cx="30" cy="50" r="4" fill="${color}"/></g><g style="transform-origin:50px 38px;animation:${uid} 1.6s ease-in-out infinite"><line x1="50" y1="38" x2="70" y2="50" stroke="${color}" stroke-width="4" stroke-linecap="round" transform="scale(-1,1) translate(-100,0)"/></g>`;
+  return `<style>${kf}</style><svg viewBox="0 0 100 100" width="100%" height="100%" style="max-height:180px">
+    <circle cx="50" cy="20" r="8" fill="#555"/>
+    <line x1="50" y1="28" x2="50" y2="60" stroke="#555" stroke-width="5" stroke-linecap="round"/>
+    <line x1="50" y1="60" x2="40" y2="82" stroke="#555" stroke-width="5" stroke-linecap="round"/>
+    <line x1="50" y1="60" x2="60" y2="82" stroke="#555" stroke-width="5" stroke-linecap="round"/>
+    <g style="transform-origin:50px 38px;animation:${uid} 1.6s ease-in-out infinite">
+      <line x1="50" y1="38" x2="28" y2="48" stroke="${color}" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="28" cy="48" r="4" fill="${color}"/>
+      <line x1="50" y1="38" x2="72" y2="48" stroke="${color}" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="72" cy="48" r="4" fill="${color}"/>
+    </g>
+  </svg>`;
 }
 
 
@@ -1418,14 +1464,14 @@ function rSession(){
   const d=D("page");
   d.innerHTML=`<div class="sess-wrap"><div class="sess-hdr"><button class="back-x" id="bExit">✕</button><div style="flex:1"><div class="sess-eye">EXERCÍCIO ${idx+1}/${exercises.length}</div><div class="sess-title">${ex.name}</div></div></div><div class="sess-prog"><div class="sess-fill" style="width:${prog}%"></div></div><div class="sess-body">
     <div style="text-align:center;margin-bottom:14px">
-      <div style="width:120px;height:120px;background:var(--bg3);border-radius:16px;margin:0 auto 10px;overflow:hidden"><img src="${gifUrl(ex.id)}" alt="${ex.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"/></div>
+      <div style="width:140px;height:140px;background:var(--bg3);border-radius:16px;margin:0 auto 10px;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:10px">${exerciseAnimation(ex.group,(MUSCLE_META[ex.group]||{color:"#FF6B00"}).color)}</div>
       <div style="font-size:17px;font-weight:700">${ex.name}</div>
-      <div style="font-size:13px;margin-top:4px;font-weight:600;color:${m.color}">${ex.muscles}</div>
+      <div style="font-size:13px;margin-top:4px;font-weight:600;color:${m.color}">${ex.muscles||"Músculos diversos"}</div>
     </div>
-    <div class="ex3stats"><div class="es"><div class="esv">${sets[idx].length}</div><div class="esl">SÉRIES</div></div><div class="es"><div class="esv">${ex.reps}</div><div class="esl">REPS</div></div><div class="es"><div class="esv">${ex.rest}s</div><div class="esl">DESCANSO</div></div></div>
+    <div class="ex3stats"><div class="es"><div class="esv">${sets[idx].length}</div><div class="esl">SÉRIES</div></div><div class="es"><div class="esv">${ex.reps||"10-12"}</div><div class="esl">REPS</div></div><div class="es"><div class="esv">${ex.rest||60}s</div><div class="esl">DESCANSO</div></div></div>
     ${S.session.restActive?`<div class="rest-card"><div class="rest-lbl">DESCANSO</div><div class="rest-val" id="rV">${fmtTime(S.session.restLeft)}</div><div class="rest-bar"><div class="rest-fill" id="rF" style="width:${((S.session.restTotal-S.session.restLeft)/S.session.restTotal)*100}%"></div></div><button class="btn-sec" id="bSR" style="margin-top:10px;width:100%">Pular descanso</button></div>`:""}
     <div class="sets-block"><div class="sets-hdr"><span>SÉRIE</span><span>REPS</span><span>PESO (kg)</span><span></span></div>${sets[idx].map((s,si)=>`<div class="set-row"><div class="set-n">S${si+1}</div><input class="set-inp" data-si="${si}" data-f="reps" type="number" value="${s.reps}"/><input class="set-inp" data-si="${si}" data-f="weight" type="number" value="${s.weight}"/><div class="set-chk ${s.done?"chk-done":""}" data-si="${si}">${s.done?"✓":""}</div></div>`).join("")}
-    <div class="set-ctrls"><button class="set-ctrl" id="bAddSet">+ Adicionar série</button>${sets[idx].length>1?`<button class="set-ctrl set-ctrl-del" id="bRemSet">- Remover série</button>`:""}</div></div>
+    <div class="set-ctrls">${sets[idx].length>1?`<button class="set-ctrl set-ctrl-del" id="bRemSet">- Remover série</button>`:`<span></span>`}<button class="set-ctrl" id="bAddSet">+ Adicionar série</button></div></div>
     <div class="sess-acts">${sets[idx].every(s=>s.done)?`<button class="btn-primary" id="bNxEx">${idx<exercises.length-1?"Próximo exercício →":"Finalizar treino 🏆"}</button>`:""}<button class="btn-sec" id="bSkipEx" style="width:100%">Pular exercício</button></div>
   </div></div>`;
   d.querySelector("#bExit").onclick=()=>{if(confirm("Sair do treino?")&&(clearInterval(restTimer)||true)){S.session=null;r();}};
@@ -1599,6 +1645,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .agenda-body{display:flex;flex-direction:column;gap:10px;}
 .cal-badge{background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text);}
 .day-card{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;}
+.week-bubbles{display:flex;justify-content:space-between;gap:6px;margin-bottom:18px;}
+.wbub{position:relative;flex:1;aspect-ratio:1;max-width:46px;border-radius:50%;border:2px solid var(--border);background:var(--bg3);color:var(--text2);font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+.wbub-train{border-color:rgba(255,107,0,0.35);color:var(--orange);}
+.wbub-has{background:var(--orange);border-color:var(--orange);color:#fff;}
+.wbub-rest{opacity:.5;}
+.wbub-today{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--orange);}
+.wbub-dot{position:absolute;bottom:3px;width:5px;height:5px;border-radius:50%;background:#fff;}
 .day-card.today{border-color:rgba(255,107,0,0.5);}
 .day-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .day-nm{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
