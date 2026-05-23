@@ -1148,7 +1148,8 @@ function rFoodModal(){
             ]}],
             generationConfig:{
               temperature:0.2,
-              maxOutputTokens:1024,
+              maxOutputTokens:2048,
+              thinkingConfig:{thinkingBudget:0},
               responseMimeType:"application/json",
               responseSchema:{
                 type:"OBJECT",
