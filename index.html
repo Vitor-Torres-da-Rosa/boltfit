@@ -331,7 +331,7 @@ let S={
   modal:null,mCtx:null,
   session:null,
   exFilter:"",exGroup:"",
-  foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,aiRawResult:null,aiWeightStep:false,aiPlateWeight:0,aiError:null,
+  foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,aiRawResult:null,aiWeightStep:false,aiPlateWeight:0,aiError:null,aiImg:null,mealCatNames:{},
   darkMode:true,
 };
 let restTimer=null;
@@ -342,8 +342,8 @@ let restTimer=null;
 const uid=()=>S.user?.uid;
 const saveProfile=async p=>setDoc(doc(db,"users",uid(),"data","profile"),p);
 const loadProfile=async()=>{const s=await getDoc(doc(db,"users",uid(),"data","profile"));return s.exists()?s.data():null;};
-const saveFoods=async f=>{const t=new Date().toISOString().split("T")[0];await setDoc(doc(db,"users",uid(),"foods",t),{items:f,mealCat:S.mealCat||{},ts:serverTimestamp()});};
-const loadFoods=async()=>{const t=new Date().toISOString().split("T")[0];const s=await getDoc(doc(db,"users",uid(),"foods",t));if(s.exists()){const d2=s.data();S.mealCat=d2.mealCat||{};return d2.items||[];}return [];};
+const saveFoods=async f=>{const t=new Date().toISOString().split("T")[0];await setDoc(doc(db,"users",uid(),"foods",t),{items:f,mealCat:S.mealCat||{},mealCatNames:S.mealCatNames||{},ts:serverTimestamp()});};
+const loadFoods=async()=>{const t=new Date().toISOString().split("T")[0];const s=await getDoc(doc(db,"users",uid(),"foods",t));if(s.exists()){const d2=s.data();S.mealCat=d2.mealCat||{};S.mealCatNames=d2.mealCatNames||{};return d2.items||[];}S.mealCatNames={};return [];};
 const loadWorkouts=async()=>{const snap=await getDocs(collection(db,"users",uid(),"workouts"));return snap.docs.map(d=>({id:d.id,...d.data()}));};
 const saveWorkout=async w=>{const r=await addDoc(collection(db,"users",uid(),"workouts"),{...w,ts:serverTimestamp()});return r.id;};
 const deleteWorkout=async id=>deleteDoc(doc(db,"users",uid(),"workouts",id));
@@ -433,7 +433,7 @@ function rOnboard(){
     if(step===total-1){
       const b=d.querySelector("#bNx");b.textContent="Salvando...";b.disabled=true;
       computeTMB();
-      S.profile={...S.onboard.data,tmb:S.tmb,targetCal:S.targetCal,name:S.user.displayName||S.user.email.split("@")[0],email:S.user.email,createdAt:new Date().toISOString()};
+      S.profile={...S.onboard.data,tmb:S.tmb,targetCal:S.targetCal,name:S.onboard.data.name||S.user.displayName||S.user.email.split("@")[0],email:S.user.email,darkMode:typeof S.darkMode!=="undefined"?S.darkMode:true,createdAt:S.onboard.data.createdAt||new Date().toISOString()};
       try{await saveProfile(S.profile);}catch(e){}
       S.phase="home";r();
     }else{S.onboard.step++;r();}
@@ -663,7 +663,7 @@ function rCalorias(){
   // Add to specific meal category
   d.querySelectorAll("[data-addcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.addcat;S.modal="food";r();});
   d.querySelectorAll("[data-newcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.newcat;S.modal="food";r();});
-  d.querySelectorAll(".meal-rename-btn").forEach(btn=>btn.onclick=e=>{
+  d.querySelectorAll(".meal-rename-btn").forEach(btn=>btn.onclick=async e=>{
     e.stopPropagation();
     const catId=btn.dataset.rename;
     const current=btn.dataset.current;
@@ -671,6 +671,7 @@ function rCalorias(){
     if(newName&&newName.trim()){
       if(!S.mealCatNames)S.mealCatNames={};
       S.mealCatNames[catId]=newName.trim();
+      await saveFoods(S.foods);
       r();
     }
   });
@@ -753,14 +754,21 @@ function rPerfil(){
   const cal=S.targetCal||0;
   d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av">${ini}</div><div class="pf-nm">${name}</div><div class="pf-em">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">METABOLISMO</div><div class="info-grid"><div class="ic"><div class="iv" style="color:var(--orange)">${S.tmb||"—"} kcal</div><div class="il">TMB</div></div><div class="ic"><div class="iv" style="color:var(--orange)">${cal||"—"} kcal</div><div class="il">Meta diária</div></div></div><div class="goal-tag">↗ ${goal}</div></div><div class="info-sec"><div class="sec-lbl">MACROS DIÁRIOS</div><div class="macro-row" style="padding:12px 0 0"><div class="mc"><div class="mv" style="color:#4B9EFF">${Math.round(cal*0.3/4)}g</div><div class="ml">Proteína</div></div><div class="mc"><div class="mv" style="color:#FF8C42">${Math.round(cal*0.45/4)}g</div><div class="ml">Carbs</div></div><div class="mc"><div class="mv" style="color:#22D3A5">${Math.round(cal*0.25/9)}g</div><div class="ml">Gordura</div></div></div></div><div class="info-sec"><div class="sec-lbl">TREINO</div><div class="kv"><span class="kk">Atividade</span><span class="kv2">${acts[p?.activity]||"—"}</span></div><div class="kv"><span class="kk">Divisão</span><span class="kv2">${p?.split||"—"}</span></div><div class="tpills">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<span class="tpill ${(p?.trainDays||[]).includes(i)?"tp-on":""}">${w}</span>`).join("")}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
       <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>`;
-  d.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{}};r();});});
+  d.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
   d.querySelector("#bEdit")?.addEventListener("click",()=>{S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
-  d.querySelector("#bDarkToggle")?.addEventListener("click",()=>{
+  d.querySelector("#bDarkToggle")?.addEventListener("click",async()=>{
     S.darkMode=S.darkMode===false?true:false;
     applyTheme();
     // Update toggle visual without full re-render
     const tog=d.querySelector("#bDarkToggle");
-    if(tog){tog.classList.toggle("on",S.darkMode!==false);}
+    if(tog){
+      tog.classList.toggle("on",S.darkMode!==false);
+      tog.style.background=S.darkMode===false?"#666":"var(--orange)";
+      const knob=tog.querySelector("div");
+      if(knob)knob.style.transform=`translateX(${S.darkMode===false?"0":"20px"})`;
+    }
+    // Persistir preferência no perfil
+    if(S.profile){S.profile.darkMode=S.darkMode;try{await saveProfile(S.profile);}catch(e){}}
   });
   d.querySelector("#bNotif")?.addEventListener("click",async()=>{if(!("Notification"in window))return alert("Navegador não suporta notificações.");const p=await Notification.requestPermission();if(p==="granted")new Notification("BoltFit ⚡",{body:"Notificações ativadas!"});else alert("Notificações bloqueadas nas configurações do navegador.");});
   return d;
@@ -974,8 +982,8 @@ function rFoodModal(){
     // Populate list immediately with all foods including community
     const initListEl=d.querySelector("#foodListEl");
     if(initListEl)updateList(initListEl,(S.foodSearch||"").toLowerCase(),S.foodCat);
-    d.querySelector("#bAddAI")?.addEventListener("click",async()=>{if(S.aiResult){const ni=S.foods.length;S.foods.push({...S.aiResult,grams:S.aiResult.serving||100});if(!S.mealCat)S.mealCat={};S.mealCat[ni]=S.pendingMealCat||"sem_categoria";await saveFoods(S.foods);S.aiResult=null;S.aiImg=null;S.pendingMealCat=null;closeModal();}});
-    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;S.aiError=null;const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();bindCam();});
+    // AI buttons handled by bindAIButtons() — call after initial render in case a result is shown
+    bindAIButtons();
 
     // Search — only update list, no full re-render
     const fS=d.querySelector("#fS");
@@ -1008,11 +1016,7 @@ function rFoodModal(){
       if(listEl)updateList(listEl,(S.foodSearch||"").toLowerCase(),S.foodCat);
     });
 
-    // Food row clicks
-    d.querySelectorAll("[data-fn]").forEach(row=>row.onclick=async()=>{
-      const f=FOODS.find(x=>x.n===row.dataset.fn);
-      if(f){S.foods.push({...f});await saveFoods(S.foods);S.foodSearch="";S.foodCat="";closeModal();}
-    });
+    // Food row clicks are bound inside updateList() (with quantity picker + community foods)
 
     bindCam();
   };
@@ -1259,7 +1263,7 @@ function rExDetailModal(){
   const m=MUSCLE_META[ex.group]||{label:ex.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
   const d=sheet(ex.name,"",`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1"><img src="${gifUrl(ex.id)}" alt="${ex.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML=\'<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;font-size:36px\\'>🏋️</div>\'"/></div>
+      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center"><img src="${gifUrl(ex.id)}" alt="${ex.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'font-size:36px\'>🏋️</div>')"/></div>
       <div style="background:var(--bg3);border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center">${muscleSVG(ex.group,m.color)}</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${ex.eq}</span></div>
@@ -1476,7 +1480,7 @@ async function authOk(user){
   S.user=user;
   try{
     const p=await loadProfile();
-    if(p){S.profile=p;computeTMB();
+    if(p){S.profile=p;if(typeof p.darkMode!=="undefined")S.darkMode=p.darkMode;applyTheme();computeTMB();
       try{S.foods=await loadFoods();}catch(e){S.foods=[];}
       try{S.workouts=await loadWorkouts();}catch(e){S.workouts=[];}
       try{S.schedule=await loadSchedule();}catch(e){S.schedule={};}
