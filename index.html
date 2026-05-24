@@ -317,12 +317,78 @@ const FOODS=[
 const FOOD_CATS=[...new Set(FOODS.map(f=>f.cat))];
 
 // ═══════════════════════════════════════════
+// PLANOS (Free / Premium)
+// ═══════════════════════════════════════════
+const PLAN_LIMITS={
+  free:{aiWorkoutsPerWeek:3,aiFoodPerDay:5,coachPerDay:5},
+  premium:{aiWorkoutsPerWeek:Infinity,aiFoodPerDay:Infinity,coachPerDay:Infinity},
+};
+function isPremium(){return (S.profile?.plan)==="premium";}
+function planLimit(key){return PLAN_LIMITS[isPremium()?"premium":"free"][key];}
+function weekKey(){const d=new Date();const onejan=new Date(d.getFullYear(),0,1);const wk=Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);return d.getFullYear()+"-W"+wk;}
+function dayKey(){return new Date().toISOString().split("T")[0];}
+// Returns how many uses remain for a feature; Infinity if premium
+function usesLeft(feature){
+  if(isPremium())return Infinity;
+  const u=S.usage||{};
+  if(feature==="aiWorkout"){const used=(u.aiWorkout&&u.aiWorkout.k===weekKey())?u.aiWorkout.n:0;return Math.max(0,planLimit("aiWorkoutsPerWeek")-used);}
+  if(feature==="aiFood"){const used=(u.aiFood&&u.aiFood.k===dayKey())?u.aiFood.n:0;return Math.max(0,planLimit("aiFoodPerDay")-used);}
+  if(feature==="coach"){const used=(u.coach&&u.coach.k===dayKey())?u.coach.n:0;return Math.max(0,planLimit("coachPerDay")-used);}
+  return Infinity;
+}
+function consumeUse(feature){
+  if(isPremium())return true;
+  if(!S.usage)S.usage={};
+  const k=feature==="aiWorkout"?weekKey():dayKey();
+  const cur=S.usage[feature];
+  if(!cur||cur.k!==k)S.usage[feature]={k,n:0};
+  S.usage[feature].n++;
+  saveUsage(S.usage);
+  return true;
+}
+function showPremiumGate(reason){
+  const ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600;display:flex;align-items:flex-end;justify-content:center";
+  ov.innerHTML=`<div style="background:var(--bg2);border-top-left-radius:24px;border-top-right-radius:24px;padding:24px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto">
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:48px">⭐</div>
+      <div style="font-size:22px;font-weight:800;color:var(--text);margin-top:6px">BoltFit Premium</div>
+      ${reason?`<div style="font-size:13px;color:var(--orange);margin-top:8px;background:rgba(255,107,0,0.1);border-radius:10px;padding:10px">${reason}</div>`:""}
+    </div>
+    <div style="font-size:13px;color:#888;margin-bottom:6px;font-weight:700">DESBLOQUEIE COM O PREMIUM</div>
+    ${[
+      ["🤖","IA ilimitada","Treinos e análises de comida sem limite"],
+      ["📈","Progressão inteligente","A IA ajusta carga, reps e descanso automaticamente"],
+      ["🍽️","Dieta automática","Gera refeições e substitui alimentos por você"],
+      ["📊","Relatórios avançados","Gráficos de evolução e previsão de resultados"],
+      ["🚫","Sem anúncios","Experiência limpa e sem interrupções"],
+    ].map(([ic,t,d])=>`<div style="display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--border)"><div style="font-size:22px;flex-shrink:0">${ic}</div><div><div style="font-weight:700;font-size:14px;color:var(--text)">${t}</div><div style="font-size:12px;color:#888">${d}</div></div></div>`).join("")}
+    <button class="btn-primary" id="pgUpgrade" style="width:100%;margin-top:18px;padding:15px;font-size:15px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">⭐ Quero ser Premium</button>
+    <button class="btn-sec" id="pgClose" style="width:100%;margin-top:8px;padding:13px">Agora não</button>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  ov.querySelector("#pgClose").onclick=()=>ov.remove();
+  ov.querySelector("#pgUpgrade").onclick=()=>{
+    ov.remove();
+    // Cobrança real exige gateway de pagamento + servidor. Por ora, ativação manual.
+    if(confirm("O pagamento online ainda será configurado.\n\nDeseja ativar o Premium neste dispositivo agora (modo teste)?")){
+      if(!S.profile)S.profile={};
+      S.profile.plan="premium";
+      saveProfile(S.profile);
+      alert("✅ Premium ativado! Aproveite a IA ilimitada.");
+      r();
+    }
+  };
+}
+
+// ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
 let S={
   user:null,profile:null,phase:"splash",
   tab:"agenda",
-  communityFoods:[],
+  communityFoods:[],perf:{},usage:{},coachMsgs:null,coachLoading:false,
   mealCat:{},
   pendingMealCat:null,
   onboard:{step:0,data:{sex:"",age:"",weight:"",height:"",activity:"",goal:"",trainDays:[],split:""}},
@@ -349,6 +415,11 @@ const saveWorkout=async w=>{const r=await addDoc(collection(db,"users",uid(),"wo
 const deleteWorkout=async id=>deleteDoc(doc(db,"users",uid(),"workouts",id));
 const saveSchedule=async s=>setDoc(doc(db,"users",uid(),"data","schedule"),s);
 const loadSchedule=async()=>{const s=await getDoc(doc(db,"users",uid(),"data","schedule"));return s.exists()?s.data():{};};
+// Exercise performance history (for automatic load adjustment)
+const loadPerf=async()=>{try{const s=await getDoc(doc(db,"users",uid(),"data","perf"));return s.exists()?s.data():{};}catch(e){return {};}};
+const savePerf=async p=>{try{await setDoc(doc(db,"users",uid(),"data","perf"),p);}catch(e){}};
+const loadUsage=async()=>{try{const s=await getDoc(doc(db,"users",uid(),"data","usage"));return s.exists()?s.data():{};}catch(e){return {};}};
+const saveUsage=async u=>{try{await setDoc(doc(db,"users",uid(),"data","usage"),u);}catch(e){}};
 
 // ═══════════════════════════════════════════
 // UTILS
@@ -498,6 +569,27 @@ function rHome(){
 }
 
 // ─── AGENDA ───
+// Smart motivational message based on day, time and schedule
+function motivationMsg(){
+  const p=S.profile||{};
+  const trainDays=p.trainDays||[];
+  const now=new Date();
+  const dow=now.getDay();
+  const hour=now.getHours();
+  const isTrainDay=trainDays.includes(dow);
+  const sched=(S.schedule||{})[dow];
+  const name=(p.username||p.name||"").split(" ")[0];
+  if(!isTrainDay){
+    return {icon:"😌",text:"Hoje é dia de descanso. Recuperação também faz parte do progresso — durma bem e se alimente direito."};
+  }
+  if(sched){
+    if(hour<12)return {icon:"☀️",text:`Hoje tem <strong>${sched.name}</strong>! Já deixa o treino engatilhado pra mais tarde. Bora começar bem o dia.`};
+    if(hour<18)return {icon:"💪",text:`Seu treino <strong>${sched.name}</strong> está te esperando. Bora pra cima${name?", "+name:""}!`};
+    return {icon:"🔥",text:`Ainda dá tempo do <strong>${sched.name}</strong> hoje! 20 minutos já fazem diferença. Vamos?`};
+  }
+  return {icon:"📋",text:"Hoje é dia de treino, mas você ainda não atribuiu um treino. Toque em \"Montar treino com IA\" ou escolha um dos seus."};
+}
+
 function rAgenda(){
   const d=D("tab-page");
   const p=S.profile;
@@ -514,7 +606,10 @@ function rAgenda(){
   const dayInitials=["D","S","T","Q","Q","S","S"];
   const dayShort=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   d.innerHTML=`<div class="tab-hdr"><div><div class="tab-eye">${isToday?"BOM TREINO!":"BOM DIA!"}</div><div class="tab-title">Olá, ${name}</div></div></div>
-  <button class="btn-primary" id="bManageWorkouts" style="margin-bottom:14px;width:100%">🏋️ Meus treinos</button>
+  ${(()=>{const msg=motivationMsg();return msg?`<div style="background:rgba(255,107,0,0.1);border:1px solid rgba(255,107,0,0.25);border-radius:14px;padding:13px 14px;margin-bottom:14px;font-size:13.5px;line-height:1.45;color:var(--text);display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">${msg.icon}</span><span>${msg.text}</span></div>`:"";})()}
+  <button class="btn-primary" id="bAIWorkout" style="margin-bottom:10px;width:100%;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🤖 Montar treino com IA</button>
+  <button class="btn-sec" id="bCoach" style="margin-bottom:10px;width:100%">💬 Coach IA — tire suas dúvidas</button>
+  <button class="btn-sec" id="bManageWorkouts" style="margin-bottom:14px;width:100%">🏋️ Meus treinos</button>
   <div class="week-bubbles">
     ${WD.map((wd,i)=>{
       const isTrain=trainDays.includes(i);const isTd=i===today();const sched=S.schedule[i];
@@ -530,6 +625,8 @@ function rAgenda(){
     <div class="info-sec" style="margin-top:16px"><div class="sec-lbl">TREINO</div><div class="kv"><span class="kk">Atividade</span><span class="kv2">${({sed:"Sedentário",light:"Levemente ativo",mod:"Moderadamente ativo",active:"Muito ativo",very:"Extremamente ativo"})[p?.activity]||"—"}</span></div><div class="kv"><span class="kk">Divisão</span><span class="kv2">${p?.split||"—"}</span></div><div class="tpills">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<span class="tpill ${(p?.trainDays||[]).includes(i)?"tp-on":""}">${w}</span>`).join("")}</div></div>
   </div>`;
   d.querySelector("#bManageWorkouts")?.addEventListener("click",()=>{S.mCtx={};S.modal="treinos";r();});
+  d.querySelector("#bAIWorkout")?.addEventListener("click",()=>{S.mCtx={};S.modal="aiWorkout";S.aiwStep=0;S.aiwData={};S.aiwResult=null;S.aiwLoading=false;r();});
+  d.querySelector("#bCoach")?.addEventListener("click",()=>{S.modal="coach";r();});
   d.querySelectorAll("[data-jump]").forEach(b=>b.onclick=()=>{const i=parseInt(b.dataset.jump);const el=d.querySelector("#dayc"+i);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});});
   d.querySelectorAll("[data-ass]").forEach(b=>b.onclick=()=>{S.mCtx={day:parseInt(b.dataset.ass)};S.modal="treinos";r();});
   d.querySelectorAll("[data-ed]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.mCtx={day:parseInt(b.dataset.ed)};S.modal="treinos";r();});
@@ -587,7 +684,229 @@ function rTreinosModal(){
   return d;
 }
 
-// ─── CALORIAS ───
+// ─── IA: MONTAR TREINO AUTOMÁTICO ───
+function rAIWorkoutModal(){
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+  if(typeof S.aiwStep!=="number")S.aiwStep=0;
+  if(!S.aiwData)S.aiwData={};
+
+  const steps=[
+    {key:"goal",q:"Qual seu objetivo?",opts:[["hipertrofia","💪 Hipertrofia (ganhar músculo)"],["emagrecer","🔥 Emagrecer"],["forca","🏋️ Força"],["resistencia","🏃 Resistência / condicionamento"]]},
+    {key:"level",q:"Qual seu nível?",opts:[["iniciante","🌱 Iniciante"],["intermediario","⚡ Intermediário"],["avancado","🔥 Avançado"]]},
+    {key:"time",q:"Quanto tempo por treino?",opts:[["30","⏱️ 30 min"],["45","⏱️ 45 min"],["60","⏱️ 60 min"],["90","⏱️ 90 min"]]},
+    {key:"equip",q:"Quais equipamentos você tem?",opts:[["academia","🏢 Academia completa"],["halteres","🏋️ Só halteres"],["casa","🏠 Casa (peso do corpo)"],["barra","➖ Barra e anilhas"]]},
+    {key:"focus",q:"Foco do treino?",opts:[["fullbody","Corpo todo"],["upper","Superior"],["lower","Inferior"],["push","Empurrar (peito/ombro/tríceps)"],["pull","Puxar (costas/bíceps)"],["legs","Pernas"]]},
+  ];
+
+  const render=()=>{
+    if(S.aiwLoading){
+      d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div class="modal-title">Montando seu treino</div><button class="close-x" id="bX">✕</button></div>
+        <div style="text-align:center;padding:40px 0"><div style="font-size:40px;animation:spin 1.5s linear infinite;display:inline-block">⏳</div><div style="font-weight:700;margin-top:12px;color:#fff">A IA está montando seu treino...</div><div style="font-size:12px;color:#888;margin-top:6px">Analisando objetivo, nível, tempo e equipamentos</div></div>`;
+      d2.querySelector("#bX").onclick=closeModal;
+      return;
+    }
+    if(S.aiwResult){
+      const w=S.aiwResult;
+      d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div><div class="modal-title">${w.name||"Treino IA"}</div><div class="modal-sub">${w.desc||""}</div></div><button class="close-x" id="bX">✕</button></div>
+        <div style="max-height:55vh;overflow-y:auto;padding:2px">
+        ${(w.exercises||[]).map((ex,i)=>{const m=MUSCLE_META[ex.group]||{label:ex.group||"",color:"#FF6B00",bg:"rgba(255,107,0,0.12)"};return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:9px;background:${m.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0">${muscleSVG(ex.group,m.color)}</div>
+          <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${i+1}. ${ex.name}</div><div style="font-size:12px;color:${m.color}">${ex.sets||3}×${ex.reps||"10-12"} · descanso ${ex.rest||60}s</div></div>
+        </div>`;}).join("")}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn-sec" id="bRegen" style="flex:1;padding:13px">↺ Gerar outro</button>
+          <button class="btn-primary" id="bSaveAIW" style="flex:2;padding:13px">✓ Salvar treino</button>
+        </div>`;
+      d2.querySelector("#bX").onclick=closeModal;
+      d2.querySelector("#bRegen").onclick=()=>{S.aiwResult=null;S.aiwStep=0;render();};
+      d2.querySelector("#bSaveAIW").onclick=async(ev)=>{
+        const btn=ev.currentTarget;if(btn.dataset.s==="1")return;btn.dataset.s="1";btn.disabled=true;btn.style.opacity="0.6";btn.textContent="Salvando...";
+        try{
+          const muscles=[...new Set((w.exercises||[]).map(e=>e.group))];
+          const wk={name:w.name||"Treino IA",letter:(w.name||"IA")[0].toUpperCase(),muscles,exercises:w.exercises||[]};
+          const id=await saveWorkout(wk);
+          S.workouts.push({id,...wk});
+          closeModal();
+        }catch(e){btn.dataset.s="0";btn.disabled=false;btn.style.opacity="1";btn.textContent="✓ Salvar treino";alert("Erro ao salvar. Tente novamente.");}
+      };
+      return;
+    }
+    // Question steps
+    const step=steps[S.aiwStep];
+    const isLast=S.aiwStep===steps.length-1;
+    d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div><div class="modal-sub">PERGUNTA ${S.aiwStep+1} DE ${steps.length+1}</div><div class="modal-title">${step.q}</div></div><button class="close-x" id="bX">✕</button></div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto;padding:2px">
+        ${step.opts.map(([v,label])=>`<button class="aiw-opt" data-v="${v}" style="padding:16px;background:${S.aiwData[step.key]===v?"rgba(255,107,0,0.15)":"var(--bg2)"};border:1.5px solid ${S.aiwData[step.key]===v?"var(--orange)":"var(--border)"};border-radius:14px;color:var(--text);font-weight:600;font-size:15px;text-align:left;cursor:pointer">${label}</button>`).join("")}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        ${S.aiwStep>0?`<button class="btn-sec" id="bBack" style="flex:1;padding:13px">← Voltar</button>`:""}
+        <button class="btn-primary" id="bNext" style="flex:2;padding:13px">${isLast?"Falar sobre lesões →":"Próximo →"}</button>
+      </div>`;
+    d2.querySelector("#bX").onclick=closeModal;
+    d2.querySelectorAll(".aiw-opt").forEach(b=>b.onclick=()=>{S.aiwData[step.key]=b.dataset.v;render();});
+    d2.querySelector("#bBack")?.addEventListener("click",()=>{S.aiwStep--;render();});
+    d2.querySelector("#bNext")?.addEventListener("click",()=>{
+      if(!S.aiwData[step.key]){alert("Escolha uma opção para continuar.");return;}
+      if(isLast){renderInjuries();}else{S.aiwStep++;render();}
+    });
+  };
+
+  const renderInjuries=()=>{
+    d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div><div class="modal-sub">PERGUNTA ${steps.length+1} DE ${steps.length+1}</div><div class="modal-title">Tem alguma lesão ou limitação?</div></div><button class="close-x" id="bX">✕</button></div>
+      <div style="font-size:13px;color:#888;margin-bottom:10px">Opcional. Ex: "dor no ombro", "lesão no joelho", "hérnia". A IA vai evitar exercícios que possam te machucar.</div>
+      <textarea id="aiwInjury" placeholder="Deixe em branco se não tiver nenhuma..." style="width:100%;min-height:80px;padding:14px;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;outline:none;resize:vertical">${S.aiwData.injury||""}</textarea>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn-sec" id="bBack" style="flex:1;padding:13px">← Voltar</button>
+        <button class="btn-primary" id="bGen" style="flex:2;padding:13px">🤖 Gerar treino</button>
+      </div>`;
+    d2.querySelector("#bX").onclick=closeModal;
+    d2.querySelector("#bBack").onclick=()=>{render();};
+    d2.querySelector("#bGen").onclick=()=>{S.aiwData.injury=d2.querySelector("#aiwInjury").value.trim();generateWorkout();};
+  };
+
+  const generateWorkout=async()=>{
+    // Limit check (free plan)
+    if(usesLeft("aiWorkout")<=0){
+      S.aiwLoading=false;
+      showPremiumGate("Você atingiu o limite de "+PLAN_LIMITS.free.aiWorkoutsPerWeek+" treinos com IA por semana do plano grátis.");
+      return;
+    }
+    consumeUse("aiWorkout");
+    S.aiwLoading=true;render();
+    const dt=S.aiwData;
+    const goalMap={hipertrofia:"hipertrofia (ganho de massa muscular)",emagrecer:"emagrecimento",forca:"força máxima",resistencia:"resistência e condicionamento"};
+    const equipMap={academia:"academia completa (máquinas, barras, halteres, polias)",halteres:"apenas halteres",casa:"apenas peso do corpo (em casa, sem equipamentos)",barra:"barra e anilhas"};
+    const focusMap={fullbody:"corpo todo",upper:"membros superiores",lower:"membros inferiores",push:"empurrar (peito, ombro, tríceps)",pull:"puxar (costas, bíceps)",legs:"pernas"};
+    const validGroups="peito, costas, pernas, ombros, biceps, triceps, abdomen, gluteos, trapezio, antebraco";
+    const prompt=`Voce e um personal trainer experiente. Monte um treino de musculacao personalizado em portugues do Brasil.
+Perfil do aluno:
+- Objetivo: ${goalMap[dt.goal]||dt.goal}
+- Nivel: ${dt.level}
+- Tempo disponivel: ${dt.time} minutos
+- Equipamento: ${equipMap[dt.equip]||dt.equip}
+- Foco: ${focusMap[dt.focus]||dt.focus}
+- Lesoes/limitacoes: ${dt.injury||"nenhuma"}
+Regras: escolha uma quantidade de exercicios compativel com o tempo (mais ou menos 1 exercicio a cada 6-8 min). Respeite o equipamento disponivel. Evite exercicios que agravem as lesoes citadas. Ajuste series/reps/descanso ao objetivo (hipertrofia 8-12 reps descanso 60-90s; forca 3-6 reps descanso 120-180s; emagrecer/resistencia 12-20 reps descanso 30-45s). Para cada exercicio defina o campo "group" usando SOMENTE um destes valores: ${validGroups}. Responda em portugues.`;
+    try{
+      const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          contents:[{parts:[{text:prompt}]}],
+          generationConfig:{
+            temperature:0.5,maxOutputTokens:2048,thinkingConfig:{thinkingBudget:0},
+            responseMimeType:"application/json",
+            responseSchema:{type:"OBJECT",properties:{
+              name:{type:"STRING"},desc:{type:"STRING"},
+              exercises:{type:"ARRAY",items:{type:"OBJECT",properties:{
+                name:{type:"STRING"},group:{type:"STRING"},sets:{type:"NUMBER"},reps:{type:"STRING"},rest:{type:"NUMBER"},muscles:{type:"STRING"}
+              },required:["name","group","sets","reps","rest"]}}
+            },required:["name","exercises"]}
+          }
+        })
+      });
+      if(!resp.ok){
+        if(resp.status===429)throw new Error("Limite de uso da IA atingido. Aguarde 1 minuto.");
+        throw new Error("Falha na IA ("+resp.status+").");
+      }
+      const data=await resp.json();
+      let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
+      txt=txt.replace(/```json|```/g,"").trim();
+      let result=null;
+      try{result=JSON.parse(txt);}catch(e){
+        const s=txt.indexOf("{");if(s>=0){let dep=0,end=-1;for(let i=s;i<txt.length;i++){if(txt[i]==="{")dep++;else if(txt[i]==="}"){dep--;if(dep===0){end=i;break;}}}if(end>s){try{result=JSON.parse(txt.slice(s,end+1));}catch(e2){}}}
+      }
+      if(!result||!result.exercises)throw new Error("A IA respondeu de forma incompleta. Tente novamente.");
+      // Give each exercise an id and normalize group
+      const valid=["peito","costas","pernas","ombros","biceps","triceps","abdomen","gluteos","trapezio","antebraco"];
+      result.exercises=result.exercises.map((ex,i)=>({
+        id:"aiw"+Date.now()+"_"+i,
+        name:ex.name,group:valid.includes(ex.group)?ex.group:"peito",
+        sets:Number(ex.sets)||3,reps:ex.reps||"10-12",rest:Number(ex.rest)||60,muscles:ex.muscles||""
+      }));
+      S.aiwResult=result;S.aiwLoading=false;render();
+    }catch(err){
+      S.aiwLoading=false;
+      alert((err&&err.message)?err.message:"Erro ao gerar treino. Tente novamente.");
+      render();
+    }
+  };
+
+  render();
+  return d;
+}
+
+// ─── COACH IA (chat fitness interno) ───
+function rCoachModal(){
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+  if(!S.coachMsgs)S.coachMsgs=[{role:"assistant",text:"E aí! 👋 Sou seu coach de treino e nutrição. Pode perguntar sobre exercícios, técnica, substituições, dieta, lesões... Como posso ajudar?"}];
+
+  const suggestions=["Qual exercício substitui leg press?","Posso treinar peito com dor no ombro?","Quantas vezes treinar por semana?","O que comer antes do treino?"];
+
+  const render=()=>{
+    const left=usesLeft("coach");
+    d2.innerHTML=`<div class="modal-handle"></div>
+      <div class="modal-hdr"><div><div class="modal-title">💬 Coach IA</div><div class="modal-sub">${isPremium()?"Premium · ilimitado":left+" perguntas restantes hoje"}</div></div><button class="close-x" id="bX">✕</button></div>
+      <div id="coachScroll" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px;min-height:200px;max-height:55vh">
+        ${S.coachMsgs.map(m=>m.role==="assistant"
+          ?`<div style="align-self:flex-start;max-width:85%;background:var(--bg3);border-radius:14px;border-top-left-radius:4px;padding:11px 13px;font-size:14px;line-height:1.5;color:var(--text);white-space:pre-wrap">${m.text}</div>`
+          :`<div style="align-self:flex-end;max-width:85%;background:var(--orange);border-radius:14px;border-top-right-radius:4px;padding:11px 13px;font-size:14px;line-height:1.5;color:#fff;white-space:pre-wrap">${m.text}</div>`
+        ).join("")}
+        ${S.coachLoading?`<div style="align-self:flex-start;background:var(--bg3);border-radius:14px;padding:11px 13px;font-size:14px;color:#888">digitando<span class="dots">...</span></div>`:""}
+      </div>
+      ${S.coachMsgs.length<=1?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px">${suggestions.map(s=>`<button class="coach-sug" data-q="${s.replace(/"/g,"&quot;")}" style="font-size:12px;padding:7px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:16px;color:var(--text2);cursor:pointer">${s}</button>`).join("")}</div>`:""}
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end">
+        <textarea id="coachInp" placeholder="Pergunte algo..." rows="1" style="flex:1;padding:12px;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;outline:none;resize:none;max-height:100px"></textarea>
+        <button id="coachSend" style="width:48px;height:48px;background:var(--orange);border:none;border-radius:12px;color:#fff;font-size:20px;cursor:pointer;flex-shrink:0">➤</button>
+      </div>`;
+    d2.querySelector("#bX").onclick=closeModal;
+    const scroll=d2.querySelector("#coachScroll");if(scroll)scroll.scrollTop=scroll.scrollHeight;
+    d2.querySelectorAll(".coach-sug").forEach(b=>b.onclick=()=>send(b.dataset.q));
+    d2.querySelector("#coachSend").onclick=()=>{const inp=d2.querySelector("#coachInp");send(inp.value);};
+    const inp=d2.querySelector("#coachInp");
+    if(inp)inp.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send(inp.value);}};
+  };
+
+  const send=async(text)=>{
+    text=(text||"").trim();
+    if(!text||S.coachLoading)return;
+    if(usesLeft("coach")<=0){showPremiumGate("Você atingiu o limite de "+PLAN_LIMITS.free.coachPerDay+" perguntas ao Coach IA por dia do plano grátis.");return;}
+    consumeUse("coach");
+    S.coachMsgs.push({role:"user",text});
+    S.coachLoading=true;render();
+    // Build context from profile
+    const p=S.profile||{};
+    const ctx=`Perfil do usuario: ${p.age||"?"} anos, ${p.weight||"?"}kg, ${p.height||"?"}cm, objetivo: ${({lose:"emagrecer",maintain:"manutencao",gain:"ganhar massa"})[p.goal]||"?"}, divisao de treino: ${p.split||"?"}.`;
+    const history=S.coachMsgs.slice(-8).map(m=>`${m.role==="user"?"Usuario":"Coach"}: ${m.text}`).join("\n");
+    const prompt=`Voce e um personal trainer e nutricionista experiente, simpatico e direto, respondendo em portugues do Brasil. Responda de forma clara e pratica, sem enrolacao, como um coach de verdade no WhatsApp. Use no maximo 4 frases curtas, a nao ser que a pergunta exija mais detalhes. Se a pergunta for sobre dor ou lesao seria, recomende procurar um medico/fisioterapeuta. Se a pergunta nao tiver nada a ver com treino, nutricao ou saude, redirecione gentilmente para esses temas.\n\n${ctx}\n\nConversa ate agora:\n${history}\n\nResponda a ultima mensagem do usuario.`;
+    try{
+      const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.6,maxOutputTokens:600,thinkingConfig:{thinkingBudget:0}}})
+      });
+      if(!resp.ok){
+        if(resp.status===429)throw new Error("Limite de uso da IA atingido. Aguarde 1 minuto.");
+        throw new Error("Falha na IA ("+resp.status+").");
+      }
+      const data=await resp.json();
+      let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
+      txt=txt.trim()||"Desculpe, não consegui responder. Tente reformular a pergunta.";
+      S.coachMsgs.push({role:"assistant",text:txt});
+    }catch(err){
+      S.coachMsgs.push({role:"assistant",text:"⚠️ "+((err&&err.message)||"Erro ao responder. Tente novamente.")});
+    }
+    S.coachLoading=false;render();
+  };
+
+  render();
+  return d;
+}
 // Meal categories with icons and colors
 const MEAL_CATS=[
   {id:"cafe",label:"☕ Café da Manhã",color:"#FFB347"},
@@ -842,12 +1161,18 @@ function rPerfil(){
   const cal=S.targetCal||0;
   const username=p?.username||name;
   const avatarImg=p?.avatar||"";
-  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em">@${username}</div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" id="bEditUsername" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🏷️</span><span class="kk">Nome de usuário</span></div><div style="display:flex;align-items:center;gap:6px"><span class="kv2">@${username}</span><span class="chev">›</span></div></div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
+  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em">@${username}</div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec" style="background:${isPremium()?'linear-gradient(135deg,rgba(255,107,0,0.15),rgba(255,140,66,0.08))':'var(--bg2)'};border-color:${isPremium()?'rgba(255,107,0,0.4)':'var(--border)'}"><div class="sec-lbl">PLANO</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-weight:800;font-size:17px;color:var(--text)">${isPremium()?'⭐ Premium':'Grátis'}</div><div style="font-size:12px;color:#888;margin-top:2px">${isPremium()?'IA ilimitada e todos os recursos':`IA limitada · ${usesLeft("aiWorkout")===Infinity?'∞':usesLeft("aiWorkout")} treinos IA restantes esta semana`}</div></div>${isPremium()?`<button class="btn-sec" id="bManagePlan" style="padding:9px 14px;font-size:13px">Gerenciar</button>`:`<button class="btn-primary" id="bUpgrade" style="padding:11px 16px;font-size:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">⭐ Premium</button>`}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" id="bEditUsername" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🏷️</span><span class="kk">Nome de usuário</span></div><div style="display:flex;align-items:center;gap:6px"><span class="kv2">@${username}</span><span class="chev">›</span></div></div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
       <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>
   <input type="file" id="avatarInput" accept="image/*" style="display:none"/>`;
   d.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
   d.querySelector("#bEdit")?.addEventListener("click",()=>{S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
   // Edit username via modal
+  d.querySelector("#bUpgrade")?.addEventListener("click",()=>showPremiumGate(""));
+  d.querySelector("#bManagePlan")?.addEventListener("click",()=>{
+    if(confirm("Você é Premium. Deseja voltar para o plano Grátis?")){
+      S.profile.plan="free";saveProfile(S.profile);r();
+    }
+  });
   d.querySelector("#bEditUsername")?.addEventListener("click",()=>{
     const ov=document.createElement("div");
     ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px";
@@ -946,6 +1271,8 @@ function rModal(){
   if(S.modal==="exDetail")return rExDetailModal();
   if(S.modal==="pickSessionExercises")return rPickSessionModal();
   if(S.modal==="treinos")return rTreinosModal();
+  if(S.modal==="aiWorkout")return rAIWorkoutModal();
+  if(S.modal==="coach")return rCoachModal();
   return D("div");
 }
 
@@ -1106,7 +1433,7 @@ function rFoodModal(){
           <button id="aiWp" style="width:36px;height:36px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:20px;cursor:pointer;flex-shrink:0">+</button>
           <span style="font-size:13px;color:#888">g</span>
         </div>
-        <div style="font-size:11px;color:#555;margin-bottom:14px;line-height:1.4">Inclui tudo: parte sólida, caldo, molho, salada. Se não souber, deixe 0.</div>
+        <div style="font-size:11px;color:#888;margin-bottom:14px;line-height:1.4">💡 Para um resultado mais preciso, informe o peso do prato (parte sólida, caldo, molho, salada). Se deixar em 0, o app mostra uma <strong style="color:#aaa">estimativa do total de calorias</strong> daquele prato.</div>
         <div style="display:flex;gap:8px;position:sticky;bottom:0;background:var(--bg2);padding:8px 0">
           <button class="btn-sec" id="bSkipWeight" style="flex:1;padding:13px;font-size:13px">Pular peso</button>
           <button class="btn-primary" id="bConfirmWeight" style="flex:2;padding:13px">✓ Calcular calorias</button>
@@ -1199,6 +1526,11 @@ function rFoodModal(){
     if(galInput){galInput.onchange=camInput.onchange=processFile;}
     async function processFile(e){
       const file=e.target.files?.[0];if(!file)return;
+      if(usesLeft("aiFood")<=0){
+        showPremiumGate("Você atingiu o limite de "+PLAN_LIMITS.free.aiFoodPerDay+" análises de comida por dia do plano grátis.");
+        return;
+      }
+      consumeUse("aiFood");
       S.aiLoading=true;S.aiError=null;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;
       const az=d.querySelector("#aiZone");if(az)az.innerHTML=buildAIHtml();
       try{
@@ -1277,7 +1609,7 @@ function rFoodModal(){
           };
           S.aiWeightStep=true;
           S.aiIngChecked=S.aiRawResult.ingredients.map(()=>true);
-          S.aiPlateWeight=S.aiRawResult.serving||0;
+          S.aiPlateWeight=0;
         }
       }catch(err){
         S.aiError=(err&&err.message)?err.message:"Erro ao analisar imagem. Tente novamente.";
@@ -1659,10 +1991,41 @@ function exerciseAnimation(group,color="#FF6B00"){
 // ═══════════════════════════════════════════
 // SESSION
 // ═══════════════════════════════════════════
+// Suggestion engine for automatic load adjustment
+function suggestLoad(ex){
+  // Returns {weight, reps, msg} based on last performance
+  const hist=(S.perf||{})[ex.id];
+  const repsTarget=parseInt(String(ex.reps||"10").split("-").pop())||12; // top of range
+  if(!hist||!hist.weight){
+    return {weight:0,reps:String(ex.reps||"10").split("-")[0],msg:null};
+  }
+  const lastW=hist.weight, lastReps=hist.reps, lastDone=hist.allDone;
+  let w=lastW, msg="";
+  // Rule: hit/exceeded top of range with all sets done → increase
+  if(lastDone&&lastReps>=repsTarget){
+    const inc=lastW>=20?2.5:lastW>=10?2:1;
+    w=lastW+inc;
+    msg=`📈 Você fez ${lastReps} reps fácil com ${lastW}kg. Hoje: <strong>${w}kg</strong> (+${inc}).`;
+  } else if(!lastDone||lastReps<Math.max(1,repsTarget-4)){
+    // Failed a lot → reduce
+    const dec=lastW>=20?2.5:lastW>=10?2:1;
+    w=Math.max(0,lastW-dec);
+    msg=`📉 Última vez ficou pesado (${lastReps} reps). Hoje: <strong>${w}kg</strong> (-${dec}).`;
+  } else {
+    // Stayed in range → keep, aim for more reps
+    w=lastW;
+    msg=`➡️ Mantenha ${lastW}kg e tente bater ${repsTarget} reps para subir a carga.`;
+  }
+  return {weight:w,reps:String(ex.reps||"10").split("-")[0],msg};
+}
+
 function startSession(exercises){
   if(!exercises?.length)return alert("Adicione exercícios ao treino primeiro!");
   clearInterval(restTimer);
-  S.session={exercises,idx:0,sets:exercises.map(e=>Array.from({length:e.sets||3},()=>({reps:String(e.reps||"10").split("-")[0],weight:0,done:false}))),restActive:false,restLeft:0,restTotal:0};
+  S.session={exercises,idx:0,sets:exercises.map(e=>{
+    const sug=suggestLoad(e);
+    return Array.from({length:e.sets||3},()=>({reps:sug.reps,weight:sug.weight,done:false}));
+  }),suggestions:exercises.map(e=>suggestLoad(e).msg),restActive:false,restLeft:0,restTotal:0};
   r();
 }
 function fmtTime(s){return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;}
@@ -1672,9 +2035,25 @@ function rSession(){
   const ex=exercises[idx];
   if(!ex){
     clearInterval(restTimer);
+    // Record performance: best set (reps×weight) per exercise for next-time suggestion
+    if(!S.perfSaved){
+      S.perfSaved=true;
+      if(!S.perf)S.perf={};
+      exercises.forEach((e,i)=>{
+        const exSets=sets[i]||[];
+        const doneSets=exSets.filter(s=>s.done);
+        if(doneSets.length===0)return;
+        // pick the set with highest weight; tiebreak by reps
+        let best=doneSets[0];
+        doneSets.forEach(s=>{const sw=parseFloat(s.weight)||0,bw=parseFloat(best.weight)||0;if(sw>bw||(sw===bw&&(parseInt(s.reps)||0)>(parseInt(best.reps)||0)))best=s;});
+        const allDone=exSets.length>0&&exSets.every(s=>s.done);
+        S.perf[e.id]={weight:parseFloat(best.weight)||0,reps:parseInt(best.reps)||0,allDone,date:new Date().toISOString().split("T")[0]};
+      });
+      savePerf(S.perf);
+    }
     const d=D("page");
     d.innerHTML=`<div class="session-done"><div style="font-size:80px">🏆</div><div class="done-title">TREINO CONCLUÍDO!</div><div class="done-sub">${exercises.length} exercícios · ${sets.flat().filter(s=>s.done).length} séries</div><button class="btn-primary" id="bEnd" style="max-width:260px;margin:0 auto">Finalizar</button></div>`;
-    d.querySelector("#bEnd").onclick=()=>{S.session=null;r();};
+    d.querySelector("#bEnd").onclick=()=>{S.session=null;S.perfSaved=false;r();};
     return d;
   }
   const m=MUSCLE_META[ex.group]||{color:"#FF6B00"};
@@ -1687,6 +2066,7 @@ function rSession(){
       <div style="font-size:13px;margin-top:4px;font-weight:600;color:${m.color}">${ex.muscles||"Músculos diversos"}</div>
     </div>
     <div class="ex3stats"><div class="es"><div class="esv">${sets[idx].length}</div><div class="esl">SÉRIES</div></div><div class="es"><div class="esv">${ex.reps||"10-12"}</div><div class="esl">REPS</div></div><div class="es"><div class="esv">${ex.rest||60}s</div><div class="esl">DESCANSO</div></div></div>
+    ${S.session.suggestions&&S.session.suggestions[idx]?`<div style="background:rgba(255,107,0,0.1);border:1px solid rgba(255,107,0,0.3);border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--text);line-height:1.45">🤖 ${S.session.suggestions[idx]}</div>`:""}
     ${S.session.restActive?`<div class="rest-card"><div class="rest-lbl">DESCANSO</div><div class="rest-val" id="rV">${fmtTime(S.session.restLeft)}</div><div class="rest-bar"><div class="rest-fill" id="rF" style="width:${((S.session.restTotal-S.session.restLeft)/S.session.restTotal)*100}%"></div></div><button class="btn-sec" id="bSR" style="margin-top:10px;width:100%">Pular descanso</button></div>`:""}
     <div class="sets-block"><div class="sets-hdr"><span>SÉRIE</span><span>REPS</span><span>PESO (kg)</span><span></span></div>${sets[idx].map((s,si)=>`<div class="set-row"><div class="set-n">S${si+1}</div><input class="set-inp" data-si="${si}" data-f="reps" type="number" value="${s.reps}"/><input class="set-inp" data-si="${si}" data-f="weight" type="number" value="${s.weight}"/><div class="set-chk ${s.done?"chk-done":""}" data-si="${si}">${s.done?"✓":""}</div></div>`).join("")}
     <div class="set-ctrls">${sets[idx].length>1?`<button class="set-ctrl set-ctrl-del" id="bRemSet">- Remover série</button>`:`<span></span>`}<button class="set-ctrl" id="bAddSet">+ Adicionar série</button></div></div>
@@ -1748,6 +2128,8 @@ async function authOk(user){
       try{S.foods=await loadFoods();}catch(e){S.foods=[];}
       try{S.workouts=await loadWorkouts();}catch(e){S.workouts=[];}
       try{S.schedule=await loadSchedule();}catch(e){S.schedule={};}
+      try{S.perf=await loadPerf();}catch(e){S.perf={};}
+      try{S.usage=await loadUsage();}catch(e){S.usage={};}
       // Load community foods from Firestore
       try{const cSnap=await getDocs(collection(db,"communityFoods"));S.communityFoods=cSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){S.communityFoods=[];}
       S.phase="home";
