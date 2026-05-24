@@ -388,7 +388,7 @@ function showPremiumGate(reason){
 let S={
   user:null,profile:null,phase:"splash",
   tab:"agenda",
-  communityFoods:[],perf:{},usage:{},coachMsgs:null,coachLoading:false,
+  communityFoods:[],perf:{},usage:{},coachMsgs:null,coachLoading:false,dietResult:null,dietLoading:false,dietPref:"",history:{},
   mealCat:{},
   pendingMealCat:null,
   onboard:{step:0,data:{sex:"",age:"",weight:"",height:"",activity:"",goal:"",trainDays:[],split:""}},
@@ -406,9 +406,9 @@ let restTimer=null;
 // FIREBASE HELPERS
 // ═══════════════════════════════════════════
 const uid=()=>S.user?.uid;
-const saveProfile=async p=>setDoc(doc(db,"users",uid(),"data","profile"),p);
+const saveProfile=async p=>{if(p&&p.weight)logToday({weight:parseFloat(p.weight)||0});return setDoc(doc(db,"users",uid(),"data","profile"),p);};
 const loadProfile=async()=>{const s=await getDoc(doc(db,"users",uid(),"data","profile"));return s.exists()?s.data():null;};
-const saveFoods=async f=>{const t=new Date().toISOString().split("T")[0];await setDoc(doc(db,"users",uid(),"foods",t),{items:f,mealCat:S.mealCat||{},mealCatNames:S.mealCatNames||{},ts:serverTimestamp()});};
+const saveFoods=async f=>{const t=new Date().toISOString().split("T")[0];await setDoc(doc(db,"users",uid(),"foods",t),{items:f,mealCat:S.mealCat||{},mealCatNames:S.mealCatNames||{},ts:serverTimestamp()});const totCal=Math.round((f||[]).reduce((a,x)=>a+((Number(x.cal)||0)*((Number(x.grams)||0)/(Number(x.serving)||100||1))),0));logToday({cal:totCal});};
 const loadFoods=async()=>{const t=new Date().toISOString().split("T")[0];const s=await getDoc(doc(db,"users",uid(),"foods",t));if(s.exists()){const d2=s.data();S.mealCat=d2.mealCat||{};S.mealCatNames=d2.mealCatNames||{};return d2.items||[];}S.mealCatNames={};return [];};
 const loadWorkouts=async()=>{const snap=await getDocs(collection(db,"users",uid(),"workouts"));return snap.docs.map(d=>({id:d.id,...d.data()}));};
 const saveWorkout=async w=>{const r=await addDoc(collection(db,"users",uid(),"workouts"),{...w,ts:serverTimestamp()});return r.id;};
@@ -418,6 +418,17 @@ const loadSchedule=async()=>{const s=await getDoc(doc(db,"users",uid(),"data","s
 // Exercise performance history (for automatic load adjustment)
 const loadPerf=async()=>{try{const s=await getDoc(doc(db,"users",uid(),"data","perf"));return s.exists()?s.data():{};}catch(e){return {};}};
 const savePerf=async p=>{try{await setDoc(doc(db,"users",uid(),"data","perf"),p);}catch(e){}};
+// History log for reports: per-day {cal, weight}
+const loadHistory=async()=>{try{const s=await getDoc(doc(db,"users",uid(),"data","history"));return s.exists()?(s.data().days||{}):{};}catch(e){return {};}};
+const saveHistory=async h=>{try{await setDoc(doc(db,"users",uid(),"data","history"),{days:h});}catch(e){}};
+async function logToday(partial){
+  try{
+    if(!S.history)S.history=await loadHistory();
+    const k=new Date().toISOString().split("T")[0];
+    S.history[k]={...(S.history[k]||{}),...partial};
+    await saveHistory(S.history);
+  }catch(e){}
+}
 const loadUsage=async()=>{try{const s=await getDoc(doc(db,"users",uid(),"data","usage"));return s.exists()?s.data():{};}catch(e){return {};}};
 const saveUsage=async u=>{try{await setDoc(doc(db,"users",uid(),"data","usage"),u);}catch(e){}};
 
@@ -907,6 +918,198 @@ function rCoachModal(){
   render();
   return d;
 }
+
+// ─── DIETA AUTOMÁTICA (IA gera plano de refeições do dia) ───
+function rAutoDietModal(){
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+
+  const render=()=>{
+    if(S.dietLoading){
+      d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div class="modal-title">Gerando dieta</div><button class="close-x" id="bX">✕</button></div>
+        <div style="text-align:center;padding:40px 0"><div style="font-size:40px;animation:spin 1.5s linear infinite;display:inline-block">⏳</div><div style="font-weight:700;margin-top:12px;color:#fff">A IA está montando sua dieta...</div><div style="font-size:12px;color:#888;margin-top:6px">Calculando refeições para sua meta de ${S.targetCal||0} kcal</div></div>`;
+      d2.querySelector("#bX").onclick=closeModal;return;
+    }
+    if(S.dietResult){
+      const r=S.dietResult;
+      const totCal=(r.meals||[]).reduce((a,m)=>a+(m.items||[]).reduce((x,it)=>x+(Number(it.cal)||0),0),0);
+      d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div><div class="modal-title">🍽️ Sua dieta do dia</div><div class="modal-sub">~${Math.round(totCal)} kcal · meta ${S.targetCal||0}</div></div><button class="close-x" id="bX">✕</button></div>
+        <div style="max-height:56vh;overflow-y:auto;padding:2px">
+        ${(r.meals||[]).map(meal=>{const mc=Math.round((meal.items||[]).reduce((x,it)=>x+(Number(it.cal)||0),0));return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:800;font-size:15px;color:var(--text)">${meal.name}</div><div style="font-size:13px;color:var(--orange);font-weight:700">${mc} kcal</div></div>
+          ${(meal.items||[]).map(it=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--text2)"><span>• ${it.food} <span style="color:#666">(${it.qty||""})</span></span><span style="color:#888;flex-shrink:0;margin-left:8px">${Number(it.cal)||0} kcal</span></div>`).join("")}
+          <button class="diet-add-meal" data-meal='${encodeURIComponent(JSON.stringify(meal))}' style="width:100%;margin-top:8px;padding:9px;background:var(--bg3);border:1px dashed var(--orange);border-radius:10px;color:var(--orange);font-size:13px;font-weight:700;cursor:pointer">+ Adicionar esta refeição ao diário</button>
+        </div>`;}).join("")}
+        ${r.tips?`<div style="background:rgba(255,107,0,0.08);border-radius:12px;padding:12px;font-size:12px;color:#aaa;line-height:1.5">💡 ${r.tips}</div>`:""}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn-sec" id="bDietRegen" style="flex:1;padding:13px">↺ Gerar outra</button>
+          <button class="btn-primary" id="bDietAddAll" style="flex:2;padding:13px">✓ Adicionar dia todo</button>
+        </div>`;
+      d2.querySelector("#bX").onclick=closeModal;
+      d2.querySelector("#bDietRegen").onclick=()=>{S.dietResult=null;generateDiet();};
+      d2.querySelectorAll(".diet-add-meal").forEach(b=>b.onclick=()=>{
+        const meal=JSON.parse(decodeURIComponent(b.dataset.meal));
+        addMealToDiary(meal);
+        b.textContent="✓ Adicionada!";b.disabled=true;b.style.opacity="0.6";
+      });
+      d2.querySelector("#bDietAddAll").onclick=async(ev)=>{
+        const btn=ev.currentTarget;if(btn.dataset.s==="1")return;btn.dataset.s="1";btn.disabled=true;btn.style.opacity="0.6";btn.textContent="Adicionando...";
+        (r.meals||[]).forEach(meal=>addMealToDiary(meal));
+        await saveFoods(S.foods);
+        closeModal();S.tab="calorias";r();
+      };
+      return;
+    }
+    // Intro
+    d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div class="modal-title">🍽️ Dieta automática</div><button class="close-x" id="bX">✕</button></div>
+      <div style="padding:6px 0 16px">
+        <div style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:14px">A IA vai montar um plano de refeições para hoje baseado na sua meta de <strong style="color:var(--orange)">${S.targetCal||0} kcal</strong> e no objetivo de <strong>${({lose:"emagrecer",maintain:"manter",gain:"ganhar massa"})[S.profile?.goal]||"saúde"}</strong>.</div>
+        <div style="font-size:13px;color:#888;margin-bottom:8px">Alguma preferência ou restrição? (opcional)</div>
+        <textarea id="dietPref" placeholder="Ex: sou vegetariano, não como lactose, prefiro comida simples, low carb..." style="width:100%;min-height:70px;padding:13px;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;outline:none;resize:vertical"></textarea>
+      </div>
+      <button class="btn-primary" id="bGenDiet" style="width:100%;padding:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🤖 Gerar minha dieta</button>`;
+    d2.querySelector("#bX").onclick=closeModal;
+    d2.querySelector("#bGenDiet").onclick=()=>{S.dietPref=(d2.querySelector("#dietPref").value||"").trim();generateDiet();};
+  };
+
+  const addMealToDiary=(meal)=>{
+    const catMap={"café da manhã":"cafe","cafe da manha":"cafe","almoço":"almoco","almoco":"almoco","lanche":"lanche","lanche da tarde":"lanche","jantar":"jantar","ceia":"ceia"};
+    const key=catMap[(meal.name||"").toLowerCase()]||"sem_categoria";
+    (meal.items||[]).forEach(it=>{
+      const ni=S.foods.length;
+      const grams=parseFloat(String(it.qty||"").replace(/[^0-9.]/g,""))||100;
+      S.foods.push({n:it.food,cal:Number(it.cal)||0,p:Number(it.p)||0,c:Number(it.c)||0,f:Number(it.f)||0,grams});
+      if(!S.mealCat)S.mealCat={};
+      S.mealCat[ni]=key;
+    });
+  };
+
+  const generateDiet=async()=>{
+    if(usesLeft("aiWorkout")<=0&&!isPremium()){
+      // reuse aiWorkout weekly limit bucket? No — diet is premium-flavored. Use its own gentle gate:
+    }
+    S.dietLoading=true;render();
+    const p=S.profile||{};
+    const goal=({lose:"emagrecimento (deficit calorico)",maintain:"manutencao",gain:"ganho de massa muscular (superavit)"})[p.goal]||"saude";
+    const prompt=`Voce e um nutricionista. Monte um plano alimentar de UM dia em portugues do Brasil para uma pessoa com meta de ${S.targetCal||2000} kcal/dia, objetivo de ${goal}, ${p.weight||"?"}kg. Distribua em refeicoes (Cafe da Manha, Almoco, Lanche da Tarde, Jantar e Ceia se fizer sentido). Use alimentos comuns e baratos do Brasil. ${S.dietPref?("Preferencias/restricoes do usuario: "+S.dietPref+".") : ""} Para cada item informe: food (nome), qty (quantidade ex '100g' ou '2 unidades'), cal (kcal), p (proteina g), c (carbo g), f (gordura g). A soma do dia deve ficar proxima da meta. Responda em portugues.`;
+    try{
+      const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{
+          temperature:0.5,maxOutputTokens:2048,thinkingConfig:{thinkingBudget:0},
+          responseMimeType:"application/json",
+          responseSchema:{type:"OBJECT",properties:{
+            meals:{type:"ARRAY",items:{type:"OBJECT",properties:{
+              name:{type:"STRING"},
+              items:{type:"ARRAY",items:{type:"OBJECT",properties:{food:{type:"STRING"},qty:{type:"STRING"},cal:{type:"NUMBER"},p:{type:"NUMBER"},c:{type:"NUMBER"},f:{type:"NUMBER"}},required:["food","cal"]}}
+            },required:["name","items"]}},
+            tips:{type:"STRING"}
+          },required:["meals"]}
+        }})
+      });
+      if(!resp.ok){if(resp.status===429)throw new Error("Limite de uso da IA. Aguarde 1 minuto.");throw new Error("Falha na IA ("+resp.status+").");}
+      const data=await resp.json();
+      let txt=data?.candidates?.[0]?.content?.parts?.map(x=>x.text||"").join("")||"";
+      txt=txt.replace(/```json|```/g,"").trim();
+      let result=null;
+      try{result=JSON.parse(txt);}catch(e){const s=txt.indexOf("{");if(s>=0){let dep=0,end=-1;for(let i=s;i<txt.length;i++){if(txt[i]==="{")dep++;else if(txt[i]==="}"){dep--;if(dep===0){end=i;break;}}}if(end>s){try{result=JSON.parse(txt.slice(s,end+1));}catch(e2){}}}}
+      if(!result||!result.meals)throw new Error("A IA respondeu de forma incompleta. Tente novamente.");
+      S.dietResult=result;S.dietLoading=false;render();
+    }catch(err){
+      S.dietLoading=false;alert((err&&err.message)||"Erro ao gerar dieta.");render();
+    }
+  };
+
+  render();
+  return d;
+}
+
+// ─── RELATÓRIOS E EVOLUÇÃO ───
+function rReportsModal(){
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+
+  // Build a simple SVG line chart from [{x,y}] points
+  const lineChart=(points,color,unit)=>{
+    if(!points||points.length<2)return `<div style="text-align:center;padding:24px 0;color:#666;font-size:13px">Registre dados por alguns dias para ver o gráfico aqui.</div>`;
+    const W=300,H=120,pad=8;
+    const ys=points.map(p=>p.y);
+    let min=Math.min(...ys),max=Math.max(...ys);
+    if(min===max){min=min-1;max=max+1;}
+    const sx=i=>pad+(i/(points.length-1))*(W-2*pad);
+    const sy=v=>H-pad-((v-min)/(max-min))*(H-2*pad);
+    const path=points.map((p,i)=>`${i===0?"M":"L"}${sx(i).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
+    const area=`M${sx(0)},${H-pad} `+points.map((p,i)=>`L${sx(i).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ")+` L${sx(points.length-1)},${H-pad} Z`;
+    const last=points[points.length-1].y, first=points[0].y;
+    const diff=last-first;
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block"><defs><linearGradient id="g${color.replace('#','')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.3"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#g${color.replace('#','')})"/><path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${sx(points.length-1)}" cy="${sy(last)}" r="4" fill="${color}"/></svg>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-top:4px"><span>${first.toFixed(unit==="kg"?1:0)}${unit}</span><span style="color:${diff>0?"#22D3A5":diff<0?"#FF6B6B":"#888"}">${diff>0?"+":""}${diff.toFixed(unit==="kg"?1:0)}${unit}</span><span>${last.toFixed(unit==="kg"?1:0)}${unit}</span></div>`;
+  };
+
+  const hist=S.history||{};
+  const dates=Object.keys(hist).sort();
+  const last14=dates.slice(-14);
+  const weightPts=last14.filter(k=>hist[k].weight).map(k=>({x:k,y:hist[k].weight}));
+  const calPts=last14.filter(k=>typeof hist[k].cal==="number").map(k=>({x:k,y:hist[k].cal}));
+
+  // Load progression: from perf, top exercises
+  const perf=S.perf||{};
+  const exNames={};
+  // build name lookup from EXERCISES
+  Object.values(EXERCISES).flat().forEach(e=>{exNames[e.id]=e.name;});
+  S.workouts.forEach(w=>(w.exercises||[]).forEach(e=>{if(e.id&&e.name)exNames[e.id]=e.name;}));
+  const perfList=Object.keys(perf).map(id=>({name:exNames[id]||"Exercício",weight:perf[id].weight,reps:perf[id].reps,date:perf[id].date})).filter(x=>x.weight>0).slice(0,8);
+
+  const totalWorkouts=Object.keys(perf).length;
+  const trainDaysLogged=dates.length;
+
+  d2.innerHTML=`<div class="modal-handle"></div>
+    <div class="modal-hdr"><div class="modal-title">📊 Relatórios</div><button class="close-x" id="bX">✕</button></div>
+    <div style="max-height:64vh;overflow-y:auto;padding:2px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--bg3);border-radius:14px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:800;color:var(--orange)">${weightPts.length?weightPts[weightPts.length-1].y+"kg":"—"}</div><div style="font-size:11px;color:#888;margin-top:2px">Peso atual</div></div>
+        <div style="background:var(--bg3);border-radius:14px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:800;color:var(--orange)">${trainDaysLogged}</div><div style="font-size:11px;color:#888;margin-top:2px">Dias registrados</div></div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--text)">⚖️ Evolução do peso <span style="font-size:11px;color:#888;font-weight:400">(últimos ${last14.length} registros)</span></div>
+        ${lineChart(weightPts,"#FF6B00","kg")}
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--text)">🔥 Calorias consumidas <span style="font-size:11px;color:#888;font-weight:400">(meta ${S.targetCal||0})</span></div>
+        ${lineChart(calPts,"#22D3A5","")}
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--text)">🏋️ Progressão de carga</div>
+        ${perfList.length?perfList.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="color:var(--text)">${x.name}</span><span style="color:var(--orange);font-weight:700">${x.weight}kg × ${x.reps}</span></div>`).join(""):`<div style="text-align:center;padding:16px 0;color:#666;font-size:13px">Conclua treinos marcando as séries para ver sua progressão de carga aqui.</div>`}
+      </div>
+
+      ${!isPremium()?`<div style="background:rgba(255,107,0,0.08);border:1px dashed rgba(255,107,0,0.4);border-radius:14px;padding:14px;text-align:center"><div style="font-size:13px;color:var(--text);margin-bottom:8px">🔒 No <strong>Premium</strong> a IA analisa sua evolução e prevê seus resultados.</div><button class="btn-primary" id="bRepUpgrade" style="padding:10px 16px;font-size:13px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">Ver Premium</button></div>`:`<button class="btn-primary" id="bAIAnalysis" style="width:100%;padding:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🤖 Analisar minha evolução com IA</button><div id="aiAnalysisOut" style="margin-top:12px"></div>`}
+    </div>`;
+  d2.querySelector("#bX").onclick=closeModal;
+  d2.querySelector("#bRepUpgrade")?.addEventListener("click",()=>showPremiumGate("Análise inteligente de evolução é um recurso Premium."));
+  d2.querySelector("#bAIAnalysis")?.addEventListener("click",async(ev)=>{
+    const btn=ev.currentTarget;btn.disabled=true;btn.style.opacity="0.6";btn.textContent="Analisando...";
+    const out=d2.querySelector("#aiAnalysisOut");
+    const summary=`Peso: ${weightPts.map(p=>p.y).join(", ")||"sem dados"}. Calorias diarias: ${calPts.map(p=>p.y).join(", ")||"sem dados"}. Meta de calorias: ${S.targetCal}. Objetivo: ${S.profile?.goal}. Cargas atuais: ${perfList.map(x=>x.name+" "+x.weight+"kg").join("; ")||"sem dados"}.`;
+    try{
+      const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:`Voce e um coach. Analise a evolucao deste aluno em portugues do Brasil, de forma motivadora e pratica, em no maximo 5 frases. Aponte se esta no caminho do objetivo e o que ajustar. Dados: ${summary}`}]}],generationConfig:{temperature:0.5,maxOutputTokens:500,thinkingConfig:{thinkingBudget:0}}})});
+      const data=await resp.json();
+      let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"Não foi possível analisar agora.";
+      out.innerHTML=`<div style="background:var(--bg3);border-radius:12px;padding:14px;font-size:13.5px;line-height:1.5;color:var(--text);white-space:pre-wrap">${txt.trim()}</div>`;
+    }catch(e){out.innerHTML=`<div style="color:#FF6B6B;font-size:13px">Erro ao analisar. Tente novamente.</div>`;}
+    btn.disabled=false;btn.style.opacity="1";btn.textContent="🤖 Analisar minha evolução com IA";
+  });
+
+  return d;
+}
 // Meal categories with icons and colors
 const MEAL_CATS=[
   {id:"cafe",label:"☕ Café da Manhã",color:"#FFB347"},
@@ -1036,6 +1239,7 @@ function rCalorias(){
       <div class="mbar"><div class="mbar-label"><span style="color:#22D3A5">Gordura</span><span id="pt-f">${Math.round(totalF)}g / ${mf2}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-f" style="width:${Math.min((totalF/mf2)*100,100)}%;background:#22D3A5"></div></div></div>
     </div>
     <div class="info-sec" style="margin-bottom:16px"><div class="sec-lbl">METABOLISMO</div><div class="info-grid"><div class="ic"><div class="iv" style="color:var(--orange)">${S.tmb||"—"} kcal</div><div class="il">TMB</div></div><div class="ic"><div class="iv" style="color:var(--orange)">${cal||"—"} kcal</div><div class="il">Meta diária</div></div></div><div class="goal-tag">↗ ${({lose:"Emagrecer",maintain:"Manutenção",gain:"Ganhar massa"})[S.profile?.goal]||"—"}</div></div>
+    <button class="btn-primary" id="bAutoDiet" style="width:100%;margin-bottom:16px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🍽️ Gerar dieta automática com IA</button>
     <div class="sec-title">REFEIÇÕES DE HOJE</div>
     <div class="foods-list" id="foodsList">
       ${S.foods.length===0?`<div class="empty" style="padding:24px 0;text-align:center"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}
@@ -1044,6 +1248,7 @@ function rCalorias(){
 
   // Button handlers
   d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.foodModalMode="add";S.modal="food";r();});
+  d.querySelector("#bAutoDiet")?.addEventListener("click",()=>{S.modal="autoDiet";S.dietResult=null;S.dietLoading=false;r();});
   d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.foodModalMode="ai";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;S.aiIngChecked=null;r();});
 
   // Add to specific meal category
@@ -1162,7 +1367,7 @@ function rPerfil(){
   const username=p?.username||name;
   const avatarImg=p?.avatar||"";
   d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em">@${username}</div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec" style="background:${isPremium()?'linear-gradient(135deg,rgba(255,107,0,0.15),rgba(255,140,66,0.08))':'var(--bg2)'};border-color:${isPremium()?'rgba(255,107,0,0.4)':'var(--border)'}"><div class="sec-lbl">PLANO</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-weight:800;font-size:17px;color:var(--text)">${isPremium()?'⭐ Premium':'Grátis'}</div><div style="font-size:12px;color:#888;margin-top:2px">${isPremium()?'IA ilimitada e todos os recursos':`IA limitada · ${usesLeft("aiWorkout")===Infinity?'∞':usesLeft("aiWorkout")} treinos IA restantes esta semana`}</div></div>${isPremium()?`<button class="btn-sec" id="bManagePlan" style="padding:9px 14px;font-size:13px">Gerenciar</button>`:`<button class="btn-primary" id="bUpgrade" style="padding:11px 16px;font-size:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">⭐ Premium</button>`}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" id="bEditUsername" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🏷️</span><span class="kk">Nome de usuário</span></div><div style="display:flex;align-items:center;gap:6px"><span class="kv2">@${username}</span><span class="chev">›</span></div></div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
-      <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>
+      <div class="kv" id="bReports" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">📊</span><span class="kk">Relatórios e evolução</span></div><div class="chev">›</div></div><div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>
   <input type="file" id="avatarInput" accept="image/*" style="display:none"/>`;
   d.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
   d.querySelector("#bEdit")?.addEventListener("click",()=>{S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
@@ -1240,6 +1445,7 @@ function rPerfil(){
     // Persistir preferência no perfil
     if(S.profile){S.profile.darkMode=S.darkMode;try{await saveProfile(S.profile);}catch(e){}}
   });
+  d.querySelector("#bReports")?.addEventListener("click",()=>{S.modal="reports";r();});
   d.querySelector("#bNotif")?.addEventListener("click",async()=>{if(!("Notification"in window))return alert("Navegador não suporta notificações.");const p=await Notification.requestPermission();if(p==="granted")new Notification("BoltFit ⚡",{body:"Notificações ativadas!"});else alert("Notificações bloqueadas nas configurações do navegador.");});
   return d;
 }
@@ -1273,6 +1479,8 @@ function rModal(){
   if(S.modal==="treinos")return rTreinosModal();
   if(S.modal==="aiWorkout")return rAIWorkoutModal();
   if(S.modal==="coach")return rCoachModal();
+  if(S.modal==="autoDiet")return rAutoDietModal();
+  if(S.modal==="reports")return rReportsModal();
   return D("div");
 }
 
@@ -2130,6 +2338,7 @@ async function authOk(user){
       try{S.schedule=await loadSchedule();}catch(e){S.schedule={};}
       try{S.perf=await loadPerf();}catch(e){S.perf={};}
       try{S.usage=await loadUsage();}catch(e){S.usage={};}
+      try{S.history=await loadHistory();}catch(e){S.history={};}
       // Load community foods from Firestore
       try{const cSnap=await getDocs(collection(db,"communityFoods"));S.communityFoods=cSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){S.communityFoods=[];}
       S.phase="home";
