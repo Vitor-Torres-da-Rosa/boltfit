@@ -462,7 +462,7 @@ function r(){
   else{
     if(S.session){document.getElementById("app").appendChild(rSession());return;}
     document.getElementById("app").appendChild(rHome());
-    const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual"];
+    const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual","pickSessionExercises","treinos","aiWorkout","coach","autoDiet","reports"];
     if(modals.includes(S.modal))document.getElementById("modalRoot").appendChild(rModal());
   }
 }
@@ -1034,10 +1034,10 @@ function rReportsModal(){
   const d2=d.querySelector(".modal-sheet");
   d.onclick=e=>{if(e.target===d)closeModal();};
 
-  // Build a simple SVG line chart from [{x,y}] points
+  // Build a polished SVG line chart from [{x,y}] points
   const lineChart=(points,color,unit)=>{
-    if(!points||points.length<2)return `<div style="text-align:center;padding:24px 0;color:#666;font-size:13px">Registre dados por alguns dias para ver o gráfico aqui.</div>`;
-    const W=300,H=120,pad=8;
+    if(!points||points.length<2)return `<div style="text-align:center;padding:28px 0;color:var(--text3);font-size:13px"><div style="font-size:28px;margin-bottom:6px;opacity:0.5">📈</div>Registre dados por alguns dias<br>para ver o gráfico aqui.</div>`;
+    const W=300,H=130,pad=10;
     const ys=points.map(p=>p.y);
     let min=Math.min(...ys),max=Math.max(...ys);
     if(min===max){min=min-1;max=max+1;}
@@ -1047,8 +1047,12 @@ function rReportsModal(){
     const area=`M${sx(0)},${H-pad} `+points.map((p,i)=>`L${sx(i).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ")+` L${sx(points.length-1)},${H-pad} Z`;
     const last=points[points.length-1].y, first=points[0].y;
     const diff=last-first;
-    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block"><defs><linearGradient id="g${color.replace('#','')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.3"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#g${color.replace('#','')})"/><path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${sx(points.length-1)}" cy="${sy(last)}" r="4" fill="${color}"/></svg>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-top:4px"><span>${first.toFixed(unit==="kg"?1:0)}${unit}</span><span style="color:${diff>0?"#22D3A5":diff<0?"#FF6B6B":"#888"}">${diff>0?"+":""}${diff.toFixed(unit==="kg"?1:0)}${unit}</span><span>${last.toFixed(unit==="kg"?1:0)}${unit}</span></div>`;
+    const gid="g"+color.replace('#','')+Math.random().toString(36).slice(2,5);
+    // grid lines (3 horizontais)
+    const grid=[0,0.5,1].map(t=>{const y=pad+t*(H-2*pad);return `<line x1="${pad}" y1="${y}" x2="${W-pad}" y2="${y}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3 4" opacity="0.5"/>`;}).join("");
+    const dots=points.map((p,i)=>`<circle cx="${sx(i).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="${i===points.length-1?4.5:2.5}" fill="${color}" ${i===points.length-1?`stroke="var(--bg2)" stroke-width="2"`:""}/>`).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.35"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#${gid})"/><path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}</svg>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:6px;font-weight:600"><span>Início: ${first.toFixed(unit==="kg"?1:0)}${unit}</span><span style="color:${diff>0?"#22D3A5":diff<0?"#FF6B6B":"var(--text3)"};font-weight:800">${diff>0?"▲ +":diff<0?"▼ ":""}${diff.toFixed(unit==="kg"?1:0)}${unit}</span><span>Agora: ${last.toFixed(unit==="kg"?1:0)}${unit}</span></div>`;
   };
 
   const hist=S.history||{};
@@ -1060,7 +1064,6 @@ function rReportsModal(){
   // Load progression: from perf, top exercises
   const perf=S.perf||{};
   const exNames={};
-  // build name lookup from EXERCISES
   Object.values(EXERCISES).flat().forEach(e=>{exNames[e.id]=e.name;});
   S.workouts.forEach(w=>(w.exercises||[]).forEach(e=>{if(e.id&&e.name)exNames[e.id]=e.name;}));
   const perfList=Object.keys(perf).map(id=>({name:exNames[id]||"Exercício",weight:perf[id].weight,reps:perf[id].reps,date:perf[id].date})).filter(x=>x.weight>0).slice(0,8);
@@ -1068,43 +1071,82 @@ function rReportsModal(){
   const totalWorkouts=Object.keys(perf).length;
   const trainDaysLogged=dates.length;
 
+  // Weight delta + goal context
+  const wDelta=weightPts.length>=2?(weightPts[weightPts.length-1].y-weightPts[0].y):0;
+  const curWeight=weightPts.length?weightPts[weightPts.length-1].y:(S.profile?.weight||0);
+  const goalLbl={lose:"Emagrecer",maintain:"Manutenção",gain:"Ganhar massa"}[S.profile?.goal]||"Saúde";
+
+  // Mini weekly activity dots (últimos 7 dias)
+  const todayD=new Date();
+  const week=[];
+  for(let i=6;i>=0;i--){const dd=new Date(todayD);dd.setDate(todayD.getDate()-i);const key=dd.toISOString().split("T")[0];const init=["D","S","T","Q","Q","S","S"][dd.getDay()];week.push({init,active:!!hist[key]});}
+
+  const statCard=(icon,value,label,color)=>`<div style="background:var(--bg3);border-radius:16px;padding:15px 12px;text-align:center;border:1px solid var(--border)">
+    <div style="font-size:22px;margin-bottom:4px">${icon}</div>
+    <div style="font-size:22px;font-weight:800;color:${color};line-height:1.1">${value}</div>
+    <div style="font-size:10.5px;color:var(--text3);margin-top:3px;font-weight:600;letter-spacing:0.3px">${label}</div>
+  </div>`;
+
   d2.innerHTML=`<div class="modal-handle"></div>
-    <div class="modal-hdr"><div class="modal-title">📊 Relatórios</div><button class="close-x" id="bX">✕</button></div>
-    <div style="max-height:64vh;overflow-y:auto;padding:2px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-        <div style="background:var(--bg3);border-radius:14px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:800;color:var(--orange)">${weightPts.length?weightPts[weightPts.length-1].y+"kg":"—"}</div><div style="font-size:11px;color:#888;margin-top:2px">Peso atual</div></div>
-        <div style="background:var(--bg3);border-radius:14px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:800;color:var(--orange)">${trainDaysLogged}</div><div style="font-size:11px;color:#888;margin-top:2px">Dias registrados</div></div>
+    <div class="modal-hdr"><div><div class="modal-title">📊 Relatórios e Evolução</div><div class="modal-sub">Acompanhe seu progresso</div></div><button class="close-x" id="bX">✕</button></div>
+    <div style="max-height:66vh;overflow-y:auto;padding:2px;-webkit-overflow-scrolling:touch">
+
+      <div style="background:linear-gradient(135deg,rgba(255,107,0,0.18),rgba(255,140,66,0.06));border:1px solid rgba(255,107,0,0.3);border-radius:18px;padding:16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:11px;color:var(--orange);font-weight:700;letter-spacing:1px">OBJETIVO ATUAL</div>
+            <div style="font-size:20px;font-weight:800;color:var(--text);margin-top:2px">${goalLbl}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:26px;font-weight:900;color:var(--orange)">${curWeight||"—"}<span style="font-size:14px">kg</span></div>
+            ${wDelta!==0?`<div style="font-size:12px;font-weight:700;color:${wDelta<0?"#22D3A5":"#FF8C42"}">${wDelta>0?"+":""}${wDelta.toFixed(1)}kg no período</div>`:`<div style="font-size:11px;color:var(--text3)">peso atual</div>`}
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+        ${statCard("🏋️",totalWorkouts,"EXERCÍCIOS",  "var(--orange)")}
+        ${statCard("📅",trainDaysLogged,"DIAS REG.","#4B9EFF")}
+        ${statCard("🔥",calPts.length?Math.round(calPts.reduce((a,p)=>a+p.y,0)/calPts.length):"—","MÉDIA KCAL","#22D3A5")}
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:12px;color:var(--text);letter-spacing:0.3px">📆 Atividade da semana</div>
+        <div style="display:flex;justify-content:space-between;gap:6px">
+          ${week.map(w=>`<div style="flex:1;text-align:center"><div style="width:100%;aspect-ratio:1;max-width:38px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;${w.active?"background:var(--orange);color:#fff":"background:var(--bg3);color:var(--text3);border:1.5px solid var(--border)"}">${w.active?"✓":w.init}</div></div>`).join("")}
+        </div>
       </div>
 
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
-        <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--text)">⚖️ Evolução do peso <span style="font-size:11px;color:#888;font-weight:400">(últimos ${last14.length} registros)</span></div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px;color:var(--text)">⚖️ Evolução do peso <span style="font-size:11px;color:var(--text3);font-weight:400">· ${last14.length} registros</span></div>
         ${lineChart(weightPts,"#FF6B00","kg")}
       </div>
 
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
-        <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--text)">🔥 Calorias consumidas <span style="font-size:11px;color:#888;font-weight:400">(meta ${S.targetCal||0})</span></div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px;color:var(--text)">🔥 Calorias consumidas <span style="font-size:11px;color:var(--text3);font-weight:400">· meta ${S.targetCal||0}</span></div>
         ${lineChart(calPts,"#22D3A5","")}
       </div>
 
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
-        <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--text)">🏋️ Progressão de carga</div>
-        ${perfList.length?perfList.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="color:var(--text)">${x.name}</span><span style="color:var(--orange);font-weight:700">${x.weight}kg × ${x.reps}</span></div>`).join(""):`<div style="text-align:center;padding:16px 0;color:#666;font-size:13px">Conclua treinos marcando as séries para ver sua progressão de carga aqui.</div>`}
+        <div style="font-weight:700;font-size:14px;margin-bottom:6px;color:var(--text)">🏋️ Progressão de carga</div>
+        ${perfList.length?`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Maior carga registrada por exercício</div>`+perfList.map((x,idx)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;${idx<perfList.length-1?"border-bottom:1px solid var(--border)":""}"><div style="display:flex;align-items:center;gap:10px;min-width:0"><div style="width:30px;height:30px;border-radius:8px;background:rgba(255,107,0,0.12);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--orange);flex-shrink:0">${idx+1}</div><span style="color:var(--text);font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.name}</span></div><span style="color:var(--orange);font-weight:800;font-size:14px;flex-shrink:0;margin-left:8px">${x.weight}kg<span style="color:var(--text3);font-weight:600;font-size:12px"> × ${x.reps}</span></span></div>`).join(""):`<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:13px"><div style="font-size:28px;margin-bottom:6px;opacity:0.5">💪</div>Conclua treinos marcando as séries<br>para ver sua progressão aqui.</div>`}
       </div>
 
-      ${!isPremium()?`<div style="background:rgba(255,107,0,0.08);border:1px dashed rgba(255,107,0,0.4);border-radius:14px;padding:14px;text-align:center"><div style="font-size:13px;color:var(--text);margin-bottom:8px">🔒 No <strong>Premium</strong> a IA analisa sua evolução e prevê seus resultados.</div><button class="btn-primary" id="bRepUpgrade" style="padding:10px 16px;font-size:13px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">Ver Premium</button></div>`:`<button class="btn-primary" id="bAIAnalysis" style="width:100%;padding:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🤖 Analisar minha evolução com IA</button><div id="aiAnalysisOut" style="margin-top:12px"></div>`}
+      ${!isPremium()?`<div style="background:linear-gradient(135deg,rgba(255,107,0,0.12),rgba(255,140,66,0.04));border:1px dashed rgba(255,107,0,0.45);border-radius:16px;padding:18px;text-align:center;margin-bottom:6px"><div style="font-size:30px;margin-bottom:6px">🤖</div><div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">Análise inteligente com IA</div><div style="font-size:12.5px;color:var(--text2);margin-bottom:12px;line-height:1.4">No <strong style="color:var(--orange)">Premium</strong>, a IA analisa sua evolução e prevê seus resultados.</div><button class="btn-primary" id="bRepUpgrade" style="padding:11px 18px;font-size:13px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">⭐ Ver Premium</button></div>`:`<button class="btn-primary" id="bAIAnalysis" style="width:100%;padding:15px;background:linear-gradient(135deg,#FF6B00,#FF8C42);font-size:15px">🤖 Analisar minha evolução com IA</button><div id="aiAnalysisOut" style="margin-top:12px"></div>`}
     </div>`;
   d2.querySelector("#bX").onclick=closeModal;
   d2.querySelector("#bRepUpgrade")?.addEventListener("click",()=>showPremiumGate("Análise inteligente de evolução é um recurso Premium."));
   d2.querySelector("#bAIAnalysis")?.addEventListener("click",async(ev)=>{
     const btn=ev.currentTarget;btn.disabled=true;btn.style.opacity="0.6";btn.textContent="Analisando...";
     const out=d2.querySelector("#aiAnalysisOut");
+    out.innerHTML=`<div style="text-align:center;padding:14px 0"><div style="font-size:28px;animation:spin 1.5s linear infinite;display:inline-block">⏳</div></div>`;
     const summary=`Peso: ${weightPts.map(p=>p.y).join(", ")||"sem dados"}. Calorias diarias: ${calPts.map(p=>p.y).join(", ")||"sem dados"}. Meta de calorias: ${S.targetCal}. Objetivo: ${S.profile?.goal}. Cargas atuais: ${perfList.map(x=>x.name+" "+x.weight+"kg").join("; ")||"sem dados"}.`;
     try{
       const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:`Voce e um coach. Analise a evolucao deste aluno em portugues do Brasil, de forma motivadora e pratica, em no maximo 5 frases. Aponte se esta no caminho do objetivo e o que ajustar. Dados: ${summary}`}]}],generationConfig:{temperature:0.5,maxOutputTokens:500,thinkingConfig:{thinkingBudget:0}}})});
       const data=await resp.json();
       let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"Não foi possível analisar agora.";
-      out.innerHTML=`<div style="background:var(--bg3);border-radius:12px;padding:14px;font-size:13.5px;line-height:1.5;color:var(--text);white-space:pre-wrap">${txt.trim()}</div>`;
-    }catch(e){out.innerHTML=`<div style="color:#FF6B6B;font-size:13px">Erro ao analisar. Tente novamente.</div>`;}
+      out.innerHTML=`<div style="background:var(--bg3);border-left:3px solid var(--orange);border-radius:12px;padding:14px;font-size:13.5px;line-height:1.55;color:var(--text);white-space:pre-wrap">${txt.trim()}</div>`;
+    }catch(e){out.innerHTML=`<div style="color:#FF6B6B;font-size:13px;text-align:center;padding:8px">Erro ao analisar. Tente novamente.</div>`;}
     btn.disabled=false;btn.style.opacity="1";btn.textContent="🤖 Analisar minha evolução com IA";
   });
 
@@ -1366,8 +1408,8 @@ function rPerfil(){
   const cal=S.targetCal||0;
   const username=p?.username||name;
   const avatarImg=p?.avatar||"";
-  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em">@${username}</div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec" style="background:${isPremium()?'linear-gradient(135deg,rgba(255,107,0,0.15),rgba(255,140,66,0.08))':'var(--bg2)'};border-color:${isPremium()?'rgba(255,107,0,0.4)':'var(--border)'}"><div class="sec-lbl">PLANO</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-weight:800;font-size:17px;color:var(--text)">${isPremium()?'⭐ Premium':'Grátis'}</div><div style="font-size:12px;color:#888;margin-top:2px">${isPremium()?'IA ilimitada e todos os recursos':`IA limitada · ${usesLeft("aiWorkout")===Infinity?'∞':usesLeft("aiWorkout")} treinos IA restantes esta semana`}</div></div>${isPremium()?`<button class="btn-sec" id="bManagePlan" style="padding:9px 14px;font-size:13px">Gerenciar</button>`:`<button class="btn-primary" id="bUpgrade" style="padding:11px 16px;font-size:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">⭐ Premium</button>`}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" id="bEditUsername" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🏷️</span><span class="kk">Nome de usuário</span></div><div style="display:flex;align-items:center;gap:6px"><span class="kv2">@${username}</span><span class="chev">›</span></div></div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
-      <div class="kv" id="bReports" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">📊</span><span class="kk">Relatórios e evolução</span></div><div class="chev">›</div></div><div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>
+  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em">@${username}</div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec" style="background:${isPremium()?'linear-gradient(135deg,rgba(255,107,0,0.15),rgba(255,140,66,0.08))':'var(--bg2)'};border-color:${isPremium()?'rgba(255,107,0,0.4)':'var(--border)'}"><div class="sec-lbl">PLANO</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-weight:800;font-size:17px;color:var(--text)">${isPremium()?'⭐ Premium':'Grátis'}</div><div style="font-size:12px;color:#888;margin-top:2px">${isPremium()?'IA ilimitada e todos os recursos':`IA limitada · ${usesLeft("aiWorkout")===Infinity?'∞':usesLeft("aiWorkout")} treinos IA restantes esta semana`}</div></div>${isPremium()?`<button class="btn-sec" id="bManagePlan" style="padding:9px 14px;font-size:13px">Gerenciar</button>`:`<button class="btn-primary" id="bUpgrade" style="padding:11px 16px;font-size:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">⭐ Premium</button>`}</div></div><div class="report-card" id="bReports" style="cursor:pointer;background:linear-gradient(135deg,rgba(255,107,0,0.16),rgba(75,158,255,0.08));border:1.5px solid rgba(255,107,0,0.35);border-radius:16px;padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:14px"><div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 4px 12px rgba(255,107,0,0.3)">📊</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px;color:var(--text)">Relatórios e Evolução</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Gráficos de peso, calorias e cargas</div></div><div class="chev" style="font-size:22px;color:var(--orange)">›</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" id="bEditUsername" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🏷️</span><span class="kk">Nome de usuário</span></div><div style="display:flex;align-items:center;gap:6px"><span class="kv2">@${username}</span><span class="chev">›</span></div></div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
+      <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>
   <input type="file" id="avatarInput" accept="image/*" style="display:none"/>`;
   d.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
   d.querySelector("#bEdit")?.addEventListener("click",()=>{S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
@@ -1745,7 +1787,7 @@ function rFoodModal(){
         const base64=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(reader.result.split(",")[1]);reader.onerror=rej;reader.readAsDataURL(file);});
         const mimeType=file.type||"image/jpeg";
         S.aiImg=`data:${mimeType};base64,${base64}`;
-        const prompt2='Voce e um nutricionista especialista em analise de alimentos por imagem. Examine a foto com muita atencao e identifique TODOS os alimentos visiveis, sejam eles: frutas (banana, maca, uva, etc), legumes e verduras, queijos (mussarela, prato, etc), frios e embutidos (presunto, salame, salaminho, mortadela), carnes (frango, bife, peixe), ovos, paes, arroz, feijao, massas, saladas, laticinios (leite, iogurte), oleaginosas, doces, salgados, bebidas, ou pratos completos com varios itens juntos. Se houver mais de um alimento, considere TODOS na soma nutricional. Se a imagem realmente NAO contiver nenhum alimento ou bebida comestivel (ex: objeto, pessoa, paisagem, movel), responda com isFood=false e um motivo curto em portugues. Caso contrario, isFood=true. Liste cada alimento identificado no campo ingredients. Estime os valores nutricionais totais somando tudo (parte solida, caldos, molhos, acompanhamentos). Responda sempre em portugues e seja generoso ao reconhecer alimentos - na duvida entre ser comida ou nao, considere que e comida.';
+        const prompt2='Voce e um nutricionista especialista em analise de alimentos por imagem. Examine a foto com muita atencao e identifique TODOS os alimentos visiveis. Se a imagem NAO contiver alimento, responda isFood=false. Caso contrario, isFood=true. Liste cada alimento no campo ingredients. IMPORTANTE: os valores nutricionais devem ser para uma PORCAO TIPICA de uma refeicao individual (entre 150g e 500g no total). Cal deve ser em kcal reais (um prato de comida tipico tem entre 300 e 900 kcal, NUNCA mais de 2000 kcal por prato individual). p, c, f tambem em gramas reais por porcao. serving = peso estimado do prato em gramas. Exemplos de referencia: arroz+feijao+frango+salada = ~600kcal/350g; lanche natural = ~400kcal/200g; pizza 2 fatias = ~500kcal/200g. Responda em portugues.';
         const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
@@ -1809,11 +1851,31 @@ function rFoodModal(){
           S.aiError=result.reason||"Isso nao parece ser comida. Tire uma foto de uma refeicao.";
           S.aiImg=null;
         }else{
+          // Sanity check: cap unrealistic values (IA às vezes retorna por 100g mas multiplica errado)
+          let rawCal=Number(result.cal)||0;
+          let rawP=Number(result.p)||0;
+          let rawC=Number(result.c)||0;
+          let rawF=Number(result.f)||0;
+          // Se calorias parecem ser por 100g (muito altas p/ uma porção), dividir pelo serving estimado
+          const rawServing=Number(result.serving)||300;
+          if(rawCal>2500&&rawServing>0){
+            // Provavelmente é por 100g — ajustar para o serving real
+            const factor=rawServing/100;
+            rawCal=Math.round(rawCal/100*rawServing);
+            rawP=+(rawP/100*rawServing).toFixed(1);
+            rawC=+(rawC/100*rawServing).toFixed(1);
+            rawF=+(rawF/100*rawServing).toFixed(1);
+          }
+          // Hard cap para valores absurdos
+          rawCal=Math.min(rawCal,3000);
+          rawP=Math.min(rawP,300);
+          rawC=Math.min(rawC,400);
+          rawF=Math.min(rawF,200);
           S.aiRawResult={
             n:result.n||"Refeicao",desc:result.desc||"",
             ingredients:Array.isArray(result.ingredients)?result.ingredients:[],
-            cal:Number(result.cal)||0,p:Number(result.p)||0,c:Number(result.c)||0,f:Number(result.f)||0,
-            serving:Number(result.serving)||0
+            cal:rawCal,p:rawP,c:rawC,f:rawF,
+            serving:rawServing
           };
           S.aiWeightStep=true;
           S.aiIngChecked=S.aiRawResult.ingredients.map(()=>true);
@@ -1889,6 +1951,8 @@ function rFoodModal(){
     if(plateWeight>0&&r.serving>0){
       ratio=plateWeight/r.serving;
     }
+    // Trava de segurança: nunca permitir ratio extremo que gere valores absurdos
+    ratio=Math.max(0.1,Math.min(ratio,5));
     // Build name/desc from confirmed ingredients
     const allIngs=r.ingredients||[];
     const confirmed=S.aiIngChecked?allIngs.filter((_,i)=>S.aiIngChecked[i]):allIngs;
@@ -1896,10 +1960,10 @@ function rFoodModal(){
     S.aiResult={
       n:r.n,desc:descFromIngs,
       ingredients:confirmed,
-      cal:Math.round(r.cal*ratio),
-      p:+(r.p*ratio).toFixed(1),
-      c:+(r.c*ratio).toFixed(1),
-      f:+(r.f*ratio).toFixed(1),
+      cal:Math.min(Math.round(r.cal*ratio),5000),
+      p:Math.min(+(r.p*ratio).toFixed(1),400),
+      c:Math.min(+(r.c*ratio).toFixed(1),600),
+      f:Math.min(+(r.f*ratio).toFixed(1),300),
       serving:plateWeight>0?plateWeight:r.serving||100,
       cat:"Refeições"
     };
@@ -2556,6 +2620,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .btn-signout{width:100%;margin-top:8px;padding:15px;background:var(--orange);border:none;border-radius:var(--radius);color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
 
 /* MODAL OVERLAY — full screen, outside #app */
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes slideDown{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:0}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
