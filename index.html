@@ -388,6 +388,7 @@ function showPremiumGate(reason){
 let S={
   user:null,profile:null,phase:"splash",
   tab:"agenda",
+  fabOpen:false,
   communityFoods:[],perf:{},usage:{},coachMsgs:null,coachLoading:false,dietResult:null,dietLoading:false,dietPref:"",history:{},
   mealCat:{},
   pendingMealCat:null,
@@ -462,7 +463,7 @@ function r(){
   else{
     if(S.session){document.getElementById("app").appendChild(rSession());return;}
     document.getElementById("app").appendChild(rHome());
-    const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual","pickSessionExercises","treinos","aiWorkout","coach","autoDiet","reports"];
+    const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual","pickSessionExercises","treinos","aiWorkout","coach","autoDiet","reports","perfil","premium"];
     if(modals.includes(S.modal))document.getElementById("modalRoot").appendChild(rModal());
   }
 }
@@ -569,13 +570,30 @@ function rHome(){
     {id:"agenda",label:"Treinar",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`},
     {id:"calorias",label:"Calorias",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>`},
     {id:"exercicios",label:"Exercícios",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>`},
-    {id:"perfil",label:"Perfil",icon:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`},
   ];
-  if(S.tab==="treinos")S.tab="agenda";
-  const tabFns={agenda:rAgenda,treinos:rAgenda,calorias:rCalorias,exercicios:rExercicios,perfil:rPerfil};
-  d.innerHTML=`<div class="home-body" id="hBody"></div><nav class="bottom-nav">${TABS.map(t=>`<div class="nav-item ${S.tab===t.id?"active":""}" data-tab="${t.id}"><div class="nav-icon">${t.icon}</div><div class="nav-label">${t.label}</div></div>`).join("")}</nav>`;
+  if(S.tab==="treinos"||S.tab==="perfil")S.tab="agenda";
+  const tabFns={agenda:rAgenda,treinos:rAgenda,calorias:rCalorias,exercicios:rExercicios};
+  d.innerHTML=`<button class="cfg-btn" id="bCfg" aria-label="Configurações"><span></span><span></span><span></span></button>
+    <div class="fab-menu ${S.fabOpen?"fab-open":""}" id="fabMenu">
+      <div class="fab-item" data-fab="perfil"><span class="fab-lbl">Perfil</span><button class="fab-bub">👤</button></div>
+      <div class="fab-item" data-fab="premium"><span class="fab-lbl">Premium</span><button class="fab-bub fab-crown">👑</button></div>
+      <div class="fab-item" data-fab="reports"><span class="fab-lbl">Relatórios</span><button class="fab-bub">📊</button></div>
+    </div>
+    <div class="fab-scrim ${S.fabOpen?"fab-open":""}" id="fabScrim"></div>
+    <div class="home-body" id="hBody"></div><nav class="bottom-nav">${TABS.map(t=>`<div class="nav-item ${S.tab===t.id?"active":""}" data-tab="${t.id}"><div class="nav-icon">${t.icon}</div><div class="nav-label">${t.label}</div></div>`).join("")}</nav>`;
   try{const tabEl=(tabFns[S.tab]||rAgenda)();d.querySelector("#hBody").appendChild(tabEl);}catch(e){console.error("Tab error:",e);const errDiv=D("tab-page");errDiv.innerHTML=`<div style="padding:40px;text-align:center;color:#FF6B6B"><p>Erro ao carregar aba</p><p style="font-size:12px;margin-top:8px">${e.message}</p></div>`;d.querySelector("#hBody").appendChild(errDiv);}
-  d.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;r();});
+  d.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.fabOpen=false;r();});
+  // Config (hamburger) toggles the floating bubbles
+  d.querySelector("#bCfg")?.addEventListener("click",()=>{S.fabOpen=!S.fabOpen;r();});
+  d.querySelector("#fabScrim")?.addEventListener("click",()=>{S.fabOpen=false;r();});
+  d.querySelectorAll("[data-fab]").forEach(b=>b.onclick=()=>{
+    const t=b.dataset.fab;S.fabOpen=false;
+    if(t==="premium"){S.modal="premium";}
+    else if(t==="reports"){S.modal="reports";}
+    else{S.modal="perfil";}
+    r();
+  });
+  const cb=d.querySelector("#bCfg");if(cb&&S.fabOpen)cb.classList.add("active");
   return d;
 }
 
@@ -1398,29 +1416,28 @@ function rExercicios(){
 }
 
 // ─── PERFIL ───
-function rPerfil(){
-  const d=D("tab-page");
+function rPerfilModal(){
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
   const p=S.profile;
   const name=p?.name||S.user?.displayName||"Atleta";
   const ini=name.trim().split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
-  const acts={sed:"Sedentário",light:"Levemente ativo",mod:"Moderadamente ativo",active:"Muito ativo",very:"Extremamente ativo"};
-  const goal=p?.goal==="lose"?"Emagrecer":p?.goal==="gain"?"Ganhar massa":"Saúde";
-  const cal=S.targetCal||0;
   const username=p?.username||name;
   const avatarImg=p?.avatar||"";
-  d.innerHTML=`<div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em">@${username}</div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec" style="background:${isPremium()?'linear-gradient(135deg,rgba(255,107,0,0.15),rgba(255,140,66,0.08))':'var(--bg2)'};border-color:${isPremium()?'rgba(255,107,0,0.4)':'var(--border)'}"><div class="sec-lbl">PLANO</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-weight:800;font-size:17px;color:var(--text)">${isPremium()?'⭐ Premium':'Grátis'}</div><div style="font-size:12px;color:#888;margin-top:2px">${isPremium()?'IA ilimitada e todos os recursos':`IA limitada · ${usesLeft("aiWorkout")===Infinity?'∞':usesLeft("aiWorkout")} treinos IA restantes esta semana`}</div></div>${isPremium()?`<button class="btn-sec" id="bManagePlan" style="padding:9px 14px;font-size:13px">Gerenciar</button>`:`<button class="btn-primary" id="bUpgrade" style="padding:11px 16px;font-size:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">⭐ Premium</button>`}</div></div><div class="report-card" id="bReports" style="cursor:pointer;background:linear-gradient(135deg,rgba(255,107,0,0.16),rgba(75,158,255,0.08));border:1.5px solid rgba(255,107,0,0.35);border-radius:16px;padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:14px"><div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 4px 12px rgba(255,107,0,0.3)">📊</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px;color:var(--text)">Relatórios e Evolução</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Gráficos de peso, calorias e cargas</div></div><div class="chev" style="font-size:22px;color:var(--orange)">›</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" id="bEditUsername" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🏷️</span><span class="kk">Nome de usuário</span></div><div style="display:flex;align-items:center;gap:6px"><span class="kv2">@${username}</span><span class="chev">›</span></div></div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
+  d2.innerHTML=`<div class="modal-handle"></div>
+    <div class="modal-hdr"><div class="modal-title">👤 Meu Perfil</div><button class="close-x" id="bX">✕</button></div>
+    <div style="max-height:72vh;overflow-y:auto;padding:2px;-webkit-overflow-scrolling:touch">
+    <div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em" id="bEditUsername" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center">@${username} <span style="font-size:13px;opacity:0.7">✏️</span></div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
       <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>
+    </div>
   <input type="file" id="avatarInput" accept="image/*" style="display:none"/>`;
-  d.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
-  d.querySelector("#bEdit")?.addEventListener("click",()=>{S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
-  // Edit username via modal
-  d.querySelector("#bUpgrade")?.addEventListener("click",()=>showPremiumGate(""));
-  d.querySelector("#bManagePlan")?.addEventListener("click",()=>{
-    if(confirm("Você é Premium. Deseja voltar para o plano Grátis?")){
-      S.profile.plan="free";saveProfile(S.profile);r();
-    }
-  });
-  d.querySelector("#bEditUsername")?.addEventListener("click",()=>{
+  const d_=d2;
+  d2.querySelector("#bX").onclick=closeModal;
+  d_.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
+  d_.querySelector("#bEdit")?.addEventListener("click",()=>{S.modal=null;S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
+  d_.querySelector("#bEditUsername")?.addEventListener("click",()=>{
     const ov=document.createElement("div");
     ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px";
     ov.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:360px">
@@ -1446,8 +1463,8 @@ function rPerfil(){
     inp.onkeydown=e=>{if(e.key==="Enter")ov.querySelector("#unOk").click();};
   });
   // Edit avatar (photo) — stored as base64 in profile
-  const avInput=d.querySelector("#avatarInput");
-  d.querySelector("#bEditAvatar")?.addEventListener("click",()=>avInput?.click());
+  const avInput=d_.querySelector("#avatarInput");
+  d_.querySelector("#bEditAvatar")?.addEventListener("click",()=>avInput?.click());
   if(avInput)avInput.onchange=async e=>{
     const file=e.target.files?.[0];if(!file)return;
     if(file.size>2*1024*1024){alert("Imagem muito grande. Escolha uma foto menor que 2MB.");return;}
@@ -1473,11 +1490,11 @@ function rPerfil(){
       r();
     }catch(err){alert("Erro ao carregar a foto. Tente outra.");}
   };
-  d.querySelector("#bDarkToggle")?.addEventListener("click",async()=>{
+  d_.querySelector("#bDarkToggle")?.addEventListener("click",async()=>{
     S.darkMode=S.darkMode===false?true:false;
     applyTheme();
     // Update toggle visual without full re-render
-    const tog=d.querySelector("#bDarkToggle");
+    const tog=d_.querySelector("#bDarkToggle");
     if(tog){
       tog.classList.toggle("on",S.darkMode!==false);
       tog.style.background=S.darkMode===false?"#666":"var(--orange)";
@@ -1487,8 +1504,58 @@ function rPerfil(){
     // Persistir preferência no perfil
     if(S.profile){S.profile.darkMode=S.darkMode;try{await saveProfile(S.profile);}catch(e){}}
   });
-  d.querySelector("#bReports")?.addEventListener("click",()=>{S.modal="reports";r();});
-  d.querySelector("#bNotif")?.addEventListener("click",async()=>{if(!("Notification"in window))return alert("Navegador não suporta notificações.");const p=await Notification.requestPermission();if(p==="granted")new Notification("BoltFit ⚡",{body:"Notificações ativadas!"});else alert("Notificações bloqueadas nas configurações do navegador.");});
+  d_.querySelector("#bNotif")?.addEventListener("click",async()=>{if(!("Notification"in window))return alert("Navegador não suporta notificações.");const pp=await Notification.requestPermission();if(pp==="granted")new Notification("BoltFit ⚡",{body:"Notificações ativadas!"});else alert("Notificações bloqueadas nas configurações do navegador.");});
+  return d;
+}
+
+// ─── PREMIUM MODAL (acessado pela bolinha 👑) ───
+function rPremiumModal(){
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+  const premium=isPremium();
+  d2.innerHTML=`<div class="modal-handle"></div>
+    <div class="modal-hdr"><div class="modal-title">👑 Premium</div><button class="close-x" id="bX">✕</button></div>
+    <div style="max-height:74vh;overflow-y:auto;padding:2px;-webkit-overflow-scrolling:touch">
+      <div style="text-align:center;padding:8px 0 18px">
+        <div style="font-size:54px">${premium?"⭐":"👑"}</div>
+        <div style="font-size:24px;font-weight:900;color:var(--text);margin-top:6px">BoltFit Premium</div>
+        <div style="font-size:13px;color:${premium?"#22D3A5":"var(--text2)"};margin-top:6px;font-weight:600">${premium?"✓ Você é Premium — aproveite tudo sem limites!":"Desbloqueie todo o potencial do app"}</div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:700;letter-spacing:0.5px">O QUE O PREMIUM OFERECE</div>
+      ${[
+        ["🤖","IA ilimitada","Treinos e análises de comida sem limite diário"],
+        ["📈","Progressão inteligente","A IA ajusta carga, reps e descanso automaticamente"],
+        ["🍽️","Dieta automática","Gera refeições e substitui alimentos por você"],
+        ["📊","Relatórios avançados","Gráficos de evolução e previsão de resultados"],
+        ["🚫","Sem anúncios","Experiência limpa e sem interrupções"],
+      ].map(([ic,t,ds])=>`<div style="display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--border)"><div style="font-size:24px;flex-shrink:0">${ic}</div><div><div style="font-weight:700;font-size:14.5px;color:var(--text)">${t}</div><div style="font-size:12px;color:var(--text2);margin-top:1px">${ds}</div></div></div>`).join("")}
+      ${premium
+        ?`<div style="background:linear-gradient(135deg,rgba(34,211,165,0.12),rgba(34,211,165,0.04));border:1px solid rgba(34,211,165,0.3);border-radius:14px;padding:16px;text-align:center;margin-top:18px"><div style="font-size:14px;font-weight:700;color:#22D3A5">Plano ativo</div><div style="font-size:12px;color:var(--text2);margin-top:4px">IA ilimitada e todos os recursos liberados</div></div>
+          <button class="btn-sec" id="bManagePlan" style="width:100%;margin-top:12px;padding:13px">Voltar para o plano Grátis</button>`
+        :`<div style="background:var(--bg3);border-radius:16px;padding:18px;margin-top:18px;text-align:center">
+            <div style="font-size:13px;color:var(--text2)">Plano mensal</div>
+            <div style="font-size:32px;font-weight:900;color:var(--orange);margin:4px 0">R$ 19,90<span style="font-size:14px;color:var(--text3);font-weight:600">/mês</span></div>
+            <div style="font-size:11px;color:var(--text3)">Cancele quando quiser</div>
+          </div>
+          <button class="btn-primary" id="bUpgrade" style="width:100%;margin-top:14px;padding:16px;font-size:16px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">👑 Assinar Premium</button>`}
+    </div>`;
+  d2.querySelector("#bX").onclick=closeModal;
+  d2.querySelector("#bUpgrade")?.addEventListener("click",()=>{
+    if(confirm("O pagamento online ainda será configurado.\n\nDeseja ativar o Premium neste dispositivo agora (modo teste)?")){
+      if(!S.profile)S.profile={};
+      S.profile.plan="premium";
+      saveProfile(S.profile);
+      alert("✅ Premium ativado! Aproveite a IA ilimitada.");
+      r();
+    }
+  });
+  d2.querySelector("#bManagePlan")?.addEventListener("click",()=>{
+    if(confirm("Você é Premium. Deseja voltar para o plano Grátis?")){
+      S.profile.plan="free";saveProfile(S.profile);r();
+    }
+  });
   return d;
 }
 
@@ -1523,6 +1590,8 @@ function rModal(){
   if(S.modal==="coach")return rCoachModal();
   if(S.modal==="autoDiet")return rAutoDietModal();
   if(S.modal==="reports")return rReportsModal();
+  if(S.modal==="perfil")return rPerfilModal();
+  if(S.modal==="premium")return rPremiumModal();
   return D("div");
 }
 
@@ -2504,9 +2573,27 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .nav-icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
 .nav-label{font-size:10px;font-weight:600;}
 
+/* CONFIG HAMBURGER + FLOATING BUBBLES (speed-dial) */
+.cfg-btn{position:absolute;top:calc(14px + var(--safe-top));right:14px;z-index:60;width:42px;height:42px;border-radius:13px;background:var(--bg2);border:1.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:all .25s;}
+.cfg-btn span{display:block;width:18px;height:2.5px;border-radius:2px;background:var(--text);transition:all .3s;}
+.cfg-btn.active{background:var(--orange);border-color:var(--orange);transform:rotate(90deg);}
+.cfg-btn.active span{background:#fff;}
+.fab-scrim{position:absolute;inset:0;background:rgba(0,0,0,0);z-index:55;pointer-events:none;transition:background .25s;}
+.fab-scrim.fab-open{background:rgba(0,0,0,0.45);pointer-events:all;}
+.fab-menu{position:absolute;top:calc(64px + var(--safe-top));right:16px;z-index:58;display:flex;flex-direction:column;gap:14px;align-items:flex-end;pointer-events:none;}
+.fab-item{display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(-12px) scale(0.85);transition:opacity .25s,transform .25s;pointer-events:none;}
+.fab-menu.fab-open .fab-item{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}
+.fab-menu.fab-open .fab-item:nth-child(1){transition-delay:.04s;}
+.fab-menu.fab-open .fab-item:nth-child(2){transition-delay:.09s;}
+.fab-menu.fab-open .fab-item:nth-child(3){transition-delay:.14s;}
+.fab-lbl{background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:700;padding:7px 12px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.3);white-space:nowrap;}
+.fab-bub{width:52px;height:52px;border-radius:50%;border:none;background:var(--bg3);border:1.5px solid var(--border);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.35);transition:transform .15s;}
+.fab-bub:active{transform:scale(0.9);}
+.fab-crown{background:linear-gradient(135deg,#FFB800,#FF8C00);border-color:#FFB800;box-shadow:0 4px 16px rgba(255,140,0,0.45);}
+
 /* TAB PAGES */
 .tab-page{display:flex;flex-direction:column;padding:calc(20px + var(--safe-top)) 16px calc(90px + var(--safe-bot));}
-.tab-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.tab-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-right:52px;min-height:42px;}
 .tab-eye{font-size:11px;font-weight:700;color:var(--orange);letter-spacing:2px;text-transform:uppercase;}
 .tab-title{font-size:28px;font-weight:800;margin-top:2px;}
 .icon-add{width:40px;height:40px;background:var(--orange);border:none;border-radius:50%;color:#fff;font-size:24px;font-weight:700;cursor:pointer;}
