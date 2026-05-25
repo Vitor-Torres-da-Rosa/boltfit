@@ -205,113 +205,117 @@ const ALL_EX=Object.entries(EXERCISES).flatMap(([g,arr])=>arr.map(e=>({...e,grou
 // FOOD DATABASE (300+ Brazilian foods)
 // ═══════════════════════════════════════════
 const FOODS=[
-  // ─── PROTEÍNAS ANIMAIS ───
-  {n:"Peito de frango grelhado",cal:165,p:31,c:0,f:3.6,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Peito de frango cozido",cal:158,p:32,c:0,f:2.7,cat:"Proteínas",brand:"Seara",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Carne bovina moída magra",cal:170,p:26,c:0,f:7,cat:"Proteínas",brand:"Friboi",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Picanha grelhada",cal:247,p:24,c:0,f:16,cat:"Proteínas",brand:"Friboi",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Filé mignon grelhado",cal:193,p:27,c:0,f:9,cat:"Proteínas",brand:"Friboi",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Alcatra grelhada",cal:200,p:28,c:0,f:9,cat:"Proteínas",brand:"Friboi",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Salmão grelhado",cal:208,p:20,c:0,f:13,cat:"Proteínas",brand:"Marine Harvest",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Tilápia grelhada",cal:128,p:26,c:0,f:2.7,cat:"Proteínas",brand:"Seara",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Atum em lata ao natural",cal:109,p:25,c:0,f:1,cat:"Proteínas",brand:"Gomes da Costa",serving:170,addedAt:"2025-01-01",official:true},
-  {n:"Sardinha em lata ao óleo",cal:190,p:24,c:0,f:11,cat:"Proteínas",brand:"Gomes da Costa",serving:125,addedAt:"2025-01-01",official:true},
-  {n:"Ovo cozido",cal:78,p:6,c:0.6,f:5,cat:"Proteínas",brand:"Ovos Mantiqueira",serving:50,addedAt:"2025-01-01",official:true},
-  {n:"Clara de ovo",cal:17,p:3.6,c:0.2,f:0,cat:"Proteínas",brand:"Ovos Mantiqueira",serving:33,addedAt:"2025-01-01",official:true},
-  {n:"Peito de peru defumado",cal:111,p:23,c:0,f:1.7,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Presunto cozido sem capa de gordura",cal:120,p:18,c:1.5,f:4.8,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Camarão cozido",cal:99,p:21,c:0.9,f:1.1,cat:"Proteínas",brand:"Seara",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Frango à milanesa",cal:229,p:20,c:11,f:11,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Linguiça Toscana grelhada",cal:310,p:14,c:1,f:28,cat:"Proteínas",brand:"Perdigão",serving:100,addedAt:"2025-01-01",official:true},
+  // ─── PROTEÍNAS ANIMAIS (valores TACO/USDA por 100g salvo indicado) ───
+  {n:"Peito de frango grelhado",cal:165,p:31,c:0,f:3.6,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Peito de frango cozido",cal:163,p:31,c:0,f:3.6,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Coxa de frango assada s/ pele",cal:184,p:24,c:0,f:9,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Carne bovina moída magra (patinho)",cal:187,p:26,c:0,f:9,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Picanha grelhada",cal:247,p:24,c:0,f:16,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Filé mignon grelhado",cal:193,p:27,c:0,f:9,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Alcatra grelhada",cal:200,p:28,c:0,f:9,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Patinho cozido",cal:219,p:35,c:0,f:8,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Salmão grelhado",cal:208,p:22,c:0,f:13,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Tilápia grelhada",cal:128,p:26,c:0,f:2.7,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Atum em lata ao natural",cal:116,p:26,c:0,f:1,cat:"Proteínas",brand:"Gomes da Costa",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Sardinha em lata ao óleo",cal:208,p:25,c:0,f:11,cat:"Proteínas",brand:"Gomes da Costa",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Ovo de galinha cozido (unid. ~50g)",cal:78,p:6.3,c:0.6,f:5.3,cat:"Proteínas",brand:"Genérico",serving:50,addedAt:"2025-01-01",official:true},
+  {n:"Ovo mexido (unid. ~60g)",cal:101,p:7,c:1,f:7.5,cat:"Proteínas",brand:"Genérico",serving:60,addedAt:"2025-01-01",official:true},
+  {n:"Clara de ovo (unid. ~33g)",cal:17,p:3.6,c:0.2,f:0,cat:"Proteínas",brand:"Genérico",serving:33,addedAt:"2025-01-01",official:true},
+  {n:"Peito de peru defumado",cal:111,p:18,c:3,f:2,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Presunto magro s/ capa de gordura",cal:120,p:18,c:1.5,f:4.8,cat:"Proteínas",brand:"Sadia",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Camarão cozido",cal:99,p:21,c:0.9,f:1.1,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Carne suína (lombo) assada",cal:242,p:27,c:0,f:14,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Frango à milanesa",cal:229,p:20,c:11,f:11,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Linguiça toscana grelhada",cal:296,p:16,c:1,f:26,cat:"Proteínas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
   // ─── SUPLEMENTOS ───
-  {n:"Whey Protein isolado",cal:108,p:25,c:0.5,f:0.3,cat:"Suplementos",brand:"Optimum Nutrition",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Whey Protein concentrado",cal:120,p:22,c:3,f:2,cat:"Suplementos",brand:"Growth Supplements",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Caseína",cal:115,p:24,c:2,f:1,cat:"Suplementos",brand:"Optimum Nutrition",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Creatina monohidratada",cal:0,p:0,c:0,f:0,cat:"Suplementos",brand:"Integral Médica",serving:5,addedAt:"2025-01-01",official:true},
-  {n:"BCAA em pó",cal:20,p:5,c:0,f:0,cat:"Suplementos",brand:"Integralmedica",serving:10,addedAt:"2025-01-01",official:true},
-  // ─── CARBOIDRATOS ───
-  {n:"Arroz branco tipo 1 cozido",cal:130,p:2.7,c:28,f:0.3,cat:"Carboidratos",brand:"Tio João",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Arroz integral cozido",cal:124,p:2.6,c:26,f:0.9,cat:"Carboidratos",brand:"Camil",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Batata doce cozida",cal:86,p:1.6,c:20,f:0.1,cat:"Carboidratos",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Batata inglesa cozida",cal:77,p:2.1,c:17,f:0.1,cat:"Carboidratos",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Macarrão espaguete cozido",cal:158,p:5.8,c:31,f:0.9,cat:"Carboidratos",brand:"Barilla",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Macarrão integral cozido",cal:149,p:5.5,c:29,f:1.2,cat:"Carboidratos",brand:"Barilla",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Aveia em flocos finos",cal:389,p:17,c:66,f:7,cat:"Carboidratos",brand:"Quaker",serving:40,addedAt:"2025-01-01",official:true},
-  {n:"Aveia em flocos grossos",cal:394,p:14,c:67,f:8,cat:"Carboidratos",brand:"Nesfit",serving:40,addedAt:"2025-01-01",official:true},
-  {n:"Pão francês",cal:135,p:4.2,c:27,f:0.5,cat:"Carboidratos",brand:"Padaria",serving:50,addedAt:"2025-01-01",official:true},
-  {n:"Pão de forma integral",cal:69,p:3.6,c:12,f:1.1,cat:"Carboidratos",brand:"Wickbold",serving:25,addedAt:"2025-01-01",official:true},
-  {n:"Pão de forma tradicional",cal:75,p:2.5,c:14,f:1,cat:"Carboidratos",brand:"Pullman",serving:25,addedAt:"2025-01-01",official:true},
-  {n:"Tapioca crua",cal:350,p:0.2,c:87,f:0.3,cat:"Carboidratos",brand:"Amafil",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Cuscuz cozido",cal:112,p:3.8,c:23,f:0.2,cat:"Carboidratos",brand:"Yoki",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Feijão carioca cozido",cal:76,p:4.8,c:14,f:0.5,cat:"Carboidratos",brand:"Camil",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Feijão preto cozido",cal:77,p:5.2,c:14,f:0.5,cat:"Carboidratos",brand:"Camil",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Lentilha cozida",cal:116,p:9,c:20,f:0.4,cat:"Carboidratos",brand:"Yoki",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Grão-de-bico cozido",cal:164,p:8.9,c:27,f:2.6,cat:"Carboidratos",brand:"Camil",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Quinoa cozida",cal:120,p:4.4,c:21,f:1.9,cat:"Carboidratos",brand:"Mundo dos Grãos",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Mandioca cozida",cal:125,p:0.9,c:30,f:0.2,cat:"Carboidratos",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Granola tradicional",cal:471,p:11,c:60,f:20,cat:"Carboidratos",brand:"Jasmine",serving:40,addedAt:"2025-01-01",official:true},
-  // ─── FRUTAS ───
+  {n:"Whey protein isolado (dose 30g)",cal:113,p:27,c:0.5,f:0.3,cat:"Suplementos",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Whey protein concentrado (dose 30g)",cal:120,p:24,c:3,f:1.5,cat:"Suplementos",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Caseína (dose 30g)",cal:110,p:24,c:2,f:1,cat:"Suplementos",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Creatina monohidratada (5g)",cal:0,p:0,c:0,f:0,cat:"Suplementos",brand:"Genérico",serving:5,addedAt:"2025-01-01",official:true},
+  {n:"BCAA em pó (10g)",cal:20,p:5,c:0,f:0,cat:"Suplementos",brand:"Genérico",serving:10,addedAt:"2025-01-01",official:true},
+  {n:"Barra de proteína (unid. ~45g)",cal:170,p:20,c:15,f:5,cat:"Suplementos",brand:"Genérico",serving:45,addedAt:"2025-01-01",official:true},
+  // ─── CARBOIDRATOS (cozidos, por 100g) ───
+  {n:"Arroz branco cozido",cal:128,p:2.5,c:28,f:0.2,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Arroz integral cozido",cal:124,p:2.6,c:26,f:1,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Batata doce cozida",cal:86,p:1.6,c:20,f:0.1,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Batata inglesa cozida",cal:77,p:2,c:17,f:0.1,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Mandioca/aipim cozida",cal:125,p:0.9,c:30,f:0.2,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Macarrão cozido",cal:157,p:5.8,c:31,f:0.9,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Macarrão integral cozido",cal:124,p:5,c:25,f:1.1,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Aveia em flocos (dose 40g)",cal:152,p:5.4,c:26,f:2.8,cat:"Carboidratos",brand:"Genérico",serving:40,addedAt:"2025-01-01",official:true},
+  {n:"Pão francês (unid. ~50g)",cal:150,p:4.5,c:29,f:1.5,cat:"Carboidratos",brand:"Padaria",serving:50,addedAt:"2025-01-01",official:true},
+  {n:"Pão de forma integral (fatia ~25g)",cal:62,p:2.8,c:11,f:1,cat:"Carboidratos",brand:"Genérico",serving:25,addedAt:"2025-01-01",official:true},
+  {n:"Pão de forma tradicional (fatia ~25g)",cal:67,p:2.2,c:13,f:0.9,cat:"Carboidratos",brand:"Genérico",serving:25,addedAt:"2025-01-01",official:true},
+  {n:"Tapioca pronta (por 100g)",cal:240,p:0.6,c:59,f:0.2,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Cuscuz de milho cozido",cal:113,p:2.2,c:25,f:0.6,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Feijão carioca cozido",cal:76,p:4.8,c:13.6,f:0.5,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Feijão preto cozido",cal:77,p:4.5,c:14,f:0.5,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Lentilha cozida",cal:116,p:9,c:20,f:0.4,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Grão-de-bico cozido",cal:164,p:8.9,c:27,f:2.6,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Quinoa cozida",cal:120,p:4.4,c:21,f:1.9,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Granola (dose 40g)",cal:180,p:4.4,c:27,f:6,cat:"Carboidratos",brand:"Genérico",serving:40,addedAt:"2025-01-01",official:true},
+  {n:"Milho verde cozido",cal:98,p:3.4,c:21,f:1.2,cat:"Carboidratos",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  // ─── FRUTAS (por 100g) ───
   {n:"Banana prata",cal:89,p:1.1,c:23,f:0.3,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Banana nanica",cal:98,p:1.4,c:26,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Maçã Fuji",cal:55,p:0.3,c:14,f:0.2,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Laranja pera",cal:47,p:0.9,c:11,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Mamão papaia",cal:40,p:0.5,c:10,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Manga Tommy",cal:65,p:0.8,c:17,f:0.4,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Banana nanica",cal:92,p:1.4,c:24,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Maçã",cal:56,p:0.3,c:15,f:0.2,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Laranja",cal:47,p:0.9,c:11,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Mamão papaia",cal:43,p:0.5,c:11,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Manga",cal:60,p:0.8,c:15,f:0.4,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   {n:"Melancia",cal:30,p:0.6,c:7.6,f:0.2,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Abacaxi pérola",cal:48,p:0.9,c:12,f:0.2,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Abacaxi",cal:50,p:0.5,c:13,f:0.1,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   {n:"Morango",cal:32,p:0.7,c:7.7,f:0.3,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   {n:"Abacate",cal:160,p:2,c:9,f:15,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Uva Itália",cal:69,p:0.6,c:18,f:0.4,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Açaí puro",cal:58,p:1.3,c:6.2,f:3.3,cat:"Frutas",brand:"Açaí do Norte",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Uva",cal:69,p:0.6,c:18,f:0.4,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Açaí polpa pura s/ açúcar",cal:58,p:1.3,c:6.2,f:3.3,cat:"Frutas",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   // ─── LATICÍNIOS ───
-  {n:"Leite integral",cal:61,p:3.2,c:4.8,f:3.3,cat:"Laticínios",brand:"Italac",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Leite desnatado",cal:34,p:3.4,c:4.7,f:0.2,cat:"Laticínios",brand:"Parmalat",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Iogurte natural integral",cal:66,p:3.5,c:4.9,f:3.5,cat:"Laticínios",brand:"Nestlé",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Iogurte grego natural",cal:59,p:10,c:3.6,f:0.4,cat:"Laticínios",brand:"Fage",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Iogurte grego 0% gordura",cal:49,p:10,c:4,f:0,cat:"Laticínios",brand:"Danone",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Queijo minas frescal",cal:264,p:17,c:3.2,f:20,cat:"Laticínios",brand:"Tirolez",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Queijo cottage",cal:98,p:11,c:3.4,f:4.3,cat:"Laticínios",brand:"Vigor",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Queijo mussarela",cal:280,p:22,c:2.2,f:20,cat:"Laticínios",brand:"Tirolez",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Requeijão cremoso",cal:257,p:11,c:2.8,f:22,cat:"Laticínios",brand:"Catupiry",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Manteiga com sal",cal:717,p:0.9,c:0.1,f:80,cat:"Laticínios",brand:"Aviação",serving:10,addedAt:"2025-01-01",official:true},
-  {n:"Whey isolado sabor chocolate",cal:108,p:25,c:0.5,f:0.3,cat:"Suplementos",brand:"Optimum Nutrition",serving:30,addedAt:"2025-01-01",official:true},
-  // ─── GORDURAS BOAS ───
-  {n:"Amendoim torrado sem sal",cal:567,p:25,c:16,f:49,cat:"Gorduras",brand:"Dori",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Pasta de amendoim integral",cal:589,p:25,c:18,f:51,cat:"Gorduras",brand:"Power1One",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Castanha do Pará",cal:656,p:14,c:12,f:64,cat:"Gorduras",brand:"Natural",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Castanha de caju torrada",cal:553,p:18,c:30,f:44,cat:"Gorduras",brand:"Mundo dos Grãos",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Azeite de oliva extravirgem",cal:884,p:0,c:0,f:100,cat:"Gorduras",brand:"Gallo",serving:10,addedAt:"2025-01-01",official:true},
-  {n:"Óleo de coco extravirgem",cal:862,p:0,c:0,f:100,cat:"Gorduras",brand:"Copra",serving:10,addedAt:"2025-01-01",official:true},
-  {n:"Semente de chia",cal:486,p:17,c:42,f:31,cat:"Gorduras",brand:"Native",serving:15,addedAt:"2025-01-01",official:true},
-  {n:"Linhaça dourada",cal:534,p:18,c:29,f:42,cat:"Gorduras",brand:"Jasmine",serving:15,addedAt:"2025-01-01",official:true},
-  {n:"Nozes",cal:654,p:15,c:14,f:65,cat:"Gorduras",brand:"Natural",serving:30,addedAt:"2025-01-01",official:true},
-  {n:"Amêndoas sem sal",cal:579,p:21,c:22,f:50,cat:"Gorduras",brand:"Soleil",serving:30,addedAt:"2025-01-01",official:true},
-  // ─── LANCHES / FAST FOOD ───
-  {n:"Pão de queijo mineiro",cal:354,p:8.4,c:44,f:16,cat:"Lanches",brand:"Forno de Minas",serving:50,addedAt:"2025-01-01",official:true},
-  {n:"Wrap integral de frango",cal:310,p:28,c:32,f:8,cat:"Lanches",brand:"Sadia",serving:200,addedAt:"2025-01-01",official:true},
-  {n:"Biscoito de arroz",cal:386,p:7,c:84,f:2.3,cat:"Lanches",brand:"Yoki",serving:10,addedAt:"2025-01-01",official:true},
-  {n:"Barrinha de proteína",cal:190,p:20,c:18,f:5,cat:"Suplementos",brand:"Nutry",serving:45,addedAt:"2025-01-01",official:true},
-  {n:"Mix de castanhas",cal:560,p:15,c:15,f:50,cat:"Lanches",brand:"Natural One",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Leite integral",cal:61,p:3.2,c:4.8,f:3.3,cat:"Laticínios",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Leite desnatado",cal:35,p:3.4,c:5,f:0.2,cat:"Laticínios",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Iogurte natural integral",cal:61,p:3.5,c:4.7,f:3.3,cat:"Laticínios",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Iogurte grego natural integral",cal:97,p:9,c:4,f:5,cat:"Laticínios",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Iogurte grego 0% gordura",cal:59,p:10,c:3.6,f:0.4,cat:"Laticínios",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Queijo minas frescal",cal:264,p:17,c:3.2,f:20,cat:"Laticínios",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Queijo cottage",cal:98,p:11,c:3.4,f:4.3,cat:"Laticínios",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Queijo mussarela",cal:280,p:22,c:2.2,f:21,cat:"Laticínios",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Requeijão cremoso (colher ~30g)",cal:77,p:3,c:1,f:7,cat:"Laticínios",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Manteiga (colher ~10g)",cal:72,p:0.1,c:0,f:8,cat:"Laticínios",brand:"Genérico",serving:10,addedAt:"2025-01-01",official:true},
+  // ─── GORDURAS BOAS (dose pequena) ───
+  {n:"Amendoim torrado s/ sal (30g)",cal:170,p:7.5,c:5,f:14,cat:"Gorduras",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Pasta de amendoim integral (colher ~20g)",cal:118,p:5,c:4,f:10,cat:"Gorduras",brand:"Genérico",serving:20,addedAt:"2025-01-01",official:true},
+  {n:"Castanha do Pará (30g)",cal:197,p:4.2,c:3.6,f:19,cat:"Gorduras",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Castanha de caju torrada (30g)",cal:166,p:5.4,c:9,f:13,cat:"Gorduras",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Azeite de oliva extravirgem (colher ~10g)",cal:88,p:0,c:0,f:10,cat:"Gorduras",brand:"Genérico",serving:10,addedAt:"2025-01-01",official:true},
+  {n:"Óleo de coco (colher ~10g)",cal:86,p:0,c:0,f:10,cat:"Gorduras",brand:"Genérico",serving:10,addedAt:"2025-01-01",official:true},
+  {n:"Semente de chia (15g)",cal:73,p:2.5,c:6.3,f:4.6,cat:"Gorduras",brand:"Genérico",serving:15,addedAt:"2025-01-01",official:true},
+  {n:"Linhaça (15g)",cal:80,p:2.7,c:4.4,f:6.3,cat:"Gorduras",brand:"Genérico",serving:15,addedAt:"2025-01-01",official:true},
+  {n:"Nozes (30g)",cal:196,p:4.5,c:4.2,f:20,cat:"Gorduras",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  {n:"Amêndoas (30g)",cal:174,p:6.3,c:6.6,f:15,cat:"Gorduras",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
+  // ─── LANCHES ───
+  {n:"Pão de queijo (unid. ~25g)",cal:88,p:2,c:11,f:4,cat:"Lanches",brand:"Genérico",serving:25,addedAt:"2025-01-01",official:true},
+  {n:"Wrap integral de frango",cal:310,p:28,c:32,f:8,cat:"Lanches",brand:"Genérico",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Biscoito de arroz (unid. ~7g)",cal:27,p:0.5,c:6,f:0.2,cat:"Lanches",brand:"Genérico",serving:7,addedAt:"2025-01-01",official:true},
+  {n:"Tapioca com frango (1 unid.)",cal:280,p:25,c:32,f:5,cat:"Lanches",brand:"Caseiro",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Mix de castanhas (30g)",cal:175,p:5,c:6,f:15,cat:"Lanches",brand:"Genérico",serving:30,addedAt:"2025-01-01",official:true},
   // ─── BEBIDAS ───
-  {n:"Suco de laranja natural",cal:46,p:0.7,c:11,f:0.2,cat:"Bebidas",brand:"Natural",serving:200,addedAt:"2025-01-01",official:true},
-  {n:"Água de coco natural",cal:19,p:0.3,c:4.5,f:0.1,cat:"Bebidas",brand:"Vita Coco",serving:200,addedAt:"2025-01-01",official:true},
-  {n:"Café preto sem açúcar",cal:2,p:0.3,c:0,f:0,cat:"Bebidas",brand:"Nescafé",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Leite com achocolatado",cal:145,p:5.5,c:22,f:4.2,cat:"Bebidas",brand:"Nescau",serving:200,addedAt:"2025-01-01",official:true},
-  {n:"Chá verde sem açúcar",cal:2,p:0,c:0.4,f:0,cat:"Bebidas",brand:"Leão",serving:200,addedAt:"2025-01-01",official:true},
-  {n:"Vitamina de banana com leite",cal:148,p:5.5,c:26,f:2.7,cat:"Bebidas",brand:"Natural",serving:300,addedAt:"2025-01-01",official:true},
-  // ─── VEGETAIS ───
+  {n:"Suco de laranja natural (copo 200ml)",cal:90,p:1.4,c:21,f:0.4,cat:"Bebidas",brand:"Natural",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Água de coco (copo 200ml)",cal:38,p:0.6,c:9,f:0.2,cat:"Bebidas",brand:"Natural",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Café preto sem açúcar (xíc. 100ml)",cal:2,p:0.1,c:0,f:0,cat:"Bebidas",brand:"Genérico",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Leite com achocolatado (copo 200ml)",cal:160,p:6,c:24,f:4.5,cat:"Bebidas",brand:"Genérico",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Chá sem açúcar (copo 200ml)",cal:2,p:0,c:0.4,f:0,cat:"Bebidas",brand:"Genérico",serving:200,addedAt:"2025-01-01",official:true},
+  {n:"Vitamina de banana c/ leite (copo 300ml)",cal:200,p:7,c:34,f:4,cat:"Bebidas",brand:"Caseiro",serving:300,addedAt:"2025-01-01",official:true},
+  // ─── VEGETAIS (por 100g) ───
   {n:"Brócolis cozido",cal:35,p:2.4,c:7,f:0.4,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Couve refogada",cal:54,p:3.3,c:7,f:1.6,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Couve refogada",cal:90,p:1.9,c:5,f:7,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   {n:"Espinafre cozido",cal:23,p:2.9,c:3.7,f:0.4,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   {n:"Cenoura crua",cal:34,p:0.9,c:8,f:0.2,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Tomate italiano",cal:15,p:0.9,c:3.3,f:0.2,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
-  {n:"Alface americana",cal:12,p:1.2,c:2.2,f:0.2,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Tomate",cal:18,p:0.9,c:3.9,f:0.2,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
+  {n:"Alface",cal:15,p:1.4,c:2.9,f:0.2,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   {n:"Abobrinha cozida",cal:17,p:1.2,c:3.1,f:0.4,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   {n:"Beterraba cozida",cal:44,p:1.7,c:10,f:0.1,cat:"Vegetais",brand:"Natural",serving:100,addedAt:"2025-01-01",official:true},
   // ─── REFEIÇÕES PRONTAS ───
-  {n:"Arroz e feijão",cal:195,p:7.5,c:36.5,f:2,cat:"Refeições",brand:"Caseiro",serving:150,addedAt:"2025-01-01",official:true},
-  {n:"PF completo (arroz, feijão, carne, salada)",cal:520,p:38,c:65,f:10,cat:"Refeições",brand:"Caseiro",serving:400,addedAt:"2025-01-01",official:true},
-  {n:"Marmita fit frango e batata doce",cal:430,p:36,c:48,f:8,cat:"Refeições",brand:"Fit Food",serving:350,addedAt:"2025-01-01",official:true},
+  {n:"Arroz e feijão (porção ~150g)",cal:165,p:5.5,c:31,f:1.5,cat:"Refeições",brand:"Caseiro",serving:150,addedAt:"2025-01-01",official:true},
+  {n:"PF completo (arroz, feijão, carne, salada)",cal:520,p:38,c:65,f:12,cat:"Refeições",brand:"Caseiro",serving:450,addedAt:"2025-01-01",official:true},
+  {n:"Marmita fit frango e batata doce",cal:380,p:38,c:42,f:6,cat:"Refeições",brand:"Caseiro",serving:350,addedAt:"2025-01-01",official:true},
   {n:"Sopa de legumes com frango",cal:90,p:8,c:11,f:1.5,cat:"Refeições",brand:"Caseiro",serving:250,addedAt:"2025-01-01",official:true},
 ];
 const FOOD_CATS=[...new Set(FOODS.map(f=>f.cat))];
@@ -1047,14 +1051,25 @@ function rAutoDietModal(){
       return;
     }
     // Intro
+    const dietExamples=["Sou vegetariano","Sem lactose","Comida simples e barata","Low carb","Foco em proteína","Sem glúten","Mais frango e ovos","Refeições rápidas"];
     d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div class="modal-title">🍽️ Dieta automática</div><button class="close-x" id="bX">✕</button></div>
       <div style="padding:6px 0 16px">
-        <div style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:14px">A IA vai montar um plano de refeições para hoje baseado na sua meta de <strong style="color:var(--orange)">${S.targetCal||0} kcal</strong> e no objetivo de <strong>${({lose:"emagrecer",maintain:"manter",gain:"ganhar massa"})[S.profile?.goal]||"saúde"}</strong>.</div>
-        <div style="font-size:13px;color:#888;margin-bottom:8px">Alguma preferência ou restrição? (opcional)</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:14px">A IA vai montar um plano de refeições para hoje baseado na sua meta de <strong style="color:var(--orange)">${S.targetCal||0} kcal</strong>, com <strong>foco em proteína</strong> e distribuição saudável, sem ultrapassar sua meta.</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:600">Toque para adicionar uma preferência:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${dietExamples.map(ex=>`<button class="diet-ex-chip" data-ex="${ex}" style="font-size:12px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:18px;color:var(--text2);cursor:pointer;transition:all .2s">${ex}</button>`).join("")}</div>
+        <div style="font-size:13px;color:var(--text3);margin-bottom:8px">Ou escreva você mesmo (opcional):</div>
         <textarea id="dietPref" placeholder="Ex: sou vegetariano, não como lactose, prefiro comida simples, low carb..." style="width:100%;min-height:70px;padding:13px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:12px;color:var(--text);font-size:14px;outline:none;resize:vertical"></textarea>
       </div>
       <button class="btn-primary" id="bGenDiet" style="width:100%;padding:14px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🤖 Gerar minha dieta</button>`;
     d2.querySelector("#bX").onclick=closeModal;
+    // Chips append to textarea
+    d2.querySelectorAll(".diet-ex-chip").forEach(b=>b.onclick=()=>{
+      const ta=d2.querySelector("#dietPref");const v=b.dataset.ex;
+      const cur=ta.value.trim();
+      if(cur.toLowerCase().includes(v.toLowerCase()))return;
+      ta.value=cur?cur+", "+v:v;
+      b.style.background="var(--orange)";b.style.color="#fff";b.style.borderColor="var(--orange)";
+    });
     d2.querySelector("#bGenDiet").onclick=()=>{S.dietPref=(d2.querySelector("#dietPref").value||"").trim();generateDiet();};
   };
 
@@ -1064,7 +1079,8 @@ function rAutoDietModal(){
     (meal.items||[]).forEach(it=>{
       const ni=S.foods.length;
       const grams=parseFloat(String(it.qty||"").replace(/[^0-9.]/g,""))||100;
-      S.foods.push({n:it.food,cal:Number(it.cal)||0,p:Number(it.p)||0,c:Number(it.c)||0,f:Number(it.f)||0,grams});
+      // cal/p/c/f da IA são para a porção (qty), então serving=grams para o cálculo bater
+      S.foods.push({n:it.food,cal:Number(it.cal)||0,p:Number(it.p)||0,c:Number(it.c)||0,f:Number(it.f)||0,grams,serving:grams});
       if(!S.mealCat)S.mealCat={};
       S.mealCat[ni]=key;
     });
@@ -1077,7 +1093,28 @@ function rAutoDietModal(){
     S.dietLoading=true;render();
     const p=S.profile||{};
     const goal=({lose:"emagrecimento (deficit calorico)",maintain:"manutencao",gain:"ganho de massa muscular (superavit)"})[p.goal]||"saude";
-    const prompt=`Voce e um nutricionista. Monte um plano alimentar de UM dia em portugues do Brasil para uma pessoa com meta de ${S.targetCal||2000} kcal/dia, objetivo de ${goal}, ${p.weight||"?"}kg. Distribua em refeicoes (Cafe da Manha, Almoco, Lanche da Tarde, Jantar e Ceia se fizer sentido). Use alimentos comuns e baratos do Brasil. ${S.dietPref?("Preferencias/restricoes do usuario: "+S.dietPref+".") : ""} Para cada item informe: food (nome), qty (quantidade ex '100g' ou '2 unidades'), cal (kcal), p (proteina g), c (carbo g), f (gordura g). A soma do dia deve ficar proxima da meta. Responda em portugues.`;
+    const cal=S.targetCal||2000;
+    const wkg=parseFloat(p.weight)||75;
+    // Metas de macro: proteína 1.8-2.2g/kg, gordura baixa-moderada (~0.8g/kg), resto em carbo
+    const protMeta=Math.round(wkg*2);
+    const fatMeta=Math.round(wkg*0.8);
+    const carbMeta=Math.max(0,Math.round((cal-(protMeta*4)-(fatMeta*9))/4));
+    const prompt=`Voce e um nutricionista esportivo. Monte um plano alimentar de UM dia em portugues do Brasil.
+
+REGRAS OBRIGATORIAS (siga rigorosamente):
+1. O TOTAL de calorias do dia NAO PODE ULTRAPASSAR ${cal} kcal. Pode ficar ate 50 kcal ABAIXO, nunca acima.
+2. PRIORIDADE MAXIMA: atingir cerca de ${protMeta}g de PROTEINA no dia (nao passar muito disso, +-10g). Use fontes magras: frango, ovos, peixe, carne magra, whey, iogurte, queijo cottage.
+3. Use CARBOIDRATOS para completar as calorias restantes ate a meta: arroz, batata, aveia, frutas, pao, mandioca. Alvo aproximado: ${carbMeta}g de carbo.
+4. Use GORDURA com moderacao, somente o necessario (alvo baixo ~${fatMeta}g). NAO abuse de oleos, castanhas, manteiga ou frituras, a nao ser que o usuario peca.
+5. Distribua de forma saudavel e equilibrada entre as refeicoes.
+
+Perfil: objetivo de ${goal}, peso ${wkg}kg, meta de ${cal} kcal/dia.
+Distribua em: Cafe da Manha, Almoco, Lanche da Tarde, Jantar e Ceia (se fizer sentido).
+Use alimentos comuns e baratos do Brasil. ${S.dietPref?("Preferencias/restricoes do usuario (RESPEITE): "+S.dietPref+".") : ""}
+
+Para cada item informe valores nutricionais REAIS e PRECISOS (baseados na tabela TACO/USDA): food (nome), qty (quantidade ex '100g' ou '2 unidades'), cal (kcal da porcao), p (proteina g), c (carbo g), f (gordura g). 
+ATENCAO: os valores devem ser corretos. Exemplos de referencia por 100g: arroz cozido ~128kcal/2.5p/28c, feijao cozido ~76kcal/4.8p/14c, frango grelhado ~165kcal/31p/0c, ovo ~78kcal/6p (unidade). 
+A SOMA de todas as calorias deve ficar proxima mas SEM PASSAR de ${cal} kcal. Responda em portugues.`;
     try{
       const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -1100,6 +1137,19 @@ function rAutoDietModal(){
       let result=null;
       try{result=JSON.parse(txt);}catch(e){const s=txt.indexOf("{");if(s>=0){let dep=0,end=-1;for(let i=s;i<txt.length;i++){if(txt[i]==="{")dep++;else if(txt[i]==="}"){dep--;if(dep===0){end=i;break;}}}if(end>s){try{result=JSON.parse(txt.slice(s,end+1));}catch(e2){}}}}
       if(!result||!result.meals)throw new Error("A IA respondeu de forma incompleta. Tente novamente.");
+      // Validação: se a IA passou da meta de calorias, remove itens do fim até caber
+      const limit=S.targetCal||2000;
+      let running=0;
+      result.meals.forEach(m=>{
+        const kept=[];
+        (m.items||[]).forEach(it=>{
+          const c=Number(it.cal)||0;
+          if(running+c<=limit+30){kept.push(it);running+=c;}
+        });
+        m.items=kept;
+      });
+      // Remove refeições que ficaram vazias
+      result.meals=result.meals.filter(m=>(m.items||[]).length>0);
       S.dietResult=result;S.dietLoading=false;render();
     }catch(err){
       S.dietLoading=false;alert((err&&err.message)||"Erro ao gerar dieta.");render();
