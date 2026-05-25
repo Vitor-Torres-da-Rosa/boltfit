@@ -405,6 +405,8 @@ let S={
   exFilter:"",exGroup:"",
   foodSearch:"",foodCat:"",aiLoading:false,aiResult:null,aiRawResult:null,aiWeightStep:false,aiPlateWeight:0,aiError:null,aiImg:null,aiIngChecked:null,mealCatNames:{},foodModalMode:"add",
   darkMode:true,
+  waterMl:0,// água consumida no dia selecionado (ml)
+  waterHistory:[],// histórico para "desfazer"
 };
 let restTimer=null;
 
@@ -417,6 +419,18 @@ const loadProfile=async()=>{const s=await getDoc(doc(db,"users",uid(),"data","pr
 function calDateKey(){return S.calDate||new Date().toISOString().split("T")[0];}
 const saveFoods=async f=>{const t=calDateKey();await setDoc(doc(db,"users",uid(),"foods",t),{items:f,mealCat:S.mealCat||{},mealCatNames:S.mealCatNames||{},ts:serverTimestamp()});const totCal=Math.round((f||[]).reduce((a,x)=>a+((Number(x.cal)||0)*((Number(x.grams)||0)/(Number(x.serving)||100||1))),0));logToday({cal:totCal},t);};
 const loadFoods=async(dateKey)=>{const t=dateKey||calDateKey();const s=await getDoc(doc(db,"users",uid(),"foods",t));if(s.exists()){const d2=s.data();S.mealCat=d2.mealCat||{};S.mealCatNames=d2.mealCatNames||{};return d2.items||[];}S.mealCat={};S.mealCatNames={};return [];};
+// Água: ml consumido no dia + histórico p/ desfazer
+const saveWater=async(ml,history)=>{const t=calDateKey();try{await setDoc(doc(db,"users",uid(),"water",t),{ml:Number(ml)||0,history:history||[],ts:serverTimestamp()});}catch(e){}};
+const loadWater=async(dateKey)=>{const t=dateKey||calDateKey();try{const s=await getDoc(doc(db,"users",uid(),"water",t));if(s.exists()){const d2=s.data();return {ml:Number(d2.ml)||0,history:Array.isArray(d2.history)?d2.history:[]};}}catch(e){}return {ml:0,history:[]};};
+// Meta de água em ml: 35ml/kg + 500ml por hora de treino estimada (mínimo 2000, máximo 5000)
+function computeWaterGoal(){
+  const p=S.profile||{};
+  const w=parseFloat(p.weight)||70;
+  const act=p.activity||"mod";
+  const actBonus={sed:0,light:300,mod:500,active:800,very:1200}[act]||500;
+  const goal=Math.round(w*35+actBonus);
+  return Math.max(2000,Math.min(5000,goal));
+}
 const loadWorkouts=async()=>{const snap=await getDocs(collection(db,"users",uid(),"workouts"));return snap.docs.map(d=>({id:d.id,...d.data()}));};
 const saveWorkout=async w=>{const r=await addDoc(collection(db,"users",uid(),"workouts"),{...w,ts:serverTimestamp()});return r.id;};
 const deleteWorkout=async id=>deleteDoc(doc(db,"users",uid(),"workouts",id));
@@ -1102,19 +1116,20 @@ function rAutoDietModal(){
     const prompt=`Voce e um nutricionista esportivo. Monte um plano alimentar de UM dia em portugues do Brasil.
 
 REGRAS OBRIGATORIAS (siga rigorosamente):
-1. O TOTAL de calorias do dia NAO PODE ULTRAPASSAR ${cal} kcal. Pode ficar ate 50 kcal ABAIXO, nunca acima.
-2. PRIORIDADE MAXIMA: atingir cerca de ${protMeta}g de PROTEINA no dia (nao passar muito disso, +-10g). Use fontes magras: frango, ovos, peixe, carne magra, whey, iogurte, queijo cottage.
-3. Use CARBOIDRATOS para completar as calorias restantes ate a meta: arroz, batata, aveia, frutas, pao, mandioca. Alvo aproximado: ${carbMeta}g de carbo.
-4. Use GORDURA com moderacao, somente o necessario (alvo baixo ~${fatMeta}g). NAO abuse de oleos, castanhas, manteiga ou frituras, a nao ser que o usuario peca.
+1. META CALORICA: o TOTAL do dia deve ficar entre ${cal-10} e ${cal} kcal. NUNCA acima de ${cal}. NUNCA abaixo de ${cal-10}. Essa precisao e CRITICA. Ajuste as quantidades (em gramas) dos ultimos itens das ultimas refeicoes para encaixar EXATAMENTE nessa faixa. Faca as contas: some todas as calorias antes de responder e confirme que o total esta entre ${cal-10} e ${cal}.
+2. PROTEINA: alvo de aproximadamente ${protMeta}g (margem +-10g). Use fontes magras: frango, ovos, peixe, carne magra, whey, iogurte, queijo cottage.
+3. CARBOIDRATOS: alvo de ${carbMeta}g. Use arroz, batata, aveia, frutas, pao, mandioca.
+4. GORDURA: alvo baixo, ~${fatMeta}g. NAO abuse de oleos, castanhas, manteiga ou frituras, a nao ser que o usuario peca.
 5. Distribua de forma saudavel e equilibrada entre as refeicoes.
+6. Use quantidades em gramas REALISTAS e PRECISAS (ex: 130g, 145g, 165g) para conseguir bater a meta calorica exata. Nao use so numeros redondos.
 
 Perfil: objetivo de ${goal}, peso ${wkg}kg, meta de ${cal} kcal/dia.
 Distribua em: Cafe da Manha, Almoco, Lanche da Tarde, Jantar e Ceia (se fizer sentido).
 Use alimentos comuns e baratos do Brasil. ${S.dietPref?("Preferencias/restricoes do usuario (RESPEITE): "+S.dietPref+".") : ""}
 
-Para cada item informe valores nutricionais REAIS e PRECISOS (baseados na tabela TACO/USDA): food (nome), qty (quantidade ex '100g' ou '2 unidades'), cal (kcal da porcao), p (proteina g), c (carbo g), f (gordura g). 
-ATENCAO: os valores devem ser corretos. Exemplos de referencia por 100g: arroz cozido ~128kcal/2.5p/28c, feijao cozido ~76kcal/4.8p/14c, frango grelhado ~165kcal/31p/0c, ovo ~78kcal/6p (unidade). 
-A SOMA de todas as calorias deve ficar proxima mas SEM PASSAR de ${cal} kcal. Responda em portugues.`;
+Para cada item informe valores nutricionais REAIS e PRECISOS (baseados na tabela TACO/USDA): food (nome), qty (quantidade ex '130g' ou '2 unidades'), cal (kcal da porcao), p (proteina g), c (carbo g), f (gordura g). 
+ATENCAO CRITICA: os valores devem ser corretos. Exemplos de referencia por 100g: arroz cozido ~128kcal/2.5p/28c, feijao cozido ~76kcal/4.8p/14c, frango grelhado ~165kcal/31p/0c, ovo ~78kcal/6p (unidade), batata cozida ~86kcal/2p/20c, aveia ~389kcal/17p/66c, pao frances ~270kcal/9p/55c, banana ~89kcal/1.1p/23c. 
+ANTES DE RESPONDER: some todas as calorias e verifique se o total esta entre ${cal-10} e ${cal} kcal. Se estiver fora, AJUSTE as gramaturas. Responda em portugues.`;
     try{
       const resp=await fetch("https://boltfit-ia.vitortorresdarosa.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -1137,19 +1152,83 @@ A SOMA de todas as calorias deve ficar proxima mas SEM PASSAR de ${cal} kcal. Re
       let result=null;
       try{result=JSON.parse(txt);}catch(e){const s=txt.indexOf("{");if(s>=0){let dep=0,end=-1;for(let i=s;i<txt.length;i++){if(txt[i]==="{")dep++;else if(txt[i]==="}"){dep--;if(dep===0){end=i;break;}}}if(end>s){try{result=JSON.parse(txt.slice(s,end+1));}catch(e2){}}}}
       if(!result||!result.meals)throw new Error("A IA respondeu de forma incompleta. Tente novamente.");
-      // Validação: se a IA passou da meta de calorias, remove itens do fim até caber
-      const limit=S.targetCal||2000;
-      let running=0;
-      result.meals.forEach(m=>{
-        const kept=[];
-        (m.items||[]).forEach(it=>{
-          const c=Number(it.cal)||0;
-          if(running+c<=limit+30){kept.push(it);running+=c;}
-        });
-        m.items=kept;
-      });
-      // Remove refeições que ficaram vazias
-      result.meals=result.meals.filter(m=>(m.items||[]).length>0);
+
+      // ─── AJUSTE FINO: deixar o total dentro de [meta-10, meta] kcal ───
+      const meta=S.targetCal||2000;
+      const tolLow=meta-10, tolHigh=meta;
+      // 1) Soma total
+      const sumCal=()=>result.meals.reduce((a,m)=>a+(m.items||[]).reduce((x,it)=>x+(Number(it.cal)||0),0),0);
+      let total=sumCal();
+
+      // 2) Se passou da meta, reduz proporcionalmente os ULTIMOS itens até caber.
+      if(total>tolHigh){
+        // Lista plana de itens com referência (para ajustar in-place)
+        const flat=[];
+        result.meals.forEach((m,mi)=>(m.items||[]).forEach((it,ii)=>flat.push({m,mi,it,ii})));
+        // Tenta reduzir o último item (e os anteriores se necessário) proporcionalmente
+        for(let i=flat.length-1;i>=0&&total>tolHigh;i--){
+          const it=flat[i].it;
+          const itemCal=Number(it.cal)||0;
+          if(itemCal<=0)continue;
+          const excess=total-tolHigh+5;// puxa um pouco abaixo do teto p/ segurança
+          if(excess<itemCal*0.95){
+            // reduz proporcionalmente esse item
+            const factor=Math.max(0.05,(itemCal-excess)/itemCal);
+            it.cal=Math.round(itemCal*factor);
+            it.p=Math.round((Number(it.p)||0)*factor*10)/10;
+            it.c=Math.round((Number(it.c)||0)*factor*10)/10;
+            it.f=Math.round((Number(it.f)||0)*factor*10)/10;
+            // ajusta a quantidade em gramas no qty se for em g
+            const qm=String(it.qty||"").match(/([\d.]+)\s*g/i);
+            if(qm){const newG=Math.max(5,Math.round(parseFloat(qm[1])*factor));it.qty=String(it.qty).replace(/[\d.]+\s*g/i,newG+"g");}
+            total=sumCal();
+          }else{
+            // item inteiro precisa sair
+            total-=itemCal;
+            flat[i].m.items.splice(flat[i].ii,1);
+            // após splice, índices ii ficam inconsistentes, mas como vamos de trás pra frente está OK
+          }
+        }
+      }
+
+      // 3) Se ficou muito abaixo, AUMENTA o último item carbo-friendly ou cria um pequeno snack
+      if(total<tolLow){
+        const flat=[];
+        result.meals.forEach((m)=>(m.items||[]).forEach((it)=>flat.push({m,it})));
+        // Tenta aumentar o último item (geralmente carbo da última refeição)
+        for(let i=flat.length-1;i>=0&&total<tolLow;i--){
+          const it=flat[i].it;
+          const itemCal=Number(it.cal)||0;
+          if(itemCal<=0)continue;
+          const deficit=tolHigh-total-2;// vai pro topo da faixa
+          const maxBoost=itemCal*1.8;// no máximo +80% no mesmo item p/ não ficar surreal
+          const add=Math.min(deficit,maxBoost);
+          if(add<=0)continue;
+          const factor=(itemCal+add)/itemCal;
+          it.cal=Math.round(itemCal*factor);
+          it.p=Math.round((Number(it.p)||0)*factor*10)/10;
+          it.c=Math.round((Number(it.c)||0)*factor*10)/10;
+          it.f=Math.round((Number(it.f)||0)*factor*10)/10;
+          const qm=String(it.qty||"").match(/([\d.]+)\s*g/i);
+          if(qm){const newG=Math.round(parseFloat(qm[1])*factor);it.qty=String(it.qty).replace(/[\d.]+\s*g/i,newG+"g");}
+          total=sumCal();
+        }
+        // se ainda assim faltar mais que 25 kcal, adiciona uma fruta na Ceia ou Lanche da Tarde
+        if(total<tolLow-25){
+          const deficit=tolHigh-total-3;
+          // calorias por grama de banana: ~0.89 → grams = deficit/0.89
+          const grams=Math.max(30,Math.min(220,Math.round(deficit/0.89)));
+          const snack={food:"Banana",qty:grams+"g",cal:Math.round(grams*0.89),p:Math.round(grams*0.011*10)/10,c:Math.round(grams*0.23*10)/10,f:Math.round(grams*0.003*10)/10};
+          // tenta adicionar na Ceia, senão Lanche da Tarde, senão cria
+          let target=result.meals.find(m=>/ceia/i.test(m.name||""));
+          if(!target)target=result.meals.find(m=>/lanche/i.test(m.name||""));
+          if(!target){target={name:"Lanche extra",items:[]};result.meals.push(target);}
+          target.items=target.items||[];
+          target.items.push(snack);
+          total=sumCal();
+        }
+      }
+
       S.dietResult=result;S.dietLoading=false;render();
     }catch(err){
       S.dietLoading=false;alert((err&&err.message)||"Erro ao gerar dieta.");render();
@@ -1405,9 +1484,50 @@ function renderFoodItem(f,i){
 async function switchCalDate(dateKey){
   S.calDate=dateKey;
   try{S.foods=await loadFoods(dateKey);}catch(e){S.foods=[];S.mealCat={};S.mealCatNames={};}
+  try{const w=await loadWater(dateKey);S.waterMl=w.ml;S.waterHistory=w.history;}catch(e){S.waterMl=0;S.waterHistory=[];}
   if(S.modal==="monthCal")S.modal=null;
   S.tab="calorias";
   r();
+}
+
+function renderWaterCard(){
+  const ml=Number(S.waterMl)||0;
+  const goal=computeWaterGoal();
+  const liters=(ml/1000).toFixed(ml>=1000?2:1);
+  const goalL=(goal/1000).toFixed(1);
+  const pct=Math.min((ml/goal)*100,100);
+  // 8 "copos" visuais (cada um = goal/8 ml) p/ progresso intuitivo
+  const cupSize=goal/8;
+  const filledCups=Math.min(8,Math.floor(ml/cupSize));
+  const partialCup=Math.min(1,(ml-filledCups*cupSize)/cupSize);
+  const cups=[];
+  for(let i=0;i<8;i++){
+    let fill=0;
+    if(i<filledCups)fill=1;
+    else if(i===filledCups)fill=partialCup;
+    cups.push(`<div class="water-cup" style="flex:1;height:24px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:6px;overflow:hidden;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;height:${fill*100}%;background:linear-gradient(180deg,#4FC3F7,#29B6F6);transition:height 0.3s ease;border-radius:0 0 5px 5px"></div></div>`);
+  }
+  const status=pct>=100?"Meta atingida! 🎉":pct>=75?"Quase lá!":pct>=40?"Boa hidratação":pct>0?"Continue bebendo":"Comece a se hidratar";
+  return `<div class="info-sec" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(79,195,247,0.06),rgba(41,182,246,0.02));border:1px solid rgba(79,195,247,0.18)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:7px">
+        <div class="sec-lbl" style="margin:0;color:#4FC3F7">💧 HIDRATAÇÃO</div>
+        <button id="bWaterInfo" title="Por que beber água?" style="background:rgba(79,195,247,0.12);border:1px solid rgba(79,195,247,0.3);color:#4FC3F7;width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1">i</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-weight:600">${status}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+      <div><span style="font-size:28px;font-weight:800;color:#4FC3F7;letter-spacing:-0.5px">${liters}</span><span style="font-size:14px;color:var(--text3);font-weight:600">L</span></div>
+      <div style="font-size:12px;color:var(--text3);font-weight:600">meta ${goalL}L · ${ml}ml</div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:12px">${cups.join("")}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px">
+      <button class="water-btn" data-water="200" style="padding:11px 4px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:10px;color:#4FC3F7;font-size:13px;font-weight:700;cursor:pointer">+200ml</button>
+      <button class="water-btn" data-water="300" style="padding:11px 4px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:10px;color:#4FC3F7;font-size:13px;font-weight:700;cursor:pointer">+300ml</button>
+      <button class="water-btn" data-water="500" style="padding:11px 4px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:10px;color:#4FC3F7;font-size:13px;font-weight:700;cursor:pointer">+500ml</button>
+      <button id="bWaterUndo" title="Desfazer último" ${(!S.waterHistory||S.waterHistory.length===0)?"disabled":""} style="padding:11px 12px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:10px;color:${(!S.waterHistory||S.waterHistory.length===0)?"var(--text3)":"#FF8888"};font-size:14px;font-weight:700;cursor:${(!S.waterHistory||S.waterHistory.length===0)?"not-allowed":"pointer"};opacity:${(!S.waterHistory||S.waterHistory.length===0)?"0.5":"1"}">↶</button>
+    </div>
+  </div>`;
 }
 
 function rCalorias(){
@@ -1497,8 +1617,9 @@ function rCalorias(){
       <div class="mbar"><div class="mbar-label"><span style="color:#22D3A5">Gordura</span><span id="pt-f">${Math.round(totalF)}g / ${mf2}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-f" style="width:${Math.min((totalF/mf2)*100,100)}%;background:#22D3A5"></div></div></div>
     </div>
     <div class="info-sec" style="margin-bottom:16px"><div class="sec-lbl">METABOLISMO</div><div class="info-grid"><div class="ic"><div class="iv" style="color:var(--orange)">${S.tmb||"—"} kcal</div><div class="il">TMB</div></div><div class="ic"><div class="iv" style="color:var(--orange)">${cal||"—"} kcal</div><div class="il">Meta diária</div></div></div><div class="goal-tag">↗ ${({lose:"Emagrecer",maintain:"Manutenção",gain:"Ganhar massa"})[S.profile?.goal]||"—"}</div></div>
+    ${renderWaterCard()}
     <button class="btn-primary" id="bAutoDiet" style="width:100%;margin-bottom:16px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🍽️ Gerar dieta automática com IA</button>
-    <div class="sec-title">${mealsTitle}</div>
+    <div class="sec-title" style="display:flex;justify-content:space-between;align-items:center"><span>${mealsTitle}</span>${S.foods.length>0?`<button id="bClearDay" style="background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.25);color:#FF8888;font-size:11px;font-weight:600;padding:6px 11px;border-radius:18px;cursor:pointer;letter-spacing:0.3px;display:inline-flex;align-items:center;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>Limpar</button>`:""}</div>
     <div class="foods-list" id="foodsList">
       ${S.foods.length===0?`<div class="empty" style="padding:24px 0;text-align:center"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}
       ${foodsHTML}
@@ -1522,6 +1643,29 @@ function rCalorias(){
   d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.foodModalMode="add";S.modal="food";r();});
   d.querySelector("#bAutoDiet")?.addEventListener("click",()=>{S.modal="autoDiet";S.dietResult=null;S.dietLoading=false;r();});
   d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.foodModalMode="ai";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;S.aiIngChecked=null;r();});
+
+  // Água: adicionar consumo
+  d.querySelectorAll(".water-btn").forEach(b=>b.onclick=()=>{
+    const ml=parseInt(b.dataset.water,10)||0;if(!ml)return;
+    S.waterMl=(Number(S.waterMl)||0)+ml;
+    if(!Array.isArray(S.waterHistory))S.waterHistory=[];
+    S.waterHistory.push(ml);
+    saveWater(S.waterMl,S.waterHistory);
+    r();
+  });
+  // Água: desfazer último
+  d.querySelector("#bWaterUndo")?.addEventListener("click",()=>{
+    if(!Array.isArray(S.waterHistory)||S.waterHistory.length===0)return;
+    const last=S.waterHistory.pop();
+    S.waterMl=Math.max(0,(Number(S.waterMl)||0)-last);
+    saveWater(S.waterMl,S.waterHistory);
+    r();
+  });
+  // Água: info
+  d.querySelector("#bWaterInfo")?.addEventListener("click",()=>{S.modal="waterInfo";r();});
+
+  // Limpar dia
+  d.querySelector("#bClearDay")?.addEventListener("click",()=>{S.modal="clearDay";r();});
 
   // Add to specific meal category
   d.querySelectorAll("[data-addcat]").forEach(b=>b.onclick=()=>{S.pendingMealCat=b.dataset.addcat;S.foodModalMode="add";S.modal="food";r();});
@@ -1823,7 +1967,124 @@ function rModal(){
   if(S.modal==="perfil")return rPerfilModal();
   if(S.modal==="premium")return rPremiumModal();
   if(S.modal==="monthCal")return rMonthCalModal();
+  if(S.modal==="waterInfo")return rWaterInfoModal();
+  if(S.modal==="clearDay")return rClearDayModal();
   return D("div");
+}
+
+// ─── WATER INFO MODAL ───
+function rWaterInfoModal(){
+  const d=D("overlay");
+  const goal=computeWaterGoal();
+  const goalL=(goal/1000).toFixed(1);
+  const wkg=parseFloat(S.profile?.weight)||70;
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+  d2.innerHTML=`<div class="modal-handle"></div>
+    <div class="modal-hdr"><div><div class="modal-title" style="color:#4FC3F7">💧 Por que beber água?</div><div class="modal-sub">Hidratação para quem treina</div></div><button class="close-x" id="bX">✕</button></div>
+    <div style="max-height:66vh;overflow-y:auto;padding:4px 2px;-webkit-overflow-scrolling:touch">
+
+      <div style="background:linear-gradient(135deg,rgba(79,195,247,0.12),rgba(41,182,246,0.04));border:1px solid rgba(79,195,247,0.25);border-radius:16px;padding:16px;margin-bottom:14px">
+        <div style="font-size:11px;color:#4FC3F7;font-weight:700;letter-spacing:1px;margin-bottom:4px">SUA META DIÁRIA</div>
+        <div style="font-size:30px;font-weight:900;color:#4FC3F7;line-height:1.1">${goalL} L<span style="font-size:14px;color:var(--text3);font-weight:600;margin-left:6px">(${goal} ml)</span></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5">Calculado para <strong>${wkg}kg</strong> + seu nível de atividade. A regra base é cerca de <strong>35ml por kg</strong> de peso, com acréscimo para quem treina mais.</div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:8px">🏋️ Por que importa para quem treina</div>
+        <div style="font-size:13.5px;color:var(--text2);line-height:1.6">
+          O músculo tem cerca de <strong>75% de água</strong>. Quando você está desidratado, perde força, resistência e foco — uma queda de só 2% no peso em água já reduz a performance no treino de forma perceptível. A água também é o veículo que leva nutrientes (proteína, carboidrato, eletrólitos) até a fibra muscular e tira metabólitos como o lactato, então hidratar bem <strong>acelera a recuperação</strong> entre séries e entre treinos.
+        </div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:8px">💪 Retenção de líquidos: o paradoxo</div>
+        <div style="font-size:13.5px;color:var(--text2);line-height:1.6">
+          Parece contraintuitivo, mas <strong>beber pouca água faz o corpo reter mais líquido</strong>. Quando você bebe pouco, o organismo entende que está em "modo escassez" e segura o sódio e a água debaixo da pele — é aquele inchaço, a sensação de estar "estufado" e a balança travada.
+          <br><br>
+          Quando a hidratação volta ao normal, os rins voltam a filtrar bem, o sódio é eliminado e o inchaço some. O resultado é uma <strong>aparência mais seca, definida e vascularizada</strong>, com músculos mais "cheios" (porque dentro da fibra a água é bem-vinda — fora dela, não). É por isso que atletas e fisiculturistas bebem MUITA água justamente nos dias antes da competição.
+        </div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:10px">📊 O que conta como hidratação?</div>
+        <div style="font-size:13.5px;color:var(--text2);line-height:1.6">
+          A pergunta certa não é "se conta", mas "<strong>quanto</strong> conta". Veja:
+        </div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:10px;padding:10px;background:rgba(34,211,165,0.08);border:1px solid rgba(34,211,165,0.2);border-radius:10px">
+            <div style="font-size:20px;flex-shrink:0">✅</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.5"><strong style="color:#22D3A5">Água pura, água com gás, chás claros sem açúcar</strong> — contam <strong>100%</strong>. É o ideal e o que esse contador espera que você registre.</div>
+          </div>
+          <div style="display:flex;gap:10px;padding:10px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);border-radius:10px">
+            <div style="font-size:20px;flex-shrink:0">⚠️</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.5"><strong style="color:#FFC107">Café, chá preto, mate, chá verde</strong> — contam parcialmente (<strong>~70-80%</strong>). A cafeína tem efeito diurético leve, mas em quantidades normais (até 3-4 xícaras/dia) ainda hidratam. Pode contar, mas não exagere no registro.</div>
+          </div>
+          <div style="display:flex;gap:10px;padding:10px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);border-radius:10px">
+            <div style="font-size:20px;flex-shrink:0">⚠️</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.5"><strong style="color:#FFC107">Sucos naturais, água de coco, leite</strong> — hidratam (<strong>~80-90%</strong>), mas têm calorias e açúcar que <em>já entram na sua meta calórica</em>. Registre como alimento, não como água, para não duplicar.</div>
+          </div>
+          <div style="display:flex;gap:10px;padding:10px;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.2);border-radius:10px">
+            <div style="font-size:20px;flex-shrink:0">❌</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.5"><strong style="color:#FF8888">Refrigerantes, sucos industriais, energéticos</strong> — apesar de líquidos, o excesso de açúcar e sódio atrapalha a hidratação real e geralmente piora a retenção. <strong>Não contam.</strong></div>
+          </div>
+          <div style="display:flex;gap:10px;padding:10px;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.2);border-radius:10px">
+            <div style="font-size:20px;flex-shrink:0">❌</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.5"><strong style="color:#FF8888">Cerveja, vinho e outras bebidas alcoólicas</strong> — o álcool é fortemente diurético: você perde mais líquido do que ingere. <strong>Não contam</strong> e ainda desidratam.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:8px">⏰ Dicas práticas</div>
+        <div style="font-size:13.5px;color:var(--text2);line-height:1.7">
+          • Comece o dia com <strong>500ml ao acordar</strong> — você passou 7-8h sem beber.<br>
+          • Beba <strong>500ml antes do treino</strong> e mais <strong>500-750ml durante</strong>.<br>
+          • Sede já é sinal de desidratação leve — não espere ter sede.<br>
+          • Xixi bem claro = hidratado. Amarelo escuro = beba mais.<br>
+          • Em dias quentes ou treinos longos, considere repor sódio (uma pitada de sal na água ou isotônico sem açúcar).
+        </div>
+      </div>
+
+    </div>
+    <button class="btn-primary" id="bCloseW" style="width:100%;margin-top:14px;background:linear-gradient(135deg,#4FC3F7,#29B6F6)">Entendi</button>`;
+  d2.querySelector("#bX").onclick=closeModal;
+  d2.querySelector("#bCloseW").onclick=closeModal;
+  return d;
+}
+
+// ─── CLEAR DAY CONFIRMATION MODAL ───
+function rClearDayModal(){
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet" style="max-width:420px"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+  const count=S.foods.length;
+  const totalCal=Math.round(S.foods.reduce((s,f)=>s+calcAdj(f).cal,0));
+  const selDate=new Date((S.calDate||new Date().toISOString().split("T")[0])+"T12:00:00");
+  const dateLbl=selDate.toLocaleDateString("pt-BR",{day:"2-digit",month:"long"});
+  d2.innerHTML=`<div class="modal-handle"></div>
+    <div style="text-align:center;padding:8px 4px 4px">
+      <div style="width:64px;height:64px;background:rgba(255,107,107,0.12);border:2px solid rgba(255,107,107,0.3);border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF8888" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </div>
+      <div style="font-weight:800;font-size:19px;color:var(--text);margin-bottom:6px">Limpar refeições do dia?</div>
+      <div style="font-size:13.5px;color:var(--text2);line-height:1.5;margin-bottom:6px">Isso vai remover <strong style="color:#FF8888">${count} ${count===1?"item":"itens"}</strong> (${totalCal} kcal) registrado${count===1?"":"s"} em <strong>${dateLbl}</strong>.</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.4;margin-bottom:18px">Essa ação não pode ser desfeita. A hidratação e os treinos do dia <em>não</em> serão afetados.</div>
+      <div style="display:flex;gap:10px">
+        <button id="bCdCancel" class="btn-sec" style="flex:1;padding:13px">Cancelar</button>
+        <button id="bCdConfirm" style="flex:1;padding:13px;background:#FF6B6B;border:none;border-radius:12px;color:#fff;font-weight:800;font-size:14px;cursor:pointer">Sim, limpar</button>
+      </div>
+    </div>`;
+  d2.querySelector("#bCdCancel").onclick=closeModal;
+  d2.querySelector("#bCdConfirm").onclick=async()=>{
+    const btn=d2.querySelector("#bCdConfirm");btn.disabled=true;btn.style.opacity="0.6";btn.textContent="Limpando...";
+    S.foods=[];S.mealCat={};S.mealCatNames={};
+    try{await saveFoods([]);}catch(e){}
+    closeModal();
+  };
+  return d;
 }
 
 // ─── FOOD MODAL ───
@@ -2721,6 +2982,7 @@ async function authOk(user){
     if(p){S.profile=p;if(typeof p.darkMode!=="undefined")S.darkMode=p.darkMode;applyTheme();computeTMB();
       S.calDate=new Date().toISOString().split("T")[0];
       try{S.foods=await loadFoods();}catch(e){S.foods=[];}
+      try{const w=await loadWater();S.waterMl=w.ml;S.waterHistory=w.history;}catch(e){S.waterMl=0;S.waterHistory=[];}
       try{S.workouts=await loadWorkouts();}catch(e){S.workouts=[];}
       try{S.schedule=await loadSchedule();}catch(e){S.schedule={};}
       try{S.perf=await loadPerf();}catch(e){S.perf={};}
