@@ -1593,20 +1593,28 @@ function updateCalTotals(d){
   S.foods.forEach(f=>{const a=calcAdj(f);totalCal+=a.cal;totalP+=a.p;totalC+=a.c;totalF+=a.f;});
   const cal=S.targetCal||0;
   const pct=cal>0?Math.min((totalCal/cal)*100,100):0;
-  const circ=2*Math.PI*64;
+  const ring84=2*Math.PI*84;
   const mp=Math.round(cal*0.3/4),mc=Math.round(cal*0.45/4),mf=Math.round(cal*0.25/9);
   const ringEl=d.querySelector("#calRingCircle");
   const numEl=d.querySelector("#calTotalNum");
-  if(ringEl)ringEl.style.strokeDashoffset=circ*(1-pct/100);
+  if(ringEl)ringEl.style.strokeDashoffset=ring84*(1-pct/100);
   if(numEl)numEl.textContent=Math.round(totalCal);
-  const pb=d.querySelector("#pb-p");const cb=d.querySelector("#pb-c");const fb=d.querySelector("#pb-f");
-  const pt=d.querySelector("#pt-p");const ct=d.querySelector("#pt-c");const ft=d.querySelector("#pt-f");
-  if(pb)pb.style.width=Math.min((totalP/mp)*100,100)+"%";
-  if(cb)cb.style.width=Math.min((totalC/mc)*100,100)+"%";
-  if(fb)fb.style.width=Math.min((totalF/mf)*100,100)+"%";
-  if(pt)pt.textContent=Math.round(totalP)+"g / "+mp+"g";
-  if(ct)ct.textContent=Math.round(totalC)+"g / "+mc+"g";
-  if(ft)ft.textContent=Math.round(totalF)+"g / "+mf+"g";
+  const remainEl=d.querySelector("#calRemain");
+  if(remainEl){const rem=Math.round(cal-totalCal);remainEl.textContent=rem>0?`faltam ${rem}`:rem===0?"meta atingida 🎯":`${-rem} acima`;}
+  // Mini-anéis de macros
+  const Rm=26,Cm=2*Math.PI*Rm;
+  const setMacro=(letter,val,goal,c1)=>{
+    const mpct=goal>0?Math.min((val/goal)*100,100):0;
+    const arc=d.querySelector(`.dash-macro-arc[data-macro="${letter}"]`);
+    if(arc)arc.style.strokeDashoffset=Cm*(1-mpct/100);
+    const pctEl=arc?arc.closest(".dash-macro-ring")?.querySelector(".dash-macro-pct"):null;
+    if(pctEl)pctEl.textContent=Math.round(mpct)+"%";
+    const valEl=d.querySelector(`#macroval-${letter}`);
+    if(valEl)valEl.innerHTML=Math.round(val)+`<span class="dash-macro-goal">/${goal}g</span>`;
+  };
+  setMacro("P",totalP,mp,"#4B9EFF");
+  setMacro("C",totalC,mc,"#FF8C42");
+  setMacro("G",totalF,mf,"#22D3A5");
 }
 
 function renderFoodItem(f,i){
@@ -1687,16 +1695,27 @@ function updateCaloriasNumbersInPlace(){
     }
   }
   S._calLastTotal=totalCal;
-  // Anel — usa raio 74 (premium)
+  // Anel principal — raio 84 (premium)
   const ring=tabPage.querySelector("#calRingCircle");
-  if(ring){const R=74;ring.setAttribute("stroke-dashoffset",2*Math.PI*R*(1-pct/100));}
+  if(ring){const R=84;ring.setAttribute("stroke-dashoffset",2*Math.PI*R*(1-pct/100));}
   const numEl=tabPage.querySelector("#calTotalNum");
   if(numEl)numEl.textContent=Math.round(totalCal);
-  // Macros
-  const setM=(idTxt,idBar,val,goal)=>{const t=tabPage.querySelector(idTxt);if(t)t.textContent=Math.round(val)+"g / "+goal+"g";const b=tabPage.querySelector(idBar);if(b)b.style.width=Math.min((val/goal)*100,100)+"%";};
-  setM("#pt-p","#pb-p",totalP,mp);
-  setM("#pt-c","#pb-c",totalC,mc2);
-  setM("#pt-f","#pb-f",totalF,mf2);
+  const remainEl=tabPage.querySelector("#calRemain");
+  if(remainEl){const rem=Math.round(cal-totalCal);remainEl.textContent=rem>0?`faltam ${rem}`:rem===0?"meta atingida 🎯":`${-rem} acima`;}
+  // Macros — mini-anéis
+  const Rm=26,Cm=2*Math.PI*Rm;
+  const setMacroRing=(letter,val,goal)=>{
+    const mpct=goal>0?Math.min((val/goal)*100,100):0;
+    const arc=tabPage.querySelector(`.dash-macro-arc[data-macro="${letter}"]`);
+    if(arc)arc.style.strokeDashoffset=Cm*(1-mpct/100);
+    const pctEl=arc?arc.closest(".dash-macro-ring")?.querySelector(".dash-macro-pct"):null;
+    if(pctEl)pctEl.textContent=Math.round(mpct)+"%";
+    const valEl=tabPage.querySelector(`#macroval-${letter}`);
+    if(valEl)valEl.innerHTML=Math.round(val)+`<span class="dash-macro-goal">/${goal}g</span>`;
+  };
+  setMacroRing("P",totalP,mp);
+  setMacroRing("C",totalC,mc2);
+  setMacroRing("G",totalF,mf2);
   // Água (reconstrói o card)
   const w=tabPage.querySelector("[data-water-card]");
   if(w){
@@ -1820,23 +1839,19 @@ function renderWaterCard(){
     cups.push(`<div class="water-cup"><div class="water-cup-fill" style="height:${fill*100}%"></div></div>`);
   }
   const status=pct>=100?"Meta atingida 🎉":pct>=75?"Quase lá":pct>=40?"Boa hidratação":pct>0?"Continue bebendo":"Comece a se hidratar";
-  return `<div class="water-card" data-water-card>
-    <div class="water-card-bg"></div>
-    <div class="water-card-hdr">
-      <div style="display:flex;align-items:center;gap:8px;min-width:0">
+  return `<div class="water-sec" data-water-card>
+    <div class="water-sec-hdr">
+      <div style="display:flex;align-items:center;gap:9px;min-width:0">
         <div class="water-icon">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
         </div>
-        <div class="water-card-title">HIDRATAÇÃO</div>
+        <div>
+          <div class="dash-sec-lbl" style="color:#4FC3F7;margin:0">HIDRATAÇÃO</div>
+          <div class="water-sec-amount"><span class="water-amount-v">${liters}</span><span class="water-amount-u">L</span><span class="water-sec-goal">de ${goalL}L</span></div>
+        </div>
         <button id="bWaterInfo" title="Por que beber água?" class="water-info-btn">i</button>
       </div>
       <div class="water-status">${status}</div>
-    </div>
-    <div class="water-card-main">
-      <div class="water-amount">
-        <span class="water-amount-v">${liters}</span><span class="water-amount-u">L</span>
-      </div>
-      <div class="water-amount-goal">meta ${goalL}L · <span style="opacity:0.7">${ml}ml</span></div>
     </div>
     <div class="water-cups">${cups.join("")}</div>
     <div class="water-actions">
@@ -1856,6 +1871,7 @@ function rCalorias(){
   let totalCal=0,totalP=0,totalC=0,totalF=0;
   S.foods.forEach(f=>{const a=calcAdj(f);totalCal+=a.cal;totalP+=a.p;totalC+=a.c;totalF+=a.f;});
   const pct=cal>0?Math.min((totalCal/cal)*100,100):0;
+  const remainCal=Math.round(cal-totalCal);
   const circ=2*Math.PI*64;
 
   // Group foods by meal category
@@ -1918,45 +1934,76 @@ function rCalorias(){
     <div class="tab-hdr"><div class="tab-title">Calorias</div></div>
     ${carouselHTML}
 
-    <div class="cal-hero">
-      <div class="cal-hero-glow"></div>
-      <div class="cal-ring-wrap" style="margin:0 0 14px">
+    <div class="dash">
+      <div class="dash-glow"></div>
+
+      <!-- ANEL DE CALORIAS -->
+      <div class="dash-ring-section">
         <div class="cal-ring">
-          <svg width="184" height="184" viewBox="0 0 184 184" style="transform:rotate(-90deg)">
+          <svg width="200" height="200" viewBox="0 0 200 200" style="transform:rotate(-90deg)">
             <defs>
               <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stop-color="#FF6B00"/>
-                <stop offset="100%" stop-color="#FF8C42"/>
+                <stop offset="100%" stop-color="#FFA552"/>
               </linearGradient>
             </defs>
-            <circle cx="92" cy="92" r="74" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="14"/>
-            <circle id="calRingCircle" cx="92" cy="92" r="74" fill="none" stroke="url(#ringGrad)" stroke-width="14"
-              stroke-dasharray="${2*Math.PI*74}" stroke-dashoffset="${2*Math.PI*74*(1-pct/100)}"
-              stroke-linecap="round" style="transition:stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);filter:drop-shadow(0 0 14px rgba(255,107,0,0.45))"/>
+            <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="15"/>
+            <circle id="calRingCircle" cx="100" cy="100" r="84" fill="none" stroke="url(#ringGrad)" stroke-width="15"
+              stroke-dasharray="${2*Math.PI*84}" stroke-dashoffset="${2*Math.PI*84*(1-pct/100)}"
+              stroke-linecap="round" style="transition:stroke-dashoffset 0.9s cubic-bezier(0.34,1.2,0.64,1);filter:drop-shadow(0 0 16px rgba(255,107,0,0.5))"/>
           </svg>
           <div class="cal-ring-inner">
             <div class="cal-ring-eyebrow">CONSUMIDAS</div>
             <div class="cal-num" id="calTotalNum">${Math.round(totalCal)}</div>
-            <div class="cal-lbl">/ ${cal} kcal</div>
+            <div class="cal-lbl">de ${cal} kcal</div>
+            <div class="cal-ring-remain" id="calRemain">${remainCal>0?`faltam ${remainCal}`:remainCal===0?"meta atingida 🎯":`${-remainCal} acima`}</div>
           </div>
         </div>
       </div>
-      <div class="cal-hero-stats">
-        <div class="hero-stat"><div class="hero-stat-v">${S.tmb||"—"}</div><div class="hero-stat-l">TMB · kcal</div></div>
-        <div class="hero-stat-sep"></div>
-        <div class="hero-stat"><div class="hero-stat-v" style="color:var(--orange)">${cal||"—"}</div><div class="hero-stat-l">META · kcal</div></div>
-        <div class="hero-stat-sep"></div>
-        <div class="hero-stat"><div class="hero-stat-v" style="color:#22D3A5;font-size:13px">${({lose:"Emagrecer",maintain:"Manter",gain:"Ganhar"})[S.profile?.goal]||"—"}</div><div class="hero-stat-l">OBJETIVO</div></div>
+
+      <!-- FAIXA TMB / META / OBJETIVO -->
+      <div class="dash-stats">
+        <div class="dash-stat"><div class="dash-stat-v">${S.tmb||"—"}</div><div class="dash-stat-l">TMB · kcal</div></div>
+        <div class="dash-stat-sep"></div>
+        <div class="dash-stat"><div class="dash-stat-v" style="color:var(--orange)">${cal||"—"}</div><div class="dash-stat-l">META · kcal</div></div>
+        <div class="dash-stat-sep"></div>
+        <div class="dash-stat"><div class="dash-stat-v" style="color:#22D3A5;font-size:14px">${({lose:"Emagrecer",maintain:"Manter",gain:"Ganhar"})[S.profile?.goal]||"—"}</div><div class="dash-stat-l">OBJETIVO</div></div>
       </div>
+
+      <div class="dash-divider"></div>
+
+      <!-- MACROS — MINI ANÉIS -->
+      <div class="dash-sec-lbl">MACRONUTRIENTES</div>
+      <div class="dash-macros">
+        ${[
+          ["Proteína",totalP,mp,"#4B9EFF","#6BB0FF","P"],
+          ["Carbs",totalC,mc2,"#FF8C42","#FFA66B","C"],
+          ["Gordura",totalF,mf2,"#22D3A5","#4BE3BD","G"],
+        ].map(([nm,val,goal,c1,c2,letter])=>{
+          const mpct=goal>0?Math.min((val/goal)*100,100):0;
+          const R=26,C=2*Math.PI*R;
+          const gid="mg_"+letter;
+          return `<div class="dash-macro">
+            <div class="dash-macro-ring">
+              <svg width="68" height="68" viewBox="0 0 68 68" style="transform:rotate(-90deg)">
+                <defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></linearGradient></defs>
+                <circle cx="34" cy="34" r="${R}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+                <circle class="dash-macro-arc" data-macro="${letter}" cx="34" cy="34" r="${R}" fill="none" stroke="url(#${gid})" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-mpct/100)}" style="transition:stroke-dashoffset 0.9s cubic-bezier(0.34,1.2,0.64,1)"/>
+              </svg>
+              <div class="dash-macro-pct" style="color:${c1}">${Math.round(mpct)}%</div>
+            </div>
+            <div class="dash-macro-nm" style="color:${c1}">${nm}</div>
+            <div class="dash-macro-val" id="macroval-${letter}">${Math.round(val)}<span class="dash-macro-goal">/${goal}g</span></div>
+          </div>`;
+        }).join("")}
+      </div>
+
+      <div class="dash-divider"></div>
+
+      <!-- HIDRATAÇÃO INTEGRADA -->
+      ${renderWaterCard()}
     </div>
 
-    <div class="macro-bar-wrap macro-bar-premium">
-      <div class="mbar"><div class="mbar-label"><span style="color:#4B9EFF">Proteína</span><span id="pt-p">${Math.round(totalP)}g / ${mp}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-p" style="width:${Math.min((totalP/mp)*100,100)}%;background:linear-gradient(90deg,#4B9EFF,#6BB0FF)"></div></div></div>
-      <div class="mbar"><div class="mbar-label"><span style="color:#FF8C42">Carbs</span><span id="pt-c">${Math.round(totalC)}g / ${mc2}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-c" style="width:${Math.min((totalC/mc2)*100,100)}%;background:linear-gradient(90deg,#FF8C42,#FFA66B)"></div></div></div>
-      <div class="mbar"><div class="mbar-label"><span style="color:#22D3A5">Gordura</span><span id="pt-f">${Math.round(totalF)}g / ${mf2}g</span></div><div class="mbar-track"><div class="mbar-fill" id="pb-f" style="width:${Math.min((totalF/mf2)*100,100)}%;background:linear-gradient(90deg,#22D3A5,#4BE3BD)"></div></div></div>
-    </div>
-
-    ${renderWaterCard()}
     <button class="btn-primary btn-ai-diet" id="bAutoDiet">
       <span class="btn-ai-icon">🍽️</span>
       <span style="flex:1;text-align:left;min-width:0">
@@ -3780,80 +3827,59 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .cal-num{font-size:32px;font-weight:800;}
 .cal-lbl{font-size:12px;color:var(--text2);margin-top:2px;}
 
-/* ═══ PREMIUM CALORIAS ═══ */
-.cal-hero{
+/* ═══ DASHBOARD UNIFICADO PREMIUM ═══ */
+.dash{
   position:relative;
-  background:linear-gradient(180deg,rgba(255,107,0,0.04) 0%,rgba(22,22,24,0) 60%),var(--bg2);
+  background:linear-gradient(180deg,rgba(255,107,0,0.05) 0%,rgba(22,22,24,0) 45%),var(--bg2);
   border:1px solid var(--border);
-  border-radius:24px;
-  padding:20px 18px 18px;
-  margin:8px 0 18px;
+  border-radius:26px;
+  padding:22px 18px 18px;
+  margin:8px 0 16px;
   overflow:hidden;
+  box-shadow:0 10px 40px rgba(0,0,0,0.25);
 }
-.cal-hero-glow{
-  position:absolute;top:-80px;left:50%;transform:translateX(-50%);
-  width:280px;height:200px;
-  background:radial-gradient(ellipse,rgba(255,107,0,0.12),transparent 70%);
-  pointer-events:none;filter:blur(20px);
+.dash-glow{
+  position:absolute;top:-90px;left:50%;transform:translateX(-50%);
+  width:300px;height:220px;
+  background:radial-gradient(ellipse,rgba(255,107,0,0.14),transparent 70%);
+  pointer-events:none;filter:blur(24px);
 }
-.cal-hero .cal-ring{width:184px;height:184px;}
-.cal-hero .cal-ring-inner{gap:0;}
-.cal-ring-eyebrow{
-  font-size:10px;font-weight:700;letter-spacing:2px;
-  color:var(--text3);margin-bottom:4px;
-}
-.cal-hero .cal-num{
-  font-size:44px;font-weight:900;
-  letter-spacing:-1.5px;line-height:1;
-  background:linear-gradient(180deg,#FFFFFF 0%,#E0E0E0 100%);
-  -webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent;
+.dash-ring-section{display:flex;justify-content:center;position:relative;}
+.dash .cal-ring{width:200px;height:200px;position:relative;display:flex;align-items:center;justify-content:center;}
+.dash .cal-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;}
+.cal-ring-eyebrow{font-size:10px;font-weight:800;letter-spacing:2.5px;color:var(--text3);margin-bottom:5px;}
+.dash .cal-num{
+  font-size:50px;font-weight:900;letter-spacing:-2px;line-height:1;
+  background:linear-gradient(180deg,#FFFFFF 0%,#D8D8D8 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
   font-feature-settings:"tnum";
 }
-.cal-hero .cal-lbl{
-  font-size:12px;color:var(--text3);margin-top:6px;font-weight:600;
-  letter-spacing:0.3px;
-}
+.dash .cal-lbl{font-size:12px;color:var(--text3);margin-top:7px;font-weight:600;letter-spacing:0.3px;}
 .cal-ring-remain{
-  font-size:10px;font-weight:700;color:var(--orange);
-  margin-top:6px;letter-spacing:0.5px;text-transform:uppercase;
+  margin-top:7px;font-size:10.5px;font-weight:800;letter-spacing:0.4px;
+  color:var(--orange);text-transform:uppercase;
+  background:rgba(255,107,0,0.1);padding:4px 11px;border-radius:20px;
 }
-.cal-hero-stats{
+.dash-stats{
   display:flex;align-items:stretch;
-  background:rgba(0,0,0,0.25);
+  background:rgba(0,0,0,0.28);
   border:1px solid var(--border-soft);
-  border-radius:14px;
-  padding:10px 4px;
-  position:relative;
+  border-radius:16px;
+  padding:12px 4px;margin-top:14px;
 }
-.hero-stat{
-  flex:1;text-align:center;padding:2px 6px;
-}
-.hero-stat-v{
-  font-size:18px;font-weight:800;color:var(--text);
-  line-height:1.1;font-feature-settings:"tnum";
-}
-.hero-stat-l{
-  font-size:9px;font-weight:700;color:var(--text3);
-  letter-spacing:1.2px;margin-top:3px;
-}
-.hero-stat-sep{
-  width:1px;background:var(--border-soft);
-  align-self:stretch;margin:4px 0;
-}
-
-.macro-bar-premium{gap:14px;margin-bottom:16px;}
-.macro-bar-premium .mbar-label{font-size:12.5px;font-weight:700;}
-.macro-bar-premium .mbar-track{
-  height:7px;
-  background:rgba(255,255,255,0.04);
-  border-radius:4px;
-}
-.macro-bar-premium .mbar-fill{
-  border-radius:4px;
-  box-shadow:0 0 8px rgba(255,255,255,0.08);
-  transition:width 0.8s cubic-bezier(0.4,0,0.2,1);
-}
+.dash-stat{flex:1;text-align:center;padding:2px 6px;}
+.dash-stat-v{font-size:19px;font-weight:800;color:var(--text);line-height:1.1;font-feature-settings:"tnum";}
+.dash-stat-l{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:1.3px;margin-top:4px;}
+.dash-stat-sep{width:1px;background:var(--border-soft);align-self:stretch;margin:4px 0;}
+.dash-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:18px 0;}
+.dash-sec-lbl{font-size:10.5px;font-weight:800;letter-spacing:1.5px;color:var(--text3);margin-bottom:14px;}
+.dash-macros{display:flex;justify-content:space-around;gap:8px;}
+.dash-macro{display:flex;flex-direction:column;align-items:center;flex:1;}
+.dash-macro-ring{position:relative;width:68px;height:68px;display:flex;align-items:center;justify-content:center;}
+.dash-macro-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;font-feature-settings:"tnum";}
+.dash-macro-nm{font-size:12px;font-weight:700;margin-top:9px;}
+.dash-macro-val{font-size:14px;font-weight:800;color:var(--text);margin-top:2px;font-feature-settings:"tnum";}
+.dash-macro-goal{font-size:11px;color:var(--text3);font-weight:600;}
 
 /* Botão Gerar dieta IA - Premium */
 .btn-ai-diet{
@@ -3878,82 +3904,53 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   backdrop-filter:blur(8px);
 }
 
-/* Card de Água - Premium */
-.water-card{
-  position:relative;
-  background:linear-gradient(135deg,rgba(79,195,247,0.08) 0%,rgba(41,98,143,0.02) 100%),var(--bg2);
-  border:1px solid rgba(79,195,247,0.22);
-  border-radius:20px;
-  padding:16px;
-  margin-bottom:16px;
-  overflow:hidden;
-}
-.water-card-bg{
-  position:absolute;top:-40px;right:-40px;
-  width:160px;height:160px;
-  background:radial-gradient(circle,rgba(79,195,247,0.10),transparent 70%);
-  pointer-events:none;filter:blur(10px);
-}
-.water-card-hdr{
-  display:flex;justify-content:space-between;align-items:center;
-  margin-bottom:12px;position:relative;
-}
+/* Hidratação — integrada no dashboard */
+.water-sec{position:relative;}
+.water-sec-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:10px;}
+.water-sec-amount{display:flex;align-items:baseline;gap:5px;margin-top:3px;}
+.water-sec-goal{font-size:12px;color:var(--text3);font-weight:600;margin-left:2px;}
+.water-card-bg{display:none;}
 .water-icon{
-  width:22px;height:22px;
+  width:30px;height:30px;
   background:linear-gradient(135deg,#4FC3F7,#29B6F6);
-  border-radius:8px;
+  border-radius:9px;
   display:flex;align-items:center;justify-content:center;
   color:#fff;flex-shrink:0;
-  box-shadow:0 2px 8px rgba(79,195,247,0.3);
+  box-shadow:0 3px 10px rgba(79,195,247,0.35);
 }
-.water-card-title{
-  font-size:11px;font-weight:800;
-  color:#4FC3F7;letter-spacing:1.5px;
-}
+.water-card-title{font-size:11px;font-weight:800;color:#4FC3F7;letter-spacing:1.5px;}
 .water-info-btn{
   background:rgba(79,195,247,0.15);
   border:1px solid rgba(79,195,247,0.3);
   color:#4FC3F7;
   width:20px;height:20px;border-radius:50%;
   font-size:11px;font-weight:800;font-style:italic;
-  cursor:pointer;
+  cursor:pointer;align-self:center;
   display:inline-flex;align-items:center;justify-content:center;
   padding:0;line-height:1;
   transition:background 0.15s ease;
 }
 .water-info-btn:active{background:rgba(79,195,247,0.3);}
 .water-status{
-  font-size:11px;color:var(--text3);font-weight:600;
-}
-.water-card-main{
-  display:flex;justify-content:space-between;align-items:baseline;
-  margin-bottom:14px;position:relative;
+  font-size:11px;color:#4FC3F7;font-weight:700;
+  background:rgba(79,195,247,0.1);padding:5px 10px;border-radius:20px;
+  white-space:nowrap;flex-shrink:0;
 }
 .water-amount{display:flex;align-items:baseline;gap:2px;}
 .water-amount-v{
-  font-size:34px;font-weight:900;
+  font-size:30px;font-weight:900;
   background:linear-gradient(180deg,#4FC3F7,#29B6F6);
-  -webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent;
-  letter-spacing:-1px;line-height:1;
-  font-feature-settings:"tnum";
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-1px;line-height:1;font-feature-settings:"tnum";
 }
-.water-amount-u{
-  font-size:16px;color:#4FC3F7;font-weight:700;
-  margin-left:2px;
-}
-.water-amount-goal{
-  font-size:12px;color:var(--text3);font-weight:600;
-}
-.water-cups{
-  display:flex;gap:5px;margin-bottom:14px;position:relative;
-}
+.water-amount-u{font-size:15px;color:#4FC3F7;font-weight:700;margin-left:1px;}
+.water-amount-goal{font-size:12px;color:var(--text3);font-weight:600;}
+.water-cups{display:flex;gap:5px;margin-bottom:14px;position:relative;}
 .water-cup{
-  flex:1;height:26px;
+  flex:1;height:24px;
   background:rgba(255,255,255,0.03);
-  border:1px solid rgba(79,195,247,0.12);
-  border-radius:7px;
-  overflow:hidden;position:relative;
+  border:1px solid rgba(79,195,247,0.14);
+  border-radius:7px;overflow:hidden;position:relative;
 }
 .water-cup-fill{
   position:absolute;bottom:0;left:0;right:0;
@@ -3962,18 +3959,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   border-radius:0 0 6px 6px;
   box-shadow:inset 0 2px 4px rgba(255,255,255,0.2);
 }
-.water-actions{
-  display:grid;grid-template-columns:1fr 1fr 1fr auto;
-  gap:7px;position:relative;
-}
+.water-actions{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:7px;position:relative;}
 .water-btn{
   padding:11px 4px;
   background:rgba(79,195,247,0.06);
   border:1px solid rgba(79,195,247,0.18);
-  border-radius:11px;
-  color:#4FC3F7;
-  font-size:13px;font-weight:700;
-  cursor:pointer;
+  border-radius:11px;color:#4FC3F7;
+  font-size:13px;font-weight:700;cursor:pointer;
   transition:all 0.15s ease;
 }
 .water-btn:active{background:rgba(79,195,247,0.18);transform:scale(0.97);}
@@ -3981,10 +3973,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   padding:11px 14px;
   background:var(--bg3);
   border:1px solid var(--border-soft);
-  border-radius:11px;
-  color:var(--text2);
-  font-size:15px;font-weight:700;
-  cursor:pointer;
+  border-radius:11px;color:var(--text2);
+  font-size:15px;font-weight:700;cursor:pointer;
   transition:all 0.15s ease;
 }
 .water-undo:not(:disabled):active{background:var(--bg4);}
