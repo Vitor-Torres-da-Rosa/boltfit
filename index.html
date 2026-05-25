@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#FF6B00"/>
 <title>BoltFit</title>
 <link rel="manifest" href="manifest.json"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<!-- Fontes do sistema (sem chamadas externas — renderiza como SF Pro no iOS / Roboto no Android, idêntico à Inter) -->
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,createUserWithEmailAndPassword,onAuthStateChanged,signOut,updateProfile}from"https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
@@ -40,166 +40,236 @@ const MUSCLE_META={
 // ExerciseDB free GIF IDs (confirmed working)
 // GIF images from ExerciseDB via RapidAPI public CDN
 // Using multiple working free endpoints
-const EX_GIF={
-  p1:"0025",p2:"0030",p3:"0033",p4:"0076",p5:"0561",p6:"0327",p7:"0226",p8:"0029",p9:"0331",p10:"0098",p11:"0153",p12:"0025",
-  c1:"0606",c2:"0034",c3:"0059",c4:"0389",c5:"0035",c6:"0032",c7:"0035",c8:"0059",c9:"0606",c10:"0244",c11:"0389",c12:"0035",
-  l1:"0042",l2:"0356",l3:"0360",l4:"0362",l5:"0044",l6:"0041",l7:"0356",l8:"0353",l9:"0353",l10:"0041",l11:"0356",l12:"0356",l13:"0042",l14:"0044",l15:"0042",
-  o1:"0092",o2:"0093",o3:"0088",o4:"0087",o5:"0090",o6:"0092",o7:"0088",o8:"0090",o9:"0093",
-  tr1:"0096",tr2:"0096",tr3:"0093",tr4:"0093",tr5:"0096",
-  b1:"0021",b2:"0022",b3:"0024",b4:"0021",b5:"0021",b6:"0022",b7:"0021",b8:"0024",
-  t1:"0052",t2:"0047",t3:"0052",t4:"0098",t5:"0050",t6:"0047",t7:"0098",t8:"0052",
-  a1:"0003",a2:"0571",a3:"0003",a4:"0003",a5:"0575",a6:"0571",a7:"0003",a8:"0003",a9:"0571",a10:"0575",
-  g1:"0341",g2:"0042",g3:"0341",g4:"0041",g5:"0341",g6:"0356",g7:"0041",
-  af1:"0024",af2:"0024",af3:"0096",af4:"0024",
-};
-// Exercise GIFs — using ExerciseDB public image CDN
-// These IDs are confirmed working on the free public endpoint
-const EX_DIR={
-  p1:"Barbell_Bench_Press_-_Medium_Grip",p2:"Dumbbell_Incline_Bench_Press",
-  p3:"Barbell_Decline_Bench_Press",p4:"Cable_Crossover",p5:"Push-Up",
-  p6:"Dumbbell_Flyes",p7:"Dumbbell_Pullover",p8:"Dumbbell_Bench_Press",
-  p9:"Incline_Dumbbell_Flyes",p10:"Chest_Dip",p11:"Pec_Deck_Butterfly",p12:"Barbell_Bench_Press_-_Medium_Grip",
-  c1:"Pull-Up",c2:"Barbell_Bent_Over_Row",c3:"Wide-Grip_Lat_Pulldown",
-  c4:"Seated_Cable_Row",c5:"Dumbbell_One-Arm_Row",c6:"Barbell_Deadlift",
-  c7:"Dumbbell_Bent_Over_Row",c8:"Wide-Grip_Lat_Pulldown",c9:"Pull-Up",
-  c10:"Good_Morning",c11:"Seated_Cable_Row",c12:"Dumbbell_One-Arm_Row",
-  l1:"Barbell_Squat",l2:"Leg_Press",l3:"Leg_Extension",l4:"Lying_Leg_Curl",
-  l5:"Stiff-Legged_Dumbbell_Deadlift",l6:"Dumbbell_Lunge",l7:"Hack_Squat",
-  l8:"Standing_Calf_Raises",l9:"Seated_Calf_Raise",l10:"Dumbbell_Lunge",
-  l11:"Leg_Press",l12:"Leg_Press",l13:"Barbell_Squat",l14:"Stiff-Legged_Dumbbell_Deadlift",l15:"Barbell_Squat",
-  o1:"Dumbbell_Shoulder_Press",o2:"Barbell_Shoulder_Press",o3:"Side_Lateral_Raise",
-  o4:"Dumbbell_Front_Raise",o5:"Bent_Over_Dumbbell_Rear_Delt_Row",o6:"Arnold_Dumbbell_Press",
-  o7:"Side_Lateral_Raise",o8:"Face_Pull",o9:"Barbell_Shoulder_Press",
-  tr1:"Barbell_Shrug",tr2:"Dumbbell_Shrug",tr3:"Barbell_Upright_Row",tr4:"Dumbbell_Upright_Row",tr5:"Barbell_Shrug",
-  b1:"Barbell_Curl",b2:"Alternate_Hammer_Curl",b3:"Hammer_Curls",b4:"EZ-Bar_Preacher_Curl",
-  b5:"Cable_Hammer_Curls_-_Rope_Attachment",b6:"Concentration_Curls",b7:"Barbell_Curl",b8:"Reverse_Barbell_Curl",
-  t1:"Lying_Triceps_Press",t2:"Triceps_Pushdown",t3:"Dumbbell_Tricep_Extension",t4:"Tricep_Dips",
-  t5:"Kickbacks",t6:"Triceps_Pushdown",t7:"Tricep_Dips",t8:"Lying_Triceps_Press",
-  a1:"Crunch",a2:"Plank",a3:"Cable_Crunch",a4:"Lying_Leg_Raise",a5:"Russian_Twist",
-  a6:"Mountain_Climber",a7:"Bicycle_Crunch",a8:"Hanging_Leg_Raise",a9:"Side_Plank",a10:"Russian_Twist",
-  g1:"Barbell_Hip_Thrust",g2:"Barbell_Squat",g3:"Cable_Hip_Adduction",g4:"Dumbbell_Lunge",
-  g5:"Glute_Bridge",g6:"Leg_Press",g7:"Dumbbell_Lunge",
-  af1:"Wrist_Curl_Over_Bench",af2:"Wrist_Curl_Over_Bench",af3:"Farmers_Walk",af4:"Hammer_Curls",
-};
-function encodeExerciseName(id){return EX_DIR[id]||"Barbell_Bench_Press_-_Medium_Grip";}
-function gifUrl(id){
-  const name=EX_DIR[id];
-  if(!name)return "";
-  return `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${name}/0.jpg`;
-}
 const EXERCISES={
   peito:[
-    {id:"p1",name:"Supino Reto com Barra",eq:"Barra",muscles:"Peitoral maior, Tríceps, Deltóide anterior",sets:4,reps:"8-12",rest:90},
-    {id:"p2",name:"Supino Inclinado com Halteres",eq:"Halteres",muscles:"Peitoral superior, Deltóide",sets:3,reps:"10-12",rest:75},
-    {id:"p3",name:"Supino Declinado com Barra",eq:"Barra",muscles:"Peitoral inferior, Tríceps",sets:3,reps:"10-12",rest:75},
-    {id:"p4",name:"Crossover na Polia",eq:"Polia",muscles:"Peitoral, Serrátil anterior",sets:3,reps:"12-15",rest:60},
-    {id:"p5",name:"Flexão de Braço",eq:"Peso Corporal",muscles:"Peitoral, Tríceps, Core",sets:3,reps:"15-20",rest:60},
-    {id:"p6",name:"Fly com Halteres no Banco Plano",eq:"Halteres",muscles:"Peitoral maior",sets:3,reps:"12-15",rest:60},
-    {id:"p7",name:"Pullover com Halter",eq:"Halteres",muscles:"Peitoral, Latíssimo",sets:3,reps:"12-15",rest:60},
-    {id:"p8",name:"Supino com Halteres no Banco Plano",eq:"Halteres",muscles:"Peitoral maior, Tríceps",sets:3,reps:"10-12",rest:75},
-    {id:"p9",name:"Fly Inclinado com Halteres",eq:"Halteres",muscles:"Peitoral superior",sets:3,reps:"12-15",rest:60},
-    {id:"p10",name:"Mergulho (Dips) no Banco",eq:"Peso Corporal",muscles:"Peitoral inferior, Tríceps",sets:3,reps:"12-15",rest:60},
-    {id:"p11",name:"Peck Deck (Voador)",eq:"Máquina",muscles:"Peitoral maior",sets:3,reps:"12-15",rest:60},
-    {id:"p12",name:"Supino no Smith",eq:"Máquina",muscles:"Peitoral, Tríceps",sets:4,reps:"8-12",rest:90},
+    {id:"p1",name:"Supino Reto com Barra",eq:"Barra",muscles:"Peitoral maior, Tríceps, Deltóide anterior",sets:4,reps:"8-12",rest:90,img:"Barbell_Bench_Press_-_Medium_Grip"},
+    {id:"p2",name:"Supino Reto com Halteres",eq:"Halteres",muscles:"Peitoral maior, Tríceps",sets:4,reps:"8-12",rest:90,img:"Dumbbell_Bench_Press"},
+    {id:"p3",name:"Supino Inclinado com Barra",eq:"Barra",muscles:"Peitoral superior, Deltóide",sets:4,reps:"8-12",rest:90,img:"Barbell_Incline_Bench_Press_-_Medium_Grip"},
+    {id:"p4",name:"Supino Inclinado com Halteres",eq:"Halteres",muscles:"Peitoral superior, Deltóide",sets:3,reps:"10-12",rest:75,img:"Incline_Dumbbell_Press"},
+    {id:"p5",name:"Supino Declinado com Barra",eq:"Barra",muscles:"Peitoral inferior, Tríceps",sets:3,reps:"10-12",rest:75,img:"Barbell_Decline_Bench_Press"},
+    {id:"p6",name:"Supino Declinado com Halteres",eq:"Halteres",muscles:"Peitoral inferior",sets:3,reps:"10-12",rest:75,img:"Decline_Dumbbell_Bench_Press"},
+    {id:"p7",name:"Crossover na Polia",eq:"Polia",muscles:"Peitoral, Serrátil anterior",sets:3,reps:"12-15",rest:60,img:"Cable_Crossover"},
+    {id:"p8",name:"Crossover na Polia Baixa",eq:"Polia",muscles:"Peitoral superior",sets:3,reps:"12-15",rest:60,img:"Low_Cable_Crossover"},
+    {id:"p9",name:"Flexão de Braço",eq:"Peso Corporal",muscles:"Peitoral, Tríceps, Core",sets:3,reps:"15-20",rest:60,img:"Pushups"},
+    {id:"p10",name:"Flexão Diamante",eq:"Peso Corporal",muscles:"Tríceps, Peitoral interno",sets:3,reps:"12-15",rest:60,img:"Push-Ups_-_Close_Triceps_Position"},
+    {id:"p11",name:"Flexão Inclinada",eq:"Peso Corporal",muscles:"Peitoral inferior, Tríceps",sets:3,reps:"15-20",rest:60,img:"Incline_Push-Up"},
+    {id:"p12",name:"Flexão Declinada",eq:"Peso Corporal",muscles:"Peitoral superior",sets:3,reps:"12-15",rest:60,img:"Decline_Push-Up"},
+    {id:"p13",name:"Fly com Halteres",eq:"Halteres",muscles:"Peitoral maior",sets:3,reps:"12-15",rest:60,img:"Dumbbell_Flyes"},
+    {id:"p14",name:"Fly Inclinado com Halteres",eq:"Halteres",muscles:"Peitoral superior",sets:3,reps:"12-15",rest:60,img:"Incline_Dumbbell_Flyes"},
+    {id:"p15",name:"Pullover com Halter",eq:"Halteres",muscles:"Peitoral, Latíssimo",sets:3,reps:"12-15",rest:60,img:"Bent-Arm_Dumbbell_Pullover"},
+    {id:"p16",name:"Mergulho nas Paralelas (Peito)",eq:"Peso Corporal",muscles:"Peitoral inferior, Tríceps",sets:3,reps:"8-12",rest:75,img:"Dips_-_Chest_Version"},
+    {id:"p17",name:"Peck Deck (Voador)",eq:"Máquina",muscles:"Peitoral maior",sets:3,reps:"12-15",rest:60,img:"Butterfly"},
+    {id:"p18",name:"Supino na Máquina",eq:"Máquina",muscles:"Peitoral, Tríceps",sets:3,reps:"10-12",rest:75,img:"Machine_Bench_Press"},
+    {id:"p19",name:"Supino no Smith",eq:"Máquina",muscles:"Peitoral, Tríceps",sets:4,reps:"8-12",rest:90,img:"Smith_Machine_Bench_Press"},
+    {id:"p20",name:"Supino Inclinado no Smith",eq:"Máquina",muscles:"Peitoral superior",sets:4,reps:"8-12",rest:90,img:"Smith_Machine_Incline_Bench_Press"},
+    {id:"p21",name:"Crucifixo na Máquina",eq:"Máquina",muscles:"Peitoral maior",sets:3,reps:"12-15",rest:60,img:"Leverage_Chest_Press"},
+    {id:"p22",name:"Supino com Pegada Fechada",eq:"Barra",muscles:"Peitoral interno, Tríceps",sets:3,reps:"10-12",rest:75,img:"Close-Grip_Barbell_Bench_Press"},
+    {id:"p23",name:"Flexão com Palmas (Pliométrica)",eq:"Peso Corporal",muscles:"Peitoral, Potência",sets:3,reps:"8-10",rest:75,img:"Plyo_Push-up"},
+    {id:"p24",name:"Supino Declinado no Smith",eq:"Máquina",muscles:"Peitoral inferior",sets:3,reps:"10-12",rest:75,img:"Smith_Machine_Decline_Press"},
+    {id:"p25",name:"Crucifixo na Polia em Pé",eq:"Polia",muscles:"Peitoral",sets:3,reps:"12-15",rest:60,img:"Cable_Crossover"},
+    {id:"p26",name:"Flexão com Pés Elevados",eq:"Peso Corporal",muscles:"Peitoral superior, Core",sets:3,reps:"12-15",rest:60,img:"Decline_Push-Up"},
+    {id:"p27",name:"Supino Reto Alternado com Halteres",eq:"Halteres",muscles:"Peitoral, Estabilizadores",sets:3,reps:"10-12",rest:75,img:"Alternate_Incline_Dumbbell_Curl"},
+    {id:"p28",name:"Pressão de Peito na Máquina (Hammer)",eq:"Máquina",muscles:"Peitoral, Tríceps",sets:3,reps:"10-12",rest:75,img:"Leverage_Incline_Chest_Press"},
   ],
   costas:[
-    {id:"c1",name:"Barra Fixa",eq:"Barra",muscles:"Latíssimo, Bíceps, Romboides",sets:4,reps:"6-10",rest:90},
-    {id:"c2",name:"Remada Curvada com Barra",eq:"Barra",muscles:"Latíssimo, Trapézio, Bíceps",sets:4,reps:"8-12",rest:90},
-    {id:"c3",name:"Puxada na Frente no Pulley",eq:"Polia",muscles:"Latíssimo, Bíceps",sets:3,reps:"10-12",rest:75},
-    {id:"c4",name:"Remada Sentado na Polia",eq:"Polia",muscles:"Latíssimo, Romboides",sets:3,reps:"10-12",rest:75},
-    {id:"c5",name:"Remada Unilateral com Halter",eq:"Halteres",muscles:"Latíssimo, Romboides",sets:3,reps:"10-12",rest:60},
-    {id:"c6",name:"Levantamento Terra",eq:"Barra",muscles:"Lombar, Glúteos, Isquiotibiais",sets:4,reps:"5-8",rest:120},
-    {id:"c7",name:"Remada com Halteres no Banco Inclinado",eq:"Halteres",muscles:"Romboides, Trapézio médio",sets:3,reps:"10-12",rest:60},
-    {id:"c8",name:"Puxada Atrás da Nuca",eq:"Polia",muscles:"Latíssimo, Bíceps",sets:3,reps:"10-12",rest:75},
-    {id:"c9",name:"Barra com Pegada Supinada",eq:"Barra",muscles:"Latíssimo, Bíceps",sets:4,reps:"6-10",rest:90},
-    {id:"c10",name:"Good Morning",eq:"Barra",muscles:"Lombar, Isquiotibiais",sets:3,reps:"10-12",rest:60},
-    {id:"c11",name:"Remada na Máquina",eq:"Máquina",muscles:"Costas, Bíceps",sets:3,reps:"12-15",rest:60},
-    {id:"c12",name:"Serrote com Halter",eq:"Halteres",muscles:"Latíssimo, Serrátil",sets:3,reps:"10-12",rest:60},
+    {id:"c1",name:"Barra Fixa",eq:"Barra",muscles:"Latíssimo, Bíceps, Romboides",sets:4,reps:"6-10",rest:90,img:"Pullups"},
+    {id:"c2",name:"Barra Fixa Pegada Supinada",eq:"Barra",muscles:"Latíssimo, Bíceps",sets:4,reps:"6-10",rest:90,img:"Chin-Up"},
+    {id:"c3",name:"Puxada Frontal no Pulley",eq:"Polia",muscles:"Latíssimo, Bíceps",sets:3,reps:"10-12",rest:75,img:"Wide-Grip_Lat_Pulldown"},
+    {id:"c4",name:"Puxada Fechada no Pulley",eq:"Polia",muscles:"Latíssimo, Bíceps",sets:3,reps:"10-12",rest:75,img:"Close-Grip_Front_Lat_Pulldown"},
+    {id:"c5",name:"Puxada Pegada Supinada",eq:"Polia",muscles:"Latíssimo, Bíceps",sets:3,reps:"10-12",rest:75,img:"Underhand_Cable_Pulldowns"},
+    {id:"c6",name:"Remada Curvada com Barra",eq:"Barra",muscles:"Latíssimo, Trapézio, Bíceps",sets:4,reps:"8-12",rest:90,img:"Bent_Over_Barbell_Row"},
+    {id:"c7",name:"Remada Curvada Pegada Supinada",eq:"Barra",muscles:"Latíssimo, Bíceps",sets:4,reps:"8-12",rest:90,img:"Reverse_Grip_Bent-Over_Rows"},
+    {id:"c8",name:"Remada Unilateral com Halter",eq:"Halteres",muscles:"Latíssimo, Romboides",sets:3,reps:"10-12",rest:60,img:"One-Arm_Dumbbell_Row"},
+    {id:"c9",name:"Remada Sentado na Polia",eq:"Polia",muscles:"Latíssimo, Romboides",sets:3,reps:"10-12",rest:75,img:"Seated_Cable_Rows"},
+    {id:"c10",name:"Remada Cavalinho (T-Bar)",eq:"Barra",muscles:"Latíssimo, Trapézio médio",sets:3,reps:"10-12",rest:75,img:"T-Bar_Row_with_Handle"},
+    {id:"c11",name:"Remada na Máquina (Hammer)",eq:"Máquina",muscles:"Costas, Bíceps",sets:3,reps:"12-15",rest:60,img:"Leverage_High_Row"},
+    {id:"c12",name:"Levantamento Terra",eq:"Barra",muscles:"Lombar, Glúteos, Isquiotibiais",sets:4,reps:"5-8",rest:120,img:"Barbell_Deadlift"},
+    {id:"c13",name:"Levantamento Terra Romeno",eq:"Barra",muscles:"Isquiotibiais, Glúteos, Lombar",sets:4,reps:"8-10",rest:90,img:"Romanian_Deadlift"},
+    {id:"c14",name:"Levantamento Terra Sumô",eq:"Barra",muscles:"Glúteos, Adutores, Lombar",sets:4,reps:"6-8",rest:120,img:"Sumo_Deadlift"},
+    {id:"c15",name:"Pulldown com Braço Reto",eq:"Polia",muscles:"Latíssimo",sets:3,reps:"12-15",rest:60,img:"Straight-Arm_Pulldown"},
+    {id:"c16",name:"Remada com Halteres no Banco Inclinado",eq:"Halteres",muscles:"Romboides, Trapézio médio",sets:3,reps:"10-12",rest:60,img:"Incline_Bench_Pull"},
+    {id:"c17",name:"Good Morning",eq:"Barra",muscles:"Lombar, Isquiotibiais",sets:3,reps:"10-12",rest:60,img:"Good_Morning"},
+    {id:"c18",name:"Hiperextensão Lombar",eq:"Peso Corporal",muscles:"Lombar, Glúteos",sets:3,reps:"12-15",rest:45,img:"Hyperextensions_-_Back_Extensions"},
+    {id:"c19",name:"Remada Pendlay",eq:"Barra",muscles:"Latíssimo, Trapézio",sets:4,reps:"6-8",rest:90,img:"Pendlay_Row"},
+    {id:"c20",name:"Remada Baixa Pegada Neutra",eq:"Polia",muscles:"Latíssimo, Romboides",sets:3,reps:"10-12",rest:75,img:"Seated_Cable_Rows"},
+    {id:"c21",name:"Remada Invertida",eq:"Peso Corporal",muscles:"Costas, Bíceps",sets:3,reps:"10-15",rest:60,img:"Inverted_Row"},
+    {id:"c22",name:"Remada Serrote (Dois Halteres)",eq:"Halteres",muscles:"Latíssimo, Romboides",sets:3,reps:"10-12",rest:60,img:"Bent_Over_Two-Dumbbell_Row"},
+    {id:"c23",name:"Puxada na Máquina",eq:"Máquina",muscles:"Latíssimo, Bíceps",sets:3,reps:"12-15",rest:60,img:"Leverage_Iso_Row"},
+    {id:"c24",name:"Remada no Smith",eq:"Máquina",muscles:"Latíssimo, Trapézio",sets:3,reps:"10-12",rest:75,img:"Smith_Machine_Bent_Over_Row"},
+    {id:"c25",name:"Levantamento Terra com Halteres",eq:"Halteres",muscles:"Lombar, Glúteos, Isquiotibiais",sets:3,reps:"10-12",rest:90,img:"Dumbbell_Deadlift"},
+    {id:"c26",name:"Pull-Up Negativo",eq:"Peso Corporal",muscles:"Latíssimo, Bíceps",sets:3,reps:"5-8",rest:90,img:"Pullups"},
+    {id:"c27",name:"Remada Curvada com Halteres",eq:"Halteres",muscles:"Latíssimo, Romboides",sets:3,reps:"10-12",rest:75,img:"Bent_Over_Two-Dumbbell_Row"},
+    {id:"c28",name:"Encolhimento na Barra Fixa (Escapular)",eq:"Peso Corporal",muscles:"Latíssimo inferior",sets:3,reps:"10-12",rest:60,img:"Scapular_Pull-Up"},
   ],
   pernas:[
-    {id:"l1",name:"Agachamento Livre",eq:"Barra",muscles:"Quadríceps, Glúteos, Isquiotibiais",sets:4,reps:"8-12",rest:120},
-    {id:"l2",name:"Leg Press 45°",eq:"Máquina",muscles:"Quadríceps, Glúteos",sets:4,reps:"10-15",rest:90},
-    {id:"l3",name:"Extensão de Joelhos",eq:"Máquina",muscles:"Quadríceps",sets:3,reps:"12-15",rest:60},
-    {id:"l4",name:"Mesa Flexora",eq:"Máquina",muscles:"Isquiotibiais",sets:3,reps:"12-15",rest:60},
-    {id:"l5",name:"Stiff com Barra",eq:"Barra",muscles:"Isquiotibiais, Glúteos, Lombar",sets:3,reps:"10-12",rest:90},
-    {id:"l6",name:"Avanço com Halteres",eq:"Halteres",muscles:"Quadríceps, Glúteos",sets:3,reps:"10-12",rest:75},
-    {id:"l7",name:"Hack Squat",eq:"Máquina",muscles:"Quadríceps",sets:3,reps:"10-12",rest:90},
-    {id:"l8",name:"Panturrilha em Pé",eq:"Máquina",muscles:"Gastrocnêmio, Sóleo",sets:4,reps:"15-20",rest:45},
-    {id:"l9",name:"Panturrilha Sentado",eq:"Máquina",muscles:"Sóleo",sets:3,reps:"15-20",rest:45},
-    {id:"l10",name:"Agachamento Búlgaro",eq:"Halteres",muscles:"Quadríceps, Glúteos",sets:3,reps:"10-12",rest:75},
-    {id:"l11",name:"Cadeira Abdutora",eq:"Máquina",muscles:"Abdutores do quadril",sets:3,reps:"15-20",rest:45},
-    {id:"l12",name:"Cadeira Adutora",eq:"Máquina",muscles:"Adutores do quadril",sets:3,reps:"15-20",rest:45},
-    {id:"l13",name:"Agachamento Sumô",eq:"Halteres",muscles:"Adutores, Quadríceps, Glúteos",sets:3,reps:"12-15",rest:75},
-    {id:"l14",name:"Stiff Romeno",eq:"Halteres",muscles:"Isquiotibiais, Glúteos",sets:3,reps:"10-12",rest:75},
-    {id:"l15",name:"Agachamento no Smith",eq:"Máquina",muscles:"Quadríceps, Glúteos",sets:4,reps:"8-12",rest:90},
+    {id:"l1",name:"Agachamento Livre",eq:"Barra",muscles:"Quadríceps, Glúteos, Isquiotibiais",sets:4,reps:"8-12",rest:120,img:"Barbell_Full_Squat"},
+    {id:"l2",name:"Agachamento Frontal",eq:"Barra",muscles:"Quadríceps, Core",sets:4,reps:"8-10",rest:120,img:"Front_Barbell_Squat"},
+    {id:"l3",name:"Agachamento no Smith",eq:"Máquina",muscles:"Quadríceps, Glúteos",sets:4,reps:"8-12",rest:90,img:"Smith_Machine_Squat"},
+    {id:"l4",name:"Leg Press 45°",eq:"Máquina",muscles:"Quadríceps, Glúteos",sets:4,reps:"10-15",rest:90,img:"Leg_Press"},
+    {id:"l5",name:"Hack Squat",eq:"Máquina",muscles:"Quadríceps",sets:3,reps:"10-12",rest:90,img:"Barbell_Hack_Squat"},
+    {id:"l6",name:"Extensão de Joelhos",eq:"Máquina",muscles:"Quadríceps",sets:3,reps:"12-15",rest:60,img:"Leg_Extensions"},
+    {id:"l7",name:"Mesa Flexora",eq:"Máquina",muscles:"Isquiotibiais",sets:3,reps:"12-15",rest:60,img:"Lying_Leg_Curls"},
+    {id:"l8",name:"Cadeira Flexora Sentado",eq:"Máquina",muscles:"Isquiotibiais",sets:3,reps:"12-15",rest:60,img:"Seated_Leg_Curl"},
+    {id:"l9",name:"Stiff com Barra",eq:"Barra",muscles:"Isquiotibiais, Glúteos, Lombar",sets:3,reps:"10-12",rest:90,img:"Stiff-Legged_Barbell_Deadlift"},
+    {id:"l10",name:"Stiff com Halteres",eq:"Halteres",muscles:"Isquiotibiais, Glúteos",sets:3,reps:"10-12",rest:75,img:"Stiff-Legged_Dumbbell_Deadlift"},
+    {id:"l11",name:"Avanço com Halteres",eq:"Halteres",muscles:"Quadríceps, Glúteos",sets:3,reps:"10-12",rest:75,img:"Dumbbell_Lunges"},
+    {id:"l12",name:"Avanço com Barra",eq:"Barra",muscles:"Quadríceps, Glúteos",sets:3,reps:"10-12",rest:75,img:"Barbell_Lunge"},
+    {id:"l13",name:"Agachamento Búlgaro",eq:"Halteres",muscles:"Quadríceps, Glúteos",sets:3,reps:"10-12",rest:75,img:"Dumbbell_Rear_Lunge"},
+    {id:"l14",name:"Agachamento Sumô",eq:"Halteres",muscles:"Adutores, Quadríceps, Glúteos",sets:3,reps:"12-15",rest:75,img:"Plie_Dumbbell_Squat"},
+    {id:"l15",name:"Agachamento Goblet",eq:"Halteres",muscles:"Quadríceps, Glúteos, Core",sets:3,reps:"12-15",rest:75,img:"Goblet_Squat"},
+    {id:"l16",name:"Panturrilha em Pé",eq:"Máquina",muscles:"Gastrocnêmio, Sóleo",sets:4,reps:"15-20",rest:45,img:"Standing_Calf_Raises"},
+    {id:"l17",name:"Panturrilha Sentado",eq:"Máquina",muscles:"Sóleo",sets:3,reps:"15-20",rest:45,img:"Seated_Calf_Raise"},
+    {id:"l18",name:"Panturrilha no Leg Press",eq:"Máquina",muscles:"Gastrocnêmio",sets:3,reps:"15-20",rest:45,img:"Calf_Press_On_The_Leg_Press_Machine"},
+    {id:"l19",name:"Cadeira Abdutora",eq:"Máquina",muscles:"Abdutores do quadril",sets:3,reps:"15-20",rest:45,img:"Thigh_Abductor"},
+    {id:"l20",name:"Cadeira Adutora",eq:"Máquina",muscles:"Adutores do quadril",sets:3,reps:"15-20",rest:45,img:"Thigh_Adductor"},
+    {id:"l21",name:"Afundo Caminhando",eq:"Halteres",muscles:"Quadríceps, Glúteos",sets:3,reps:"12",rest:75,img:"Bodyweight_Walking_Lunge"},
+    {id:"l22",name:"Subida no Banco (Step Up)",eq:"Halteres",muscles:"Quadríceps, Glúteos",sets:3,reps:"12",rest:60,img:"Dumbbell_Step_Ups"},
+    {id:"l23",name:"Agachamento Sissy",eq:"Peso Corporal",muscles:"Quadríceps",sets:3,reps:"12-15",rest:60,img:"Sissy_Squat"},
+    {id:"l24",name:"Agachamento com Salto",eq:"Peso Corporal",muscles:"Quadríceps, Potência",sets:3,reps:"12-15",rest:60,img:"Jump_Squat"},
+    {id:"l25",name:"Levantamento Terra Romeno Unilateral",eq:"Halteres",muscles:"Isquiotibiais, Glúteos",sets:3,reps:"10-12",rest:60,img:"Single-Leg_Romanian_Deadlift"},
+    {id:"l26",name:"Agachamento Livre Profundo",eq:"Barra",muscles:"Quadríceps, Glúteos",sets:4,reps:"6-10",rest:120,img:"Barbell_Full_Squat"},
+    {id:"l27",name:"Cadeira Extensora Unilateral",eq:"Máquina",muscles:"Quadríceps",sets:3,reps:"12-15",rest:60,img:"Leg_Extensions"},
+    {id:"l28",name:"Panturrilha Unilateral em Pé",eq:"Halteres",muscles:"Gastrocnêmio",sets:3,reps:"15-20",rest:45,img:"Standing_Dumbbell_Calf_Raise"},
+    {id:"l29",name:"Agachamento Pistol",eq:"Peso Corporal",muscles:"Quadríceps, Glúteos, Equilíbrio",sets:3,reps:"8-10",rest:75,img:"Single_Leg_Squat"},
+    {id:"l30",name:"Leg Press Horizontal",eq:"Máquina",muscles:"Quadríceps, Glúteos",sets:3,reps:"12-15",rest:75,img:"Leg_Press"},
   ],
   ombros:[
-    {id:"o1",name:"Desenvolvimento com Halteres",eq:"Halteres",muscles:"Deltóide, Trapézio",sets:4,reps:"8-12",rest:90},
-    {id:"o2",name:"Desenvolvimento Militar com Barra",eq:"Barra",muscles:"Deltóide, Trapézio",sets:4,reps:"8-12",rest:90},
-    {id:"o3",name:"Elevação Lateral com Halteres",eq:"Halteres",muscles:"Deltóide médio",sets:3,reps:"12-15",rest:60},
-    {id:"o4",name:"Elevação Frontal com Halteres",eq:"Halteres",muscles:"Deltóide anterior",sets:3,reps:"12-15",rest:60},
-    {id:"o5",name:"Crucifixo Invertido com Halteres",eq:"Halteres",muscles:"Deltóide posterior, Romboides",sets:3,reps:"12-15",rest:60},
-    {id:"o6",name:"Arnold Press",eq:"Halteres",muscles:"Deltóide completo",sets:3,reps:"10-12",rest:75},
-    {id:"o7",name:"Elevação Lateral na Polia",eq:"Polia",muscles:"Deltóide médio",sets:3,reps:"12-15",rest:60},
-    {id:"o8",name:"Face Pull na Polia",eq:"Polia",muscles:"Deltóide posterior, Trapézio",sets:3,reps:"12-15",rest:60},
-    {id:"o9",name:"Desenvolvimento no Smith",eq:"Máquina",muscles:"Deltóide, Trapézio",sets:4,reps:"8-12",rest:90},
+    {id:"o1",name:"Desenvolvimento com Halteres",eq:"Halteres",muscles:"Deltóide, Trapézio",sets:4,reps:"8-12",rest:90,img:"Dumbbell_Shoulder_Press"},
+    {id:"o2",name:"Desenvolvimento Militar com Barra",eq:"Barra",muscles:"Deltóide, Trapézio",sets:4,reps:"8-12",rest:90,img:"Standing_Military_Press"},
+    {id:"o3",name:"Desenvolvimento Sentado com Barra",eq:"Barra",muscles:"Deltóide, Trapézio",sets:4,reps:"8-12",rest:90,img:"Seated_Barbell_Military_Press"},
+    {id:"o4",name:"Arnold Press",eq:"Halteres",muscles:"Deltóide completo",sets:3,reps:"10-12",rest:75,img:"Arnold_Dumbbell_Press"},
+    {id:"o5",name:"Desenvolvimento no Smith",eq:"Máquina",muscles:"Deltóide, Trapézio",sets:4,reps:"8-12",rest:90,img:"Smith_Machine_Overhead_Shoulder_Press"},
+    {id:"o6",name:"Desenvolvimento na Máquina",eq:"Máquina",muscles:"Deltóide",sets:3,reps:"10-12",rest:75,img:"Machine_Shoulder_(Military)_Press"},
+    {id:"o7",name:"Elevação Lateral com Halteres",eq:"Halteres",muscles:"Deltóide médio",sets:3,reps:"12-15",rest:60,img:"Side_Lateral_Raise"},
+    {id:"o8",name:"Elevação Lateral na Polia",eq:"Polia",muscles:"Deltóide médio",sets:3,reps:"12-15",rest:60,img:"Cable_Lateral_Raise"},
+    {id:"o9",name:"Elevação Frontal com Halteres",eq:"Halteres",muscles:"Deltóide anterior",sets:3,reps:"12-15",rest:60,img:"Front_Dumbbell_Raise"},
+    {id:"o10",name:"Elevação Frontal com Barra",eq:"Barra",muscles:"Deltóide anterior",sets:3,reps:"12-15",rest:60,img:"Front_Barbell_Raise"},
+    {id:"o11",name:"Crucifixo Invertido com Halteres",eq:"Halteres",muscles:"Deltóide posterior, Romboides",sets:3,reps:"12-15",rest:60,img:"Bent_Over_Dumbbell_Rear_Delt_Row_With_Head_On_Bench"},
+    {id:"o12",name:"Crucifixo Invertido na Máquina",eq:"Máquina",muscles:"Deltóide posterior",sets:3,reps:"12-15",rest:60,img:"Reverse_Machine_Flyes"},
+    {id:"o13",name:"Face Pull na Polia",eq:"Polia",muscles:"Deltóide posterior, Trapézio",sets:3,reps:"12-15",rest:60,img:"Face_Pull"},
+    {id:"o14",name:"Elevação Lateral Curvado",eq:"Halteres",muscles:"Deltóide posterior",sets:3,reps:"12-15",rest:60,img:"Seated_Bent-Over_Rear_Delt_Raise"},
+    {id:"o15",name:"Desenvolvimento Pike (Flexão)",eq:"Peso Corporal",muscles:"Deltóide, Tríceps",sets:3,reps:"10-12",rest:60,img:"Pike_Push-up"},
+    {id:"o16",name:"Elevação Lateral Inclinado",eq:"Halteres",muscles:"Deltóide médio",sets:3,reps:"12-15",rest:60,img:"Leaning_Dumbbell_Lateral_Raise"},
+    {id:"o17",name:"Desenvolvimento Arnold Sentado",eq:"Halteres",muscles:"Deltóide completo",sets:3,reps:"10-12",rest:75,img:"Arnold_Dumbbell_Press"},
+    {id:"o18",name:"Elevação Frontal na Polia",eq:"Polia",muscles:"Deltóide anterior",sets:3,reps:"12-15",rest:60,img:"Cable_Front_Raise"},
+    {id:"o19",name:"Remada Alta para Ombro",eq:"Barra",muscles:"Deltóide, Trapézio",sets:3,reps:"12-15",rest:60,img:"Upright_Barbell_Row"},
+    {id:"o20",name:"Elevação Lateral na Máquina",eq:"Máquina",muscles:"Deltóide médio",sets:3,reps:"12-15",rest:60,img:"Lateral_Raise_-_With_Bands"},
   ],
   trapezio:[
-    {id:"tr1",name:"Encolhimento com Barra",eq:"Barra",muscles:"Trapézio superior",sets:3,reps:"12-15",rest:60},
-    {id:"tr2",name:"Encolhimento com Halteres",eq:"Halteres",muscles:"Trapézio superior",sets:3,reps:"12-15",rest:60},
-    {id:"tr3",name:"Remada Alta com Barra",eq:"Barra",muscles:"Trapézio, Deltóide",sets:3,reps:"12-15",rest:60},
-    {id:"tr4",name:"Remada Alta com Halteres",eq:"Halteres",muscles:"Trapézio, Deltóide",sets:3,reps:"12-15",rest:60},
-    {id:"tr5",name:"Farmer Walk",eq:"Halteres",muscles:"Trapézio, Antebraço, Core",sets:3,reps:"30-40m",rest:60},
+    {id:"tr1",name:"Encolhimento com Barra",eq:"Barra",muscles:"Trapézio superior",sets:3,reps:"12-15",rest:60,img:"Barbell_Shrug"},
+    {id:"tr2",name:"Encolhimento com Halteres",eq:"Halteres",muscles:"Trapézio superior",sets:3,reps:"12-15",rest:60,img:"Dumbbell_Shrug"},
+    {id:"tr3",name:"Encolhimento no Smith",eq:"Máquina",muscles:"Trapézio superior",sets:3,reps:"12-15",rest:60,img:"Smith_Machine_Shrug"},
+    {id:"tr4",name:"Remada Alta com Barra",eq:"Barra",muscles:"Trapézio, Deltóide",sets:3,reps:"12-15",rest:60,img:"Upright_Barbell_Row"},
+    {id:"tr5",name:"Remada Alta com Halteres",eq:"Halteres",muscles:"Trapézio, Deltóide",sets:3,reps:"12-15",rest:60,img:"Dumbbell_Upright_Row"},
+    {id:"tr6",name:"Remada Alta na Polia",eq:"Polia",muscles:"Trapézio, Deltóide",sets:3,reps:"12-15",rest:60,img:"Upright_Cable_Row"},
+    {id:"tr7",name:"Farmer Walk",eq:"Halteres",muscles:"Trapézio, Antebraço, Core",sets:3,reps:"30-40m",rest:60,img:"Farmers_Walk"},
+    {id:"tr8",name:"Encolhimento na Polia",eq:"Polia",muscles:"Trapézio",sets:3,reps:"12-15",rest:60,img:"Cable_Shrugs"},
+    {id:"tr9",name:"Encolhimento por Trás (Barra)",eq:"Barra",muscles:"Trapézio",sets:3,reps:"12-15",rest:60,img:"Barbell_Shrug"},
+    {id:"tr10",name:"Remada Alta Unilateral",eq:"Polia",muscles:"Trapézio, Deltóide",sets:3,reps:"12-15",rest:60,img:"Upright_Cable_Row"},
   ],
   biceps:[
-    {id:"b1",name:"Rosca Direta com Barra",eq:"Barra",muscles:"Bíceps braquial, Braquial",sets:4,reps:"8-12",rest:75},
-    {id:"b2",name:"Rosca Alternada com Halteres",eq:"Halteres",muscles:"Bíceps, Braquiorradial",sets:3,reps:"10-12",rest:60},
-    {id:"b3",name:"Rosca Martelo",eq:"Halteres",muscles:"Bíceps, Braquial, Braquiorradial",sets:3,reps:"10-12",rest:60},
-    {id:"b4",name:"Rosca Scott com Barra",eq:"Barra",muscles:"Bíceps braquial",sets:3,reps:"10-12",rest:60},
-    {id:"b5",name:"Rosca na Polia Baixa",eq:"Polia",muscles:"Bíceps",sets:3,reps:"12-15",rest:60},
-    {id:"b6",name:"Rosca Concentrada",eq:"Halteres",muscles:"Bíceps braquial",sets:3,reps:"10-12",rest:60},
-    {id:"b7",name:"Rosca 21",eq:"Barra",muscles:"Bíceps completo",sets:3,reps:"21",rest:75},
-    {id:"b8",name:"Rosca Inversa com Barra",eq:"Barra",muscles:"Braquiorradial, Antebraço",sets:3,reps:"10-12",rest:60},
+    {id:"b1",name:"Rosca Direta com Barra",eq:"Barra",muscles:"Bíceps braquial, Braquial",sets:4,reps:"8-12",rest:75,img:"Barbell_Curl"},
+    {id:"b2",name:"Rosca Direta com Barra W",eq:"Barra",muscles:"Bíceps braquial",sets:3,reps:"10-12",rest:60,img:"EZ-Bar_Curl"},
+    {id:"b3",name:"Rosca Alternada com Halteres",eq:"Halteres",muscles:"Bíceps, Braquiorradial",sets:3,reps:"10-12",rest:60,img:"Dumbbell_Alternate_Bicep_Curl"},
+    {id:"b4",name:"Rosca Martelo",eq:"Halteres",muscles:"Bíceps, Braquial, Braquiorradial",sets:3,reps:"10-12",rest:60,img:"Hammer_Curls"},
+    {id:"b5",name:"Rosca Martelo na Polia",eq:"Polia",muscles:"Bíceps, Braquiorradial",sets:3,reps:"12-15",rest:60,img:"Cable_Hammer_Curls_-_Rope_Attachment"},
+    {id:"b6",name:"Rosca Scott com Barra",eq:"Barra",muscles:"Bíceps braquial",sets:3,reps:"10-12",rest:60,img:"Preacher_Curl"},
+    {id:"b7",name:"Rosca Scott com Halter",eq:"Halteres",muscles:"Bíceps braquial",sets:3,reps:"10-12",rest:60,img:"One_Arm_Dumbbell_Preacher_Curl"},
+    {id:"b8",name:"Rosca na Polia Baixa",eq:"Polia",muscles:"Bíceps",sets:3,reps:"12-15",rest:60,img:"Standing_Biceps_Cable_Curl"},
+    {id:"b9",name:"Rosca Concentrada",eq:"Halteres",muscles:"Bíceps braquial",sets:3,reps:"10-12",rest:60,img:"Concentration_Curls"},
+    {id:"b10",name:"Rosca Inversa com Barra",eq:"Barra",muscles:"Braquiorradial, Antebraço",sets:3,reps:"10-12",rest:60,img:"Reverse_Barbell_Curl"},
+    {id:"b11",name:"Rosca 21",eq:"Barra",muscles:"Bíceps completo",sets:3,reps:"21",rest:75,img:"Barbell_Curl"},
+    {id:"b12",name:"Rosca Inclinada com Halteres",eq:"Halteres",muscles:"Bíceps (cabeça longa)",sets:3,reps:"10-12",rest:60,img:"Incline_Dumbbell_Curl"},
+    {id:"b13",name:"Rosca Spider",eq:"Halteres",muscles:"Bíceps",sets:3,reps:"10-12",rest:60,img:"Spider_Curl"},
+    {id:"b14",name:"Rosca na Máquina",eq:"Máquina",muscles:"Bíceps",sets:3,reps:"12-15",rest:60,img:"Machine_Bicep_Curl"},
+    {id:"b15",name:"Rosca de Cabo (Cross)",eq:"Polia",muscles:"Bíceps",sets:3,reps:"12-15",rest:60,img:"Cable_Curl"},
+    {id:"b16",name:"Rosca Martelo na Corda",eq:"Polia",muscles:"Bíceps, Braquiorradial",sets:3,reps:"12-15",rest:60,img:"Cable_Hammer_Curls_-_Rope_Attachment"},
+    {id:"b17",name:"Rosca Direta na Polia Reta",eq:"Polia",muscles:"Bíceps",sets:3,reps:"12-15",rest:60,img:"Standing_Biceps_Cable_Curl"},
+    {id:"b18",name:"Rosca Zottman",eq:"Halteres",muscles:"Bíceps, Antebraço",sets:3,reps:"10-12",rest:60,img:"Zottman_Curl"},
   ],
   triceps:[
-    {id:"t1",name:"Tríceps Testa com Barra",eq:"Barra",muscles:"Tríceps longo, Lateral, Medial",sets:4,reps:"10-12",rest:60},
-    {id:"t2",name:"Tríceps Corda na Polia",eq:"Polia",muscles:"Tríceps",sets:4,reps:"12-15",rest:60},
-    {id:"t3",name:"Tríceps Francês com Halter",eq:"Halteres",muscles:"Tríceps longo",sets:3,reps:"10-12",rest:60},
-    {id:"t4",name:"Tríceps na Barra Paralela",eq:"Peso Corporal",muscles:"Tríceps, Peitoral",sets:3,reps:"8-12",rest:75},
-    {id:"t5",name:"Tríceps Coice com Halter",eq:"Halteres",muscles:"Tríceps",sets:3,reps:"12-15",rest:60},
-    {id:"t6",name:"Tríceps com Barra na Polia",eq:"Polia",muscles:"Tríceps",sets:3,reps:"12-15",rest:60},
-    {id:"t7",name:"Mergulho entre Bancos",eq:"Peso Corporal",muscles:"Tríceps, Peitoral inferior",sets:3,reps:"12-15",rest:60},
-    {id:"t8",name:"Tríceps no Smith",eq:"Máquina",muscles:"Tríceps",sets:3,reps:"10-12",rest:60},
+    {id:"t1",name:"Tríceps Testa com Barra",eq:"Barra",muscles:"Tríceps longo, Lateral, Medial",sets:4,reps:"10-12",rest:60,img:"Lying_Triceps_Press"},
+    {id:"t2",name:"Tríceps Testa com Halteres",eq:"Halteres",muscles:"Tríceps",sets:3,reps:"10-12",rest:60,img:"Lying_Dumbbell_Tricep_Extension"},
+    {id:"t3",name:"Tríceps Corda na Polia",eq:"Polia",muscles:"Tríceps",sets:4,reps:"12-15",rest:60,img:"Triceps_Pushdown_-_Rope_Attachment"},
+    {id:"t4",name:"Tríceps Barra na Polia",eq:"Polia",muscles:"Tríceps",sets:3,reps:"12-15",rest:60,img:"Triceps_Pushdown"},
+    {id:"t5",name:"Tríceps Francês com Halter",eq:"Halteres",muscles:"Tríceps longo",sets:3,reps:"10-12",rest:60,img:"Seated_Triceps_Press"},
+    {id:"t6",name:"Tríceps Francês na Polia",eq:"Polia",muscles:"Tríceps longo",sets:3,reps:"12-15",rest:60,img:"Cable_Rope_Overhead_Triceps_Extension"},
+    {id:"t7",name:"Tríceps Coice com Halter",eq:"Halteres",muscles:"Tríceps",sets:3,reps:"12-15",rest:60,img:"Tricep_Dumbbell_Kickback"},
+    {id:"t8",name:"Mergulho nas Paralelas",eq:"Peso Corporal",muscles:"Tríceps, Peitoral",sets:3,reps:"8-12",rest:75,img:"Dips_-_Triceps_Version"},
+    {id:"t9",name:"Mergulho entre Bancos",eq:"Peso Corporal",muscles:"Tríceps",sets:3,reps:"12-15",rest:60,img:"Bench_Dips"},
+    {id:"t10",name:"Supino Fechado (Tríceps)",eq:"Barra",muscles:"Tríceps, Peitoral interno",sets:3,reps:"10-12",rest:75,img:"Close-Grip_Barbell_Bench_Press"},
+    {id:"t11",name:"Tríceps na Máquina",eq:"Máquina",muscles:"Tríceps",sets:3,reps:"12-15",rest:60,img:"Triceps_Dip_Machine"},
+    {id:"t12",name:"Tríceps Unilateral na Polia",eq:"Polia",muscles:"Tríceps",sets:3,reps:"12-15",rest:60,img:"Cable_One_Arm_Tricep_Extension"},
+    {id:"t13",name:"Flexão Diamante (Tríceps)",eq:"Peso Corporal",muscles:"Tríceps, Peitoral",sets:3,reps:"12-15",rest:60,img:"Push-Ups_-_Close_Triceps_Position"},
+    {id:"t14",name:"Tríceps Francês Unilateral",eq:"Halteres",muscles:"Tríceps longo",sets:3,reps:"10-12",rest:60,img:"Standing_One-Arm_Dumbbell_Triceps_Extension"},
+    {id:"t15",name:"Tríceps Banco com Peso",eq:"Peso Corporal",muscles:"Tríceps",sets:3,reps:"12-15",rest:60,img:"Bench_Dips"},
   ],
   abdomen:[
-    {id:"a1",name:"Abdominal Crunch",eq:"Peso Corporal",muscles:"Reto abdominal",sets:3,reps:"15-20",rest:45},
-    {id:"a2",name:"Prancha (Plank)",eq:"Peso Corporal",muscles:"Core, Transverso abdominal",sets:3,reps:"30-60s",rest:45},
-    {id:"a3",name:"Abdominal na Polia",eq:"Polia",muscles:"Reto abdominal",sets:3,reps:"15-20",rest:45},
-    {id:"a4",name:"Elevação de Pernas no Solo",eq:"Peso Corporal",muscles:"Reto abdominal inferior",sets:3,reps:"15-20",rest:45},
-    {id:"a5",name:"Russian Twist",eq:"Peso Corporal",muscles:"Oblíquos, Core",sets:3,reps:"20",rest:45},
-    {id:"a6",name:"Mountain Climber",eq:"Peso Corporal",muscles:"Core, Cardio",sets:3,reps:"30s",rest:30},
-    {id:"a7",name:"Bicicleta Abdominal",eq:"Peso Corporal",muscles:"Oblíquos, Reto abdominal",sets:3,reps:"20",rest:45},
-    {id:"a8",name:"Abdominal na Barra",eq:"Barra",muscles:"Core, Flexores do quadril",sets:3,reps:"10-15",rest:45},
-    {id:"a9",name:"Prancha Lateral",eq:"Peso Corporal",muscles:"Oblíquos",sets:3,reps:"30-45s",rest:30},
-    {id:"a10",name:"Oblíquo na Polia",eq:"Polia",muscles:"Oblíquos",sets:3,reps:"15-20",rest:45},
+    {id:"a1",name:"Abdominal Crunch",eq:"Peso Corporal",muscles:"Reto abdominal",sets:3,reps:"15-20",rest:45,img:"Crunches"},
+    {id:"a2",name:"Abdominal na Polia",eq:"Polia",muscles:"Reto abdominal",sets:3,reps:"15-20",rest:45,img:"Cable_Crunch"},
+    {id:"a3",name:"Elevação de Pernas no Solo",eq:"Peso Corporal",muscles:"Reto abdominal inferior",sets:3,reps:"15-20",rest:45,img:"Flat_Bench_Lying_Leg_Raise"},
+    {id:"a4",name:"Elevação de Pernas na Barra",eq:"Barra",muscles:"Abdômen inferior",sets:3,reps:"10-15",rest:45,img:"Hanging_Leg_Raise"},
+    {id:"a5",name:"Prancha (Plank)",eq:"Peso Corporal",muscles:"Core, Transverso abdominal",sets:3,reps:"30-60s",rest:45,img:"Plank"},
+    {id:"a6",name:"Prancha Lateral",eq:"Peso Corporal",muscles:"Oblíquos",sets:3,reps:"30-45s",rest:30,img:"Side_Bridge"},
+    {id:"a7",name:"Russian Twist",eq:"Peso Corporal",muscles:"Oblíquos, Core",sets:3,reps:"20",rest:45,img:"Russian_Twist"},
+    {id:"a8",name:"Bicicleta Abdominal",eq:"Peso Corporal",muscles:"Oblíquos, Reto abdominal",sets:3,reps:"20",rest:45,img:"Air_Bike"},
+    {id:"a9",name:"Mountain Climber",eq:"Peso Corporal",muscles:"Core, Cardio",sets:3,reps:"30s",rest:30,img:"Mountain_Climbers"},
+    {id:"a10",name:"Abdominal Infra (Reverse Crunch)",eq:"Peso Corporal",muscles:"Abdômen inferior",sets:3,reps:"15-20",rest:45,img:"Reverse_Crunch"},
+    {id:"a11",name:"Oblíquo na Polia (Wood Chop)",eq:"Polia",muscles:"Oblíquos",sets:3,reps:"15-20",rest:45,img:"Standing_Cable_Wood_Chop"},
+    {id:"a12",name:"Roda Abdominal (Ab Wheel)",eq:"Peso Corporal",muscles:"Core completo",sets:3,reps:"10-15",rest:60,img:"Ab_Roller"},
+    {id:"a13",name:"Abdominal na Máquina",eq:"Máquina",muscles:"Reto abdominal",sets:3,reps:"15-20",rest:45,img:"Weighted_Crunches"},
+    {id:"a14",name:"Toque nos Pés",eq:"Peso Corporal",muscles:"Reto abdominal superior",sets:3,reps:"15-20",rest:45,img:"Toe_Touchers"},
+    {id:"a15",name:"Prancha com Elevação de Perna",eq:"Peso Corporal",muscles:"Core, Glúteos",sets:3,reps:"30-45s",rest:45,img:"Plank"},
+    {id:"a16",name:"Abdominal Canivete (V-Up)",eq:"Peso Corporal",muscles:"Reto abdominal completo",sets:3,reps:"12-15",rest:45,img:"Bottoms-Up"},
+    {id:"a17",name:"Flutter Kicks",eq:"Peso Corporal",muscles:"Abdômen inferior",sets:3,reps:"30s",rest:30,img:"Flutter_Kicks"},
+    {id:"a18",name:"Elevação de Joelhos Suspenso",eq:"Peso Corporal",muscles:"Abdômen inferior",sets:3,reps:"12-15",rest:45,img:"Hanging_Leg_Raise"},
   ],
   gluteos:[
-    {id:"g1",name:"Hip Thrust com Barra",eq:"Barra",muscles:"Glúteo máximo, Isquiotibiais",sets:4,reps:"10-15",rest:90},
-    {id:"g2",name:"Agachamento Sumô",eq:"Halteres",muscles:"Glúteos, Adutores, Quadríceps",sets:3,reps:"12-15",rest:75},
-    {id:"g3",name:"Glúteo no Cabo",eq:"Polia",muscles:"Glúteo máximo",sets:3,reps:"15-20",rest:45},
-    {id:"g4",name:"Afundo Reverso",eq:"Peso Corporal",muscles:"Glúteos, Quadríceps",sets:3,reps:"12",rest:60},
-    {id:"g5",name:"Elevação Pélvica",eq:"Peso Corporal",muscles:"Glúteos",sets:3,reps:"15-20",rest:45},
-    {id:"g6",name:"Abdução de Quadril",eq:"Máquina",muscles:"Glúteo médio, Abdutores",sets:3,reps:"15-20",rest:45},
-    {id:"g7",name:"Step Up com Halteres",eq:"Halteres",muscles:"Glúteos, Quadríceps",sets:3,reps:"12",rest:60},
+    {id:"g1",name:"Hip Thrust com Barra",eq:"Barra",muscles:"Glúteo máximo, Isquiotibiais",sets:4,reps:"10-15",rest:90,img:"Barbell_Hip_Thrust"},
+    {id:"g2",name:"Elevação Pélvica no Solo",eq:"Peso Corporal",muscles:"Glúteos",sets:3,reps:"15-20",rest:45,img:"Butt_Lift_(Bridge)"},
+    {id:"g3",name:"Glúteo no Cabo (Coice)",eq:"Polia",muscles:"Glúteo máximo",sets:3,reps:"15-20",rest:45,img:"Glute_Kickback"},
+    {id:"g4",name:"Abdução de Quadril na Máquina",eq:"Máquina",muscles:"Glúteo médio, Abdutores",sets:3,reps:"15-20",rest:45,img:"Thigh_Abductor"},
+    {id:"g5",name:"Agachamento Sumô (Glúteo)",eq:"Halteres",muscles:"Glúteos, Adutores",sets:3,reps:"12-15",rest:75,img:"Plie_Dumbbell_Squat"},
+    {id:"g6",name:"Afundo Reverso",eq:"Peso Corporal",muscles:"Glúteos, Quadríceps",sets:3,reps:"12",rest:60,img:"Bodyweight_Lunge"},
+    {id:"g7",name:"Step Up com Halteres",eq:"Halteres",muscles:"Glúteos, Quadríceps",sets:3,reps:"12",rest:60,img:"Dumbbell_Step_Ups"},
+    {id:"g8",name:"Ponte de Glúteo com Barra",eq:"Barra",muscles:"Glúteos",sets:3,reps:"12-15",rest:60,img:"Butt_Lift_(Bridge)"},
+    {id:"g9",name:"Coice de Glúteo no Solo",eq:"Peso Corporal",muscles:"Glúteo máximo",sets:3,reps:"15-20",rest:45,img:"Flutter_Kicks"},
+    {id:"g10",name:"Abdução em Pé na Polia",eq:"Polia",muscles:"Glúteo médio",sets:3,reps:"15-20",rest:45,img:"Glute_Kickback"},
+    {id:"g11",name:"Elevação Pélvica Unilateral",eq:"Peso Corporal",muscles:"Glúteos",sets:3,reps:"12-15",rest:45,img:"Butt_Lift_(Bridge)"},
+    {id:"g12",name:"Agachamento Búlgaro (Glúteo)",eq:"Halteres",muscles:"Glúteos, Quadríceps",sets:3,reps:"10-12",rest:75,img:"Dumbbell_Rear_Lunge"},
   ],
   antebraco:[
-    {id:"af1",name:"Rosca de Punho com Barra",eq:"Barra",muscles:"Flexores do punho",sets:3,reps:"15-20",rest:45},
-    {id:"af2",name:"Extensão de Punho com Barra",eq:"Barra",muscles:"Extensores do punho",sets:3,reps:"15-20",rest:45},
-    {id:"af3",name:"Farmer Carry",eq:"Halteres",muscles:"Antebraço, Trapézio, Core",sets:3,reps:"30m",rest:60},
-    {id:"af4",name:"Pronação e Supinação",eq:"Halteres",muscles:"Pronadores, Supinadores",sets:3,reps:"15-20",rest:45},
+    {id:"af1",name:"Rosca de Punho com Barra",eq:"Barra",muscles:"Flexores do punho",sets:3,reps:"15-20",rest:45,img:"Palms-Up_Barbell_Wrist_Curl_Over_A_Bench"},
+    {id:"af2",name:"Extensão de Punho com Barra",eq:"Barra",muscles:"Extensores do punho",sets:3,reps:"15-20",rest:45,img:"Palms-Down_Wrist_Curl_Over_A_Bench"},
+    {id:"af3",name:"Rosca de Punho com Halteres",eq:"Halteres",muscles:"Flexores do punho",sets:3,reps:"15-20",rest:45,img:"Seated_One-arm_Dumbbell_Palms-Up_Wrist_Curl"},
+    {id:"af4",name:"Farmer Carry",eq:"Halteres",muscles:"Antebraço, Trapézio, Core",sets:3,reps:"30m",rest:60,img:"Farmers_Walk"},
+    {id:"af5",name:"Rosca Inversa (Antebraço)",eq:"Barra",muscles:"Braquiorradial, Extensores",sets:3,reps:"12-15",rest:60,img:"Reverse_Barbell_Curl"},
+    {id:"af6",name:"Rolo de Punho (Wrist Roller)",eq:"Peso Corporal",muscles:"Antebraço",sets:3,reps:"3-5",rest:60,img:"Wrist_Roller"},
+    {id:"af7",name:"Rosca Martelo (Antebraço)",eq:"Halteres",muscles:"Braquiorradial",sets:3,reps:"12-15",rest:60,img:"Hammer_Curls"},
+    {id:"af8",name:"Extensão de Punho na Polia",eq:"Polia",muscles:"Extensores do punho",sets:3,reps:"15-20",rest:45,img:"Cable_Wrist_Curl"},
   ],
 };
+
+// ═══════════════════════════════════════════
+// EXERCISE IMAGE SYSTEM (real photos — free-exercise-db)
+// Each exercise carries an `img` directory name. Photos show real people.
+// ═══════════════════════════════════════════
+function exImgDir(id){
+  const ex=(typeof id==="object")?id:ALL_EX_LOOKUP[id];
+  return ex&&ex.img?ex.img:null;
+}
+function gifUrl(id){
+  const dir=exImgDir(id);
+  if(!dir)return "";
+  return `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${dir}/0.jpg`;
+}
+function gifUrlAlt(id){
+  const dir=exImgDir(id);
+  if(!dir)return "";
+  return `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${dir}/1.jpg`;
+}
 const ALL_EX=Object.entries(EXERCISES).flatMap(([g,arr])=>arr.map(e=>({...e,group:g})));
+const ALL_EX_LOOKUP=Object.fromEntries(ALL_EX.map(e=>[e.id,e]));
 
 // ═══════════════════════════════════════════
 // FOOD DATABASE (300+ Brazilian foods)
@@ -1653,7 +1723,7 @@ function updateCaloriasNumbersInPlace(){
 }
 
 function mealsTitleHTML(mealsTitle){
-  return `<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mealsTitle}</span><div style="display:flex;gap:6px;flex-shrink:0">${S.foods.length>0?`<button id="bClearDay" title="Limpar dia" style="background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.25);color:#FF8888;font-size:13px;font-weight:700;padding:7px 9px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center" aria-label="Limpar refeições do dia"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>`:""}<button class="btn-sm-orange" id="bAIPhoto" style="padding:7px 11px;font-size:12px">📸 IA</button><button class="btn-sm-orange" id="bAddFood" style="padding:7px 11px;font-size:12px">+ Adicionar</button></div>`;
+  return `<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mealsTitle}</span><div style="display:flex;gap:6px;flex-shrink:0">${S.foods.length>0?`<button id="bClearDay" title="Limpar dia" style="background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.25);color:#FF8888;font-size:13px;font-weight:700;padding:7px 9px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center" aria-label="Limpar refeições do dia"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>`:""}<button class="btn-sm-orange" id="bAIPhoto" style="padding:7px 11px;font-size:12px">✨ IA</button><button class="btn-sm-orange" id="bAddFood" style="padding:7px 11px;font-size:12px">+ Adicionar</button></div>`;
 }
 
 function buildFoodsListHTML(){
@@ -1718,7 +1788,7 @@ function rebindWaterHandlers(scope){
 
 function rebindMealsHeaderHandlers(scope){
   scope.querySelector("#bAddFood")?.addEventListener("click",()=>{FX.tap();S.pendingMealCat="sem_categoria";S.foodModalMode="add";S.foodAddStep="picker";S.modal="food";r();});
-  scope.querySelector("#bAIPhoto")?.addEventListener("click",()=>{FX.tap();S.pendingMealCat="sem_categoria";S.foodModalMode="ai";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;S.aiIngChecked=null;r();});
+  scope.querySelector("#bAIPhoto")?.addEventListener("click",()=>{FX.tap();S.pendingMealCat="sem_categoria";S.foodModalMode="ai";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;S.aiIngChecked=null;S.aiPhotoStep=false;r();});
   scope.querySelector("#bClearDay")?.addEventListener("click",()=>{FX.warn();S.modal="clearDay";r();});
 }
 
@@ -1914,8 +1984,8 @@ function rCalorias(){
 
   // Button handlers
   d.querySelector("#bAddFood")?.addEventListener("click",()=>{FX.tap();S.pendingMealCat="sem_categoria";S.foodModalMode="add";S.foodAddStep="picker";S.modal="food";r();});
-  d.querySelector("#bAutoDiet")?.addEventListener("click",()=>{FX.tapSoft();S.modal="autoDiet";S.dietResult=null;S.dietLoading=false;r();});
-  d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{FX.tap();S.pendingMealCat="sem_categoria";S.foodModalMode="ai";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;S.aiIngChecked=null;r();});
+  d.querySelector("#bAutoDiet")?.addEventListener("click",()=>{FX.tapSoft();S.pendingMealCat="sem_categoria";S.foodModalMode="ai";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;S.aiIngChecked=null;S.aiPhotoStep=false;r();});
+  d.querySelector("#bAIPhoto")?.addEventListener("click",()=>{FX.tap();S.pendingMealCat="sem_categoria";S.foodModalMode="ai";S.modal="food";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;S.aiIngChecked=null;S.aiPhotoStep=false;r();});
 
   // Água: handlers in-place (sem rerender do tab inteiro)
   rebindWaterHandlers(d);
@@ -2014,16 +2084,55 @@ function rCalorias(){
 // ─── EXERCÍCIOS ───
 function rExercicios(){
   const d=D("tab-page");
+  if(!S.exEquip)S.exEquip="";
   const filtered=ALL_EX.filter(e=>{
     const gOk=!S.exGroup||e.group===S.exGroup;
-    const sOk=!S.exFilter||e.name.toLowerCase().includes(S.exFilter.toLowerCase());
-    return gOk&&sOk;
+    const eqOk=!S.exEquip||e.eq===S.exEquip;
+    const sOk=!S.exFilter||e.name.toLowerCase().includes(S.exFilter.toLowerCase())||e.muscles.toLowerCase().includes(S.exFilter.toLowerCase());
+    return gOk&&eqOk&&sOk;
   });
   const MGROUPS=Object.entries(MUSCLE_META).map(([id,v])=>({id,...v}));
-  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Exercícios</div></div><div class="search-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício..." value="${S.exFilter}"/></div><div class="mfilters"><button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div><div class="list-body">${filtered.map(e=>{const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-row" data-exd="${e.id}"><div class="ex-thumb" id="et_${e.id}" style="display:flex;align-items:center;justify-content:center;background:${m.bg};overflow:hidden;position:relative"><img src="${gifUrl(e.id)}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center">${muscleSVG(e.group,m.color)}</div></div><div class="ex-info"><div class="ex-nm">${e.name}</div><div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${e.eq}</span></div></div><div class="chev">›</div></div>`;}).join("")}</div>`;
+  const EQUIPS=[...new Set(ALL_EX.map(e=>e.eq))];
+  const eqIcon=eq=>({"Barra":"🏋️","Halteres":"💪","Polia":"🔗","Máquina":"⚙️","Peso Corporal":"🤸"})[eq]||"🏷️";
+  d.innerHTML=`
+    <div class="ex-hero">
+      <div class="ex-hero-row">
+        <div>
+          <div class="ex-hero-title">Exercícios</div>
+          <div class="ex-hero-sub">${ALL_EX.length} movimentos · biblioteca completa</div>
+        </div>
+        <div class="ex-hero-badge">PRO</div>
+      </div>
+    </div>
+    <div class="search-box ex-search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício ou músculo..." value="${S.exFilter}"/></div>
+    <div class="mfilters">
+      <button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>
+      ${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}
+    </div>
+    <div class="eqfilters">
+      <button class="eqf ${!S.exEquip?"eqf-on":""}" data-eq="">Todos equipamentos</button>
+      ${EQUIPS.map(eq=>`<button class="eqf ${S.exEquip===eq?"eqf-on":""}" data-eq="${eq}">${eqIcon(eq)} ${eq}</button>`).join("")}
+    </div>
+    <div class="ex-count">${filtered.length} ${filtered.length===1?"exercício":"exercícios"}</div>
+    <div class="list-body">${filtered.length===0?`<div class="empty" style="padding:50px 0"><div style="font-size:44px;opacity:0.5">🔍</div><p style="margin-top:10px">Nenhum exercício encontrado</p><p style="font-size:13px;color:var(--text3);margin-top:4px">Tente outro filtro ou busca</p></div>`:filtered.map(e=>{
+      const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
+      return `<div class="ex-row ex-row-pro" data-exd="${e.id}">
+        <div class="ex-thumb ex-thumb-pro" style="background:linear-gradient(135deg,${m.bg},rgba(0,0,0,0.2))">
+          <img src="${gifUrl(e.id)}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center">${muscleSVG(e.group,m.color)}</div>
+          <div class="ex-thumb-grad"></div>
+        </div>
+        <div class="ex-info">
+          <div class="ex-nm">${e.name}</div>
+          <div class="ex-mus">${e.muscles}</div>
+          <div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${eqIcon(e.eq)} ${e.eq}</span></div>
+        </div>
+        <div class="chev">›</div>
+      </div>`;}).join("")}</div>`;
   d.querySelector("#exS")?.addEventListener("input",e=>{S.exFilter=e.target.value;r();});
-  d.querySelectorAll("[data-mg]").forEach(b=>b.onclick=()=>{S.exGroup=b.dataset.mg;r();});
-  d.querySelectorAll("[data-exd]").forEach(row=>row.onclick=()=>{const ex=ALL_EX.find(e=>e.id===row.dataset.exd);if(ex){S.modal="exDetail";S.mCtx={ex};r();}});
+  d.querySelectorAll("[data-mg]").forEach(b=>b.onclick=()=>{FX.tap();S.exGroup=b.dataset.mg;r();});
+  d.querySelectorAll("[data-eq]").forEach(b=>b.onclick=()=>{FX.tap();S.exEquip=b.dataset.eq;r();});
+  d.querySelectorAll("[data-exd]").forEach(row=>row.onclick=()=>{FX.tapSoft();const ex=ALL_EX.find(e=>e.id===row.dataset.exd);if(ex){S.modal="exDetail";S.mCtx={ex};r();}});
   return d;
 }
 
@@ -2173,31 +2282,56 @@ function rPremiumModal(){
   const d2=d.querySelector(".modal-sheet");
   d.onclick=e=>{if(e.target===d)closeModal();};
   const premium=isPremium();
+  const feats=[
+    ["🤖","#FF6B00","rgba(255,107,0,0.14)","IA ilimitada","Treinos e análises de comida sem limite diário"],
+    ["📈","#4B9EFF","rgba(75,158,255,0.14)","Progressão inteligente","A IA ajusta carga, reps e descanso automaticamente"],
+    ["🍽️","#22D3A5","rgba(34,211,165,0.14)","Dieta automática","Gera refeições e substitui alimentos por você"],
+    ["📊","#A78BFA","rgba(167,139,250,0.14)","Relatórios avançados","Gráficos de evolução e previsão de resultados"],
+    ["🚫","#F472B6","rgba(244,114,182,0.14)","Sem anúncios","Experiência limpa e sem interrupções"],
+  ];
   d2.innerHTML=`<div class="modal-handle"></div>
-    <div class="modal-hdr"><div class="modal-title">👑 Premium</div><button class="close-x" id="bX">✕</button></div>
-    <div style="max-height:74vh;overflow-y:auto;padding:2px;-webkit-overflow-scrolling:touch">
-      <div style="text-align:center;padding:8px 0 18px">
-        <div style="font-size:54px">${premium?"⭐":"👑"}</div>
-        <div style="font-size:24px;font-weight:900;color:var(--text);margin-top:6px">BoltFit Premium</div>
-        <div style="font-size:13px;color:${premium?"#22D3A5":"var(--text2)"};margin-top:6px;font-weight:600">${premium?"✓ Você é Premium — aproveite tudo sem limites!":"Desbloqueie todo o potencial do app"}</div>
+    <div class="modal-hdr"><div class="modal-title">${premium?"⭐ Seu Plano":"👑 Premium"}</div><button class="close-x" id="bX">✕</button></div>
+    <div style="max-height:76vh;overflow-y:auto;padding:2px;-webkit-overflow-scrolling:touch">
+
+      <div class="prem-hero ${premium?"prem-hero-active":""}">
+        <div class="prem-hero-shine"></div>
+        <div class="prem-crown">${premium?"⭐":"👑"}</div>
+        <div class="prem-hero-title">BoltFit Premium</div>
+        <div class="prem-hero-sub ${premium?"prem-sub-active":""}">${premium?"✓ Plano ativo — tudo liberado, sem limites":"Desbloqueie todo o potencial do app"}</div>
+        ${premium?`<div class="prem-active-pill">PLANO ATIVO</div>`:""}
       </div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:700;letter-spacing:0.5px">O QUE O PREMIUM OFERECE</div>
-      ${[
-        ["🤖","IA ilimitada","Treinos e análises de comida sem limite diário"],
-        ["📈","Progressão inteligente","A IA ajusta carga, reps e descanso automaticamente"],
-        ["🍽️","Dieta automática","Gera refeições e substitui alimentos por você"],
-        ["📊","Relatórios avançados","Gráficos de evolução e previsão de resultados"],
-        ["🚫","Sem anúncios","Experiência limpa e sem interrupções"],
-      ].map(([ic,t,ds])=>`<div style="display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--border)"><div style="font-size:24px;flex-shrink:0">${ic}</div><div><div style="font-weight:700;font-size:14.5px;color:var(--text)">${t}</div><div style="font-size:12px;color:var(--text2);margin-top:1px">${ds}</div></div></div>`).join("")}
-      ${premium
-        ?`<div style="background:linear-gradient(135deg,rgba(34,211,165,0.12),rgba(34,211,165,0.04));border:1px solid rgba(34,211,165,0.3);border-radius:14px;padding:16px;text-align:center;margin-top:18px"><div style="font-size:14px;font-weight:700;color:#22D3A5">Plano ativo</div><div style="font-size:12px;color:var(--text2);margin-top:4px">IA ilimitada e todos os recursos liberados</div></div>
-          <button class="btn-sec" id="bManagePlan" style="width:100%;margin-top:12px;padding:13px">Voltar para o plano Grátis</button>`
-        :`<div style="background:var(--bg3);border-radius:16px;padding:18px;margin-top:18px;text-align:center">
-            <div style="font-size:13px;color:var(--text2)">Plano mensal</div>
-            <div style="font-size:32px;font-weight:900;color:var(--orange);margin:4px 0">R$ 19,90<span style="font-size:14px;color:var(--text3);font-weight:600">/mês</span></div>
-            <div style="font-size:11px;color:var(--text3)">Cancele quando quiser</div>
+
+      <div class="prem-sec-lbl">O QUE O PREMIUM OFERECE</div>
+      <div class="prem-feats">
+        ${feats.map(([ic,col,bg,t,ds])=>`<div class="prem-feat">
+          <div class="prem-feat-ic" style="background:${bg};box-shadow:0 3px 10px ${bg}">${ic}</div>
+          <div style="flex:1;min-width:0">
+            <div class="prem-feat-t">${t}</div>
+            <div class="prem-feat-d">${ds}</div>
           </div>
-          <button class="btn-primary" id="bUpgrade" style="width:100%;margin-top:14px;padding:16px;font-size:16px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">👑 Assinar Premium</button>`}
+          ${premium?`<div class="prem-check" style="color:${col}">✓</div>`:""}
+        </div>`).join("")}
+      </div>
+
+      ${premium
+        ?`<div class="prem-active-card">
+            <div style="font-size:15px;font-weight:800;color:#22D3A5;display:flex;align-items:center;gap:8px"><span style="font-size:18px">✓</span> Você é Premium</div>
+            <div style="font-size:12.5px;color:var(--text2);margin-top:5px;line-height:1.4">IA ilimitada, dieta automática e todos os recursos avançados estão liberados na sua conta.</div>
+          </div>
+          <button class="prem-manage" id="bManagePlan">Voltar para o plano Grátis</button>`
+        :`<div class="prem-plan-card">
+            <div class="prem-plan-shine"></div>
+            <div style="position:relative;z-index:1">
+              <div style="font-size:12px;color:var(--text2);font-weight:600;letter-spacing:0.5px">PLANO MENSAL</div>
+              <div style="display:flex;align-items:baseline;gap:4px;justify-content:center;margin:6px 0">
+                <span style="font-size:38px;font-weight:900;color:#fff;line-height:1">R$ 19,90</span>
+                <span style="font-size:14px;color:var(--text3);font-weight:600">/mês</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--text3)">Cancele quando quiser · sem fidelidade</div>
+            </div>
+          </div>
+          <button class="prem-cta" id="bUpgrade"><span style="font-size:18px">👑</span> Assinar Premium</button>
+          <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:10px">Pagamento seguro · ativação imediata</div>`}
     </div>`;
   d2.querySelector("#bX").onclick=closeModal;
   d2.querySelector("#bUpgrade")?.addEventListener("click",()=>{
@@ -2542,7 +2676,24 @@ function rFoodModal(){
       const w=S.aiPlateWeight>0?`<div style="font-size:11px;color:#555;margin-top:2px">Baseado em ${S.aiPlateWeight}g do prato</div>`:"";
       return `<div>${S.aiImg?`<img src="${S.aiImg}" style="width:100%;max-height:90px;object-fit:cover;border-radius:10px;margin-bottom:10px"/>`:""}<div style="font-size:11px;color:#888;margin-bottom:3px">🤖 Estimativa IA:</div><div style="font-weight:700;font-size:16px;color:#fff">${S.aiResult.n}</div>${w}<div style="font-size:16px;color:#FF6B00;font-weight:800;margin:8px 0">${S.aiResult.cal} kcal &nbsp;·&nbsp; P:${S.aiResult.p}g · C:${S.aiResult.c}g · G:${S.aiResult.f}g</div><div style="display:flex;gap:8px"><button class="btn-primary" id="bAddAI" style="flex:1;padding:12px">✓ Adicionar</button><button class="btn-sec" id="bRetryAI" style="flex:1;padding:12px">↺ Nova foto</button></div></div>`;
     }
-    return `<div style="display:flex;align-items:center;gap:12px"><div style="font-size:32px">📸</div><div style="flex:1"><div style="font-weight:700;font-size:15px">Analisar com IA</div><div style="font-size:12px;color:#888;margin-top:2px">Tire uma foto e a IA estima as calorias</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><label style="padding:12px;background:var(--orange);border-radius:var(--radius);text-align:center;font-weight:700;font-size:14px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;gap:6px">📷 Câmera<input type="file" accept="image/*" capture="environment" id="bCamInput" style="display:none"/></label><label style="padding:12px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:var(--radius);text-align:center;font-weight:700;font-size:14px;cursor:pointer;color:var(--orange);display:flex;align-items:center;justify-content:center;gap:6px">🖼️ Galeria<input type="file" accept="image/*" id="bGalInput" style="display:none"/></label></div>`;
+    // Sub-etapa: capturar foto (câmera/galeria)
+    if(S.aiPhotoStep){
+      return `<div style="display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:14px;padding:14px;margin-bottom:14px"><div style="font-size:30px">📸</div><div style="flex:1"><div style="font-weight:800;font-size:15px;color:var(--text)">Foto da refeição</div><div style="font-size:12px;color:var(--text3);margin-top:2px">A IA identifica os alimentos e calcula as calorias</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label style="padding:16px 12px;background:linear-gradient(135deg,#FF6B00,#FF8C42);border-radius:14px;text-align:center;font-weight:700;font-size:14px;cursor:pointer;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 14px rgba(255,107,0,0.25)"><span style="font-size:24px">📷</span>Câmera<input type="file" accept="image/*" capture="environment" id="bCamInput" style="display:none"/></label><label style="padding:16px 12px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:14px;text-align:center;font-weight:700;font-size:14px;cursor:pointer;color:var(--orange);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px"><span style="font-size:24px">🖼️</span>Galeria<input type="file" accept="image/*" id="bGalInput" style="display:none"/></label></div>`;
+    }
+    // Hub unificado: escolher entre Foto e Dieta com IA
+    const premiumBadge=isPremium()?"":`<span style="font-size:9px;font-weight:800;color:#FFD700;background:rgba(255,215,0,0.12);padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle">PREMIUM</span>`;
+    return `<div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+      <button class="ai-hub-card" id="bAIHubPhoto" style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:18px;cursor:pointer;text-align:left;width:100%;transition:all .18s">
+        <div style="width:48px;height:48px;flex-shrink:0;border-radius:13px;background:linear-gradient(135deg,#FF6B00,#FFB347);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(255,107,0,0.3)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+        <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:var(--text)">Tirar foto e identificar</div><div style="font-size:12px;color:var(--text3);margin-top:3px;line-height:1.35">A IA reconhece os alimentos no prato e calcula calorias e macros</div></div>
+        <span style="color:var(--text3);font-size:20px;flex-shrink:0">→</span>
+      </button>
+      <button class="ai-hub-card" id="bAIHubDiet" style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:18px;cursor:pointer;text-align:left;width:100%;transition:all .18s">
+        <div style="width:48px;height:48px;flex-shrink:0;border-radius:13px;background:linear-gradient(135deg,#22D3A5,#16B894);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(34,211,165,0.3)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg></div>
+        <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:var(--text)">Gerar dieta com IA${premiumBadge}</div><div style="font-size:12px;color:var(--text3);margin-top:3px;line-height:1.35">Plano completo de refeições para sua meta de ${S.targetCal||0} kcal</div></div>
+        <span style="color:var(--text3);font-size:20px;flex-shrink:0">→</span>
+      </button>
+    </div>`;
   };
 
   const render=()=>{
@@ -2556,16 +2707,25 @@ function rFoodModal(){
     const isAI=mode==="ai";
     const step=S.foodAddStep||"picker"; // "picker" | "manual" | "db"
 
-    // ─── MODE AI ───
+    // ─── MODE AI (hub unificado: foto + dieta) ───
     if(isAI){
       d.innerHTML=`<div class="modal-sheet">
         <div class="modal-handle"></div>
-        <div class="modal-hdr"><div class="modal-title">Analisar com IA</div><button class="close-x" id="bCloseFood">✕</button></div>
+        <div class="modal-hdr"><div style="display:flex;align-items:center;gap:10px"><button id="bAIBack" style="background:var(--bg3);border:1px solid var(--border-soft);color:var(--text);width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;padding:0">←</button><div><div class="modal-title">IA Nutricional</div><div class="modal-sub">Foto inteligente ou dieta completa</div></div></div><button class="close-x" id="bCloseFood">✕</button></div>
         <div class="ai-zone" id="aiZone">${buildAIHtml()}</div>
       </div>`;
       d.querySelector("#bCloseFood").onclick=()=>closeModal();
+      d.querySelector("#bAIBack").onclick=()=>{
+        // Se está numa subetapa da foto, volta pro hub; senão volta pro picker
+        if(S.aiLoading||S.aiError||S.aiWeightStep||S.aiResult||S.aiPhotoStep){
+          S.aiLoading=false;S.aiError=null;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiIngChecked=null;S.aiPhotoStep=false;S.aiImg=null;
+          const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindAIButtons();bindCam();}
+        }else{
+          S.foodModalMode="add";S.foodAddStep="picker";render();
+        }
+      };
       d.onclick=e=>{if(e.target===d)closeModal();};
-      bindAIButtons();bindCam();return;
+      bindAIButtons();bindCam();bindAIHub();return;
     }
 
     // ─── MODE ADD: PICKER (escolha entre Manual e Banco de Dados) ───
@@ -2574,27 +2734,42 @@ function rFoodModal(){
         <div class="modal-handle"></div>
         <div class="modal-hdr"><div><div class="modal-title">Adicionar Refeição</div><div class="modal-sub">Como você quer registrar?</div></div><button class="close-x" id="bCloseFood">✕</button></div>
         <div class="food-picker">
-          <button class="food-picker-card" id="bPickManual">
-            <div class="fpc-icon fpc-icon-manual">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <button class="food-picker-card" id="bPickAI">
+            <div class="fpc-icon" style="background:linear-gradient(135deg,#FF6B00,#FFB347);box-shadow:0 4px 16px rgba(255,107,0,0.35)">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </div>
-            <div class="fpc-title">Inserir manualmente</div>
-            <div class="fpc-desc">Digite nome, calorias e macros do seu alimento</div>
+            <div class="fpc-body">
+              <div class="fpc-title">Analisar com IA <span style="font-size:9px;font-weight:800;color:#FF6B00;background:rgba(255,107,0,0.15);padding:2px 7px;border-radius:10px;vertical-align:middle;margin-left:4px">FOTO</span></div>
+              <div class="fpc-desc">Tire ou envie uma foto e a IA identifica e calcula tudo</div>
+            </div>
             <div class="fpc-arrow">→</div>
           </button>
           <button class="food-picker-card" id="bPickDb">
             <div class="fpc-icon fpc-icon-db">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
-            <div class="fpc-title">Banco de dados</div>
-            <div class="fpc-desc">Busque entre centenas de alimentos prontos</div>
+            <div class="fpc-body">
+              <div class="fpc-title">Banco de dados</div>
+              <div class="fpc-desc">Busque entre centenas de alimentos prontos</div>
+            </div>
+            <div class="fpc-arrow">→</div>
+          </button>
+          <button class="food-picker-card" id="bPickManual">
+            <div class="fpc-icon fpc-icon-manual">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <div class="fpc-body">
+              <div class="fpc-title">Inserir manualmente</div>
+              <div class="fpc-desc">Digite nome, calorias e macros do seu alimento</div>
+            </div>
             <div class="fpc-arrow">→</div>
           </button>
         </div>
       </div>`;
       d.querySelector("#bCloseFood").onclick=()=>closeModal();
       d.onclick=e=>{if(e.target===d)closeModal();};
-      d.querySelector("#bPickManual").onclick=()=>{FX.tapSoft();closeModal();setTimeout(()=>{S.modal="addFoodManual";r();},50);};
+      d.querySelector("#bPickManual").onclick=()=>{FX.tapSoft();S.modal="addFoodManual";S.mCtx=null;r();};
+      d.querySelector("#bPickAI").onclick=()=>{FX.tapSoft();S.foodModalMode="ai";S.aiLoading=false;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiError=null;S.aiIngChecked=null;render();};
       d.querySelector("#bPickDb").onclick=()=>{FX.tapSoft();S.foodAddStep="db";render();};
       return;
     }
@@ -2663,6 +2838,20 @@ function rFoodModal(){
     // Food row clicks are bound inside updateList() (with quantity picker + community foods)
 
     bindCam();
+  };
+
+  const bindAIHub=()=>{
+    d.querySelector("#bAIHubPhoto")?.addEventListener("click",()=>{
+      FX.tapSoft();
+      S.aiPhotoStep=true;S.aiError=null;S.aiResult=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiImg=null;
+      const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindCam();bindAIButtons();}
+    });
+    d.querySelector("#bAIHubDiet")?.addEventListener("click",()=>{
+      FX.tapSoft();
+      // Abre o fluxo de dieta automática
+      closeModal();
+      setTimeout(()=>{S.modal="autoDiet";S.dietResult=null;S.dietLoading=false;r();},300);
+    });
   };
 
   const bindCam=()=>{
@@ -2789,7 +2978,7 @@ function rFoodModal(){
 
   const bindAIButtons=()=>{
     // Helper to redraw the AI zone and rebind
-    const redrawAI=()=>{const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindAIButtons();bindCam();}};
+    const redrawAI=()=>{const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindAIButtons();bindCam();bindAIHub();}};
     // Ingredient confirm/uncheck
     d.querySelectorAll(".ai-ing-row").forEach(row=>row.onclick=e=>{
       if(e.target.closest("[data-del-ing]"))return;
@@ -2838,7 +3027,7 @@ function rFoodModal(){
         closeModal();
       }
     });
-    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;S.aiError=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiIngChecked=null;const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindCam();}});
+    d.querySelector("#bRetryAI")?.addEventListener("click",()=>{S.aiResult=null;S.aiImg=null;S.aiError=null;S.aiRawResult=null;S.aiWeightStep=false;S.aiPlateWeight=0;S.aiIngChecked=null;S.aiPhotoStep=true;const az=d.querySelector("#aiZone");if(az){az.innerHTML=buildAIHtml();bindCam();bindAIButtons();}});
   };
 
   const calcAndShowResult=(plateWeight)=>{
@@ -3036,18 +3225,25 @@ function rAssignModal(){
 function rExDetailModal(){
   const ex=S.mCtx?.ex;if(!ex)return D("div");
   const m=MUSCLE_META[ex.group]||{label:ex.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
+  const eqIcon=({"Barra":"🏋️","Halteres":"💪","Polia":"🔗","Máquina":"⚙️","Peso Corporal":"🤸"})[ex.eq]||"🏷️";
   const d=sheet(ex.name,"",`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div style="background:var(--bg3);border-radius:12px;overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;padding:0;position:relative"><img src="${gifUrl(ex.id)}" alt="${ex.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;padding:10px">${exerciseAnimation(ex.group,m.color)}</div></div>
-      <div style="background:var(--bg3);border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center">${muscleSVG(ex.group,m.color)}</div>
+    <div style="position:relative;border-radius:18px;overflow:hidden;margin-bottom:14px;background:linear-gradient(135deg,${m.bg},rgba(0,0,0,0.25));aspect-ratio:16/11;display:flex;align-items:center;justify-content:center">
+      <img src="${gifUrl(ex.id)}" alt="${ex.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;const a='${gifUrlAlt(ex.id)}';if(a&&this.src!==a){this.src=a;}else{this.style.display='none';this.nextElementSibling.style.display='flex';}"/>
+      <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;padding:14px">${exerciseAnimation(ex.group,m.color)}</div>
+      <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.45),transparent 50%);pointer-events:none"></div>
+      <div style="position:absolute;top:12px;left:12px;display:flex;gap:6px"><span class="ex-tag" style="color:#fff;background:${m.color};font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${m.label}</span></div>
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${ex.eq}</span></div>
-    <div class="sec-lbl" style="margin-bottom:6px">MÚSCULOS</div>
-    <p style="font-size:14px;color:#aaa;margin-bottom:16px">${ex.muscles}</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-      <div class="ic"><div class="iv" style="color:var(--orange)">${ex.sets}</div><div class="il">Séries</div></div>
-      <div class="ic"><div class="iv" style="color:var(--orange)">${ex.reps}</div><div class="il">Reps</div></div>
-      <div class="ic"><div class="iv" style="color:var(--orange)">${ex.rest}s</div><div class="il">Descanso</div></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+      <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:12px;padding:11px 14px"><span style="font-size:18px">${eqIcon}</span><div><div style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:0.5px">EQUIPAMENTO</div><div style="font-size:13.5px;font-weight:700;color:var(--text)">${ex.eq}</div></div></div>
+      <div style="width:64px;height:64px;flex-shrink:0;background:var(--bg3);border:1px solid var(--border-soft);border-radius:12px;display:flex;align-items:center;justify-content:center;padding:6px">${muscleSVG(ex.group,m.color)}</div>
+    </div>
+    <div class="sec-lbl" style="margin-bottom:6px">MÚSCULOS TRABALHADOS</div>
+    <p style="font-size:14px;color:var(--text2);margin-bottom:18px;line-height:1.5">${ex.muscles}</p>
+    <div class="sec-lbl" style="margin-bottom:8px">EXECUÇÃO RECOMENDADA</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div style="background:linear-gradient(135deg,rgba(255,107,0,0.1),rgba(255,107,0,0.02));border:1px solid rgba(255,107,0,0.2);border-radius:14px;padding:14px 8px;text-align:center"><div style="font-size:24px;font-weight:900;color:var(--orange);line-height:1">${ex.sets}</div><div style="font-size:10.5px;color:var(--text3);font-weight:600;margin-top:4px;letter-spacing:0.3px">SÉRIES</div></div>
+      <div style="background:linear-gradient(135deg,rgba(255,107,0,0.1),rgba(255,107,0,0.02));border:1px solid rgba(255,107,0,0.2);border-radius:14px;padding:14px 8px;text-align:center"><div style="font-size:24px;font-weight:900;color:var(--orange);line-height:1">${ex.reps}</div><div style="font-size:10.5px;color:var(--text3);font-weight:600;margin-top:4px;letter-spacing:0.3px">REPS</div></div>
+      <div style="background:linear-gradient(135deg,rgba(255,107,0,0.1),rgba(255,107,0,0.02));border:1px solid rgba(255,107,0,0.2);border-radius:14px;padding:14px 8px;text-align:center"><div style="font-size:24px;font-weight:900;color:var(--orange);line-height:1">${ex.rest}s</div><div style="font-size:10.5px;color:var(--text3);font-weight:600;margin-top:4px;letter-spacing:0.3px">DESCANSO</div></div>
     </div>
   `);
   return d;
@@ -3367,7 +3563,7 @@ if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch((
   --safe-top:env(safe-area-inset-top,0px);
   --safe-bot:env(safe-area-inset-bottom,0px);
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter','SF Pro Display',-apple-system,system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;letter-spacing:-0.01em;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Helvetica Neue','Inter',system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;letter-spacing:-0.01em;}
 input,button{font-family:inherit;}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
 ::-webkit-scrollbar{width:0;}
@@ -3801,7 +3997,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 }
 .food-picker-card{
   display:flex;align-items:center;gap:14px;
-  padding:18px 16px;
+  padding:16px 44px 16px 16px;
   background:var(--bg2);
   border:1px solid var(--border-soft);
   border-radius:18px;
@@ -3825,19 +4021,16 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   background:linear-gradient(135deg,#FF6B00,#FF8C42);
   box-shadow:0 4px 14px rgba(255,107,0,0.25);
 }
+.fpc-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
 .fpc-title{
   font-size:15px;font-weight:800;
   color:var(--text);
-  flex:1;
+  line-height:1.2;
 }
 .fpc-desc{
   font-size:12px;color:var(--text3);
   font-weight:500;line-height:1.35;
-  position:absolute;
-  left:78px;right:36px;
-  top:38px;
 }
-.food-picker-card{padding-top:14px;padding-bottom:38px;}
 .fpc-arrow{
   position:absolute;right:18px;top:50%;transform:translateY(-50%);
   color:var(--text3);font-size:20px;font-weight:600;
@@ -3879,6 +4072,53 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .ex-tags{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;}
 .ex-tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;}
 .ex-tq{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+
+/* EXERCISES — PREMIUM */
+.ex-hero{padding:calc(14px + var(--safe-top)) 18px 12px;}
+.ex-hero-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.ex-hero-title{font-size:26px;font-weight:900;letter-spacing:-0.5px;color:var(--text);line-height:1.1;}
+.ex-hero-sub{font-size:12.5px;color:var(--text3);font-weight:500;margin-top:3px;}
+.ex-hero-badge{font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;background:linear-gradient(135deg,#FF6B00,#FF8C42);padding:5px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(255,107,0,0.35);flex-shrink:0;}
+.ex-search{margin:0 18px 12px;}
+.eqfilters{display:flex;gap:8px;overflow-x:auto;padding:0 18px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.eqfilters::-webkit-scrollbar{display:none;}
+.eqf{flex-shrink:0;font-size:12px;font-weight:600;padding:7px 13px;border-radius:18px;background:var(--bg2);border:1px solid var(--border-soft);color:var(--text2);cursor:pointer;white-space:nowrap;transition:all .15s;}
+.eqf-on{background:var(--orange-soft);border-color:var(--orange);color:var(--orange);font-weight:700;}
+.ex-count{padding:2px 18px 10px;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--text3);text-transform:uppercase;}
+.ex-row-pro{align-items:stretch;padding:10px;gap:14px;transition:transform .12s,border-color .15s,background .15s;}
+.ex-row-pro:active{transform:scale(0.99);background:var(--bg3);}
+.ex-thumb-pro{width:72px;height:72px;border-radius:14px;position:relative;display:flex;align-items:center;justify-content:center;}
+.ex-thumb-grad{position:absolute;inset:0;border-radius:14px;background:linear-gradient(to top,rgba(0,0,0,0.35),transparent 55%);pointer-events:none;}
+.ex-row-pro .ex-info{display:flex;flex-direction:column;justify-content:center;min-width:0;}
+.ex-mus{font-size:11.5px;color:var(--text3);margin-top:3px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;}
+.ex-row-pro .ex-nm{font-size:15px;font-weight:700;}
+.ex-row-pro .chev{align-self:center;}
+
+/* PREMIUM MODAL */
+.prem-hero{position:relative;overflow:hidden;border-radius:20px;padding:26px 20px 22px;text-align:center;margin:4px 0 18px;background:linear-gradient(150deg,rgba(255,107,0,0.18),rgba(255,184,71,0.06) 55%,var(--bg3));border:1px solid rgba(255,107,0,0.25);}
+.prem-hero-active{background:linear-gradient(150deg,rgba(34,211,165,0.16),rgba(34,211,165,0.04) 55%,var(--bg3));border-color:rgba(34,211,165,0.3);}
+.prem-hero-shine{position:absolute;top:-60%;left:-30%;width:60%;height:220%;background:linear-gradient(105deg,transparent,rgba(255,255,255,0.13),transparent);transform:rotate(8deg);animation:premShine 4.5s ease-in-out infinite;pointer-events:none;}
+@keyframes premShine{0%{left:-40%}55%{left:130%}100%{left:130%}}
+.prem-crown{font-size:56px;line-height:1;filter:drop-shadow(0 6px 16px rgba(255,107,0,0.4));animation:premFloat 3s ease-in-out infinite;}
+@keyframes premFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.prem-hero-title{font-size:25px;font-weight:900;letter-spacing:-0.5px;color:#fff;margin-top:10px;}
+.prem-hero-sub{font-size:13px;color:var(--text2);margin-top:6px;font-weight:600;}
+.prem-sub-active{color:#22D3A5;}
+.prem-active-pill{display:inline-block;margin-top:12px;font-size:10.5px;font-weight:900;letter-spacing:1.2px;color:#0A0A0B;background:linear-gradient(135deg,#22D3A5,#4BE3BD);padding:5px 14px;border-radius:20px;}
+.prem-sec-lbl{font-size:11px;color:var(--text3);margin-bottom:10px;font-weight:800;letter-spacing:1px;}
+.prem-feats{display:flex;flex-direction:column;gap:9px;}
+.prem-feat{display:flex;gap:13px;align-items:center;background:var(--bg2);border:1px solid var(--border-soft);border-radius:15px;padding:13px 14px;}
+.prem-feat-ic{width:44px;height:44px;flex-shrink:0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+.prem-feat-t{font-weight:800;font-size:14.5px;color:var(--text);}
+.prem-feat-d{font-size:12px;color:var(--text3);margin-top:2px;line-height:1.35;}
+.prem-check{font-size:20px;font-weight:900;flex-shrink:0;}
+.prem-plan-card{position:relative;overflow:hidden;background:linear-gradient(135deg,#1A1410,var(--bg3));border:1px solid rgba(255,107,0,0.3);border-radius:18px;padding:20px;margin-top:18px;text-align:center;}
+.prem-plan-shine{position:absolute;top:-60%;left:-30%;width:50%;height:220%;background:linear-gradient(105deg,transparent,rgba(255,107,0,0.1),transparent);transform:rotate(8deg);animation:premShine 5s ease-in-out infinite;}
+.prem-cta{width:100%;margin-top:14px;padding:17px;font-size:16px;font-weight:800;border:none;border-radius:16px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#FF6B00,#FF8C42);box-shadow:0 8px 24px rgba(255,107,0,0.35);display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s;}
+.prem-cta:active{transform:scale(0.98);}
+.prem-active-card{background:linear-gradient(135deg,rgba(34,211,165,0.12),rgba(34,211,165,0.03));border:1px solid rgba(34,211,165,0.3);border-radius:16px;padding:16px;margin-top:18px;}
+.prem-manage{width:100%;margin-top:12px;padding:13px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:14px;color:var(--text2);font-size:14px;font-weight:600;cursor:pointer;}
+.prem-manage:active{background:var(--bg3);}
 
 /* PERFIL */
 .perfil-wrap{display:flex;flex-direction:column;gap:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
