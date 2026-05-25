@@ -389,6 +389,7 @@ let S={
   user:null,profile:null,phase:"splash",
   tab:"agenda",
   fabOpen:false,
+  calDate:null,
   communityFoods:[],perf:{},usage:{},coachMsgs:null,coachLoading:false,dietResult:null,dietLoading:false,dietPref:"",history:{},
   mealCat:{},
   pendingMealCat:null,
@@ -409,8 +410,9 @@ let restTimer=null;
 const uid=()=>S.user?.uid;
 const saveProfile=async p=>{if(p&&p.weight)logToday({weight:parseFloat(p.weight)||0});return setDoc(doc(db,"users",uid(),"data","profile"),p);};
 const loadProfile=async()=>{const s=await getDoc(doc(db,"users",uid(),"data","profile"));return s.exists()?s.data():null;};
-const saveFoods=async f=>{const t=new Date().toISOString().split("T")[0];await setDoc(doc(db,"users",uid(),"foods",t),{items:f,mealCat:S.mealCat||{},mealCatNames:S.mealCatNames||{},ts:serverTimestamp()});const totCal=Math.round((f||[]).reduce((a,x)=>a+((Number(x.cal)||0)*((Number(x.grams)||0)/(Number(x.serving)||100||1))),0));logToday({cal:totCal});};
-const loadFoods=async()=>{const t=new Date().toISOString().split("T")[0];const s=await getDoc(doc(db,"users",uid(),"foods",t));if(s.exists()){const d2=s.data();S.mealCat=d2.mealCat||{};S.mealCatNames=d2.mealCatNames||{};return d2.items||[];}S.mealCatNames={};return [];};
+function calDateKey(){return S.calDate||new Date().toISOString().split("T")[0];}
+const saveFoods=async f=>{const t=calDateKey();await setDoc(doc(db,"users",uid(),"foods",t),{items:f,mealCat:S.mealCat||{},mealCatNames:S.mealCatNames||{},ts:serverTimestamp()});const totCal=Math.round((f||[]).reduce((a,x)=>a+((Number(x.cal)||0)*((Number(x.grams)||0)/(Number(x.serving)||100||1))),0));logToday({cal:totCal},t);};
+const loadFoods=async(dateKey)=>{const t=dateKey||calDateKey();const s=await getDoc(doc(db,"users",uid(),"foods",t));if(s.exists()){const d2=s.data();S.mealCat=d2.mealCat||{};S.mealCatNames=d2.mealCatNames||{};return d2.items||[];}S.mealCat={};S.mealCatNames={};return [];};
 const loadWorkouts=async()=>{const snap=await getDocs(collection(db,"users",uid(),"workouts"));return snap.docs.map(d=>({id:d.id,...d.data()}));};
 const saveWorkout=async w=>{const r=await addDoc(collection(db,"users",uid(),"workouts"),{...w,ts:serverTimestamp()});return r.id;};
 const deleteWorkout=async id=>deleteDoc(doc(db,"users",uid(),"workouts",id));
@@ -422,10 +424,10 @@ const savePerf=async p=>{try{await setDoc(doc(db,"users",uid(),"data","perf"),p)
 // History log for reports: per-day {cal, weight}
 const loadHistory=async()=>{try{const s=await getDoc(doc(db,"users",uid(),"data","history"));return s.exists()?(s.data().days||{}):{};}catch(e){return {};}};
 const saveHistory=async h=>{try{await setDoc(doc(db,"users",uid(),"data","history"),{days:h});}catch(e){}};
-async function logToday(partial){
+async function logToday(partial,dateKey){
   try{
     if(!S.history)S.history=await loadHistory();
-    const k=new Date().toISOString().split("T")[0];
+    const k=dateKey||new Date().toISOString().split("T")[0];
     S.history[k]={...(S.history[k]||{}),...partial};
     await saveHistory(S.history);
   }catch(e){}
@@ -463,7 +465,7 @@ function r(){
   else{
     if(S.session){document.getElementById("app").appendChild(rSession());return;}
     document.getElementById("app").appendChild(rHome());
-    const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual","pickSessionExercises","treinos","aiWorkout","coach","autoDiet","reports","perfil","premium"];
+    const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual","pickSessionExercises","treinos","aiWorkout","coach","autoDiet","reports","perfil","premium","monthCal"];
     if(modals.includes(S.modal))document.getElementById("modalRoot").appendChild(rModal());
   }
 }
@@ -473,7 +475,13 @@ function r(){
 // ═══════════════════════════════════════════
 function rSplash(){
   const d=D("splash");
-  d.innerHTML=`<div class="splash-logo"><svg width="44" height="44" viewBox="0 0 80 80"><polygon points="46,4 18,44 38,44 34,76 62,36 42,36" fill="white"/></svg></div><div class="splash-name">BoltFit</div><div class="splash-tag">Seu treino. Sua evolução.</div>`;
+  d.innerHTML=`<div class="splash-anim">
+    <div class="splash-row">
+      <div class="splash-logo splash-logo-in"><svg width="44" height="44" viewBox="0 0 80 80"><polygon points="46,4 18,44 38,44 34,76 62,36 42,36" fill="white"/></svg></div>
+      <div class="splash-name splash-name-in">BoltFit</div>
+    </div>
+    <div class="splash-tag splash-tag-in">Seu treino. Sua evolução.</div>
+  </div>`;
   return d;
 }
 
@@ -635,6 +643,7 @@ function rAgenda(){
   const dayInitials=["D","S","T","Q","Q","S","S"];
   const dayShort=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   d.innerHTML=`<div class="tab-hdr"><div><div class="tab-eye">${isToday?"BOM TREINO!":"BOM DIA!"}</div><div class="tab-title">Olá, ${name}</div></div></div>
+  <div class="info-sec" style="margin-bottom:14px"><div class="sec-lbl">TREINO</div><div class="kv"><span class="kk">Atividade</span><span class="kv2">${({sed:"Sedentário",light:"Levemente ativo",mod:"Moderadamente ativo",active:"Muito ativo",very:"Extremamente ativo"})[p?.activity]||"—"}</span></div><div class="kv"><span class="kk">Divisão</span><span class="kv2">${p?.split||"—"}</span></div><div class="tpills">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<span class="tpill ${(p?.trainDays||[]).includes(i)?"tp-on":""}">${w}</span>`).join("")}</div></div>
   ${(()=>{const msg=motivationMsg();return msg?`<div style="background:rgba(255,107,0,0.1);border:1px solid rgba(255,107,0,0.25);border-radius:14px;padding:13px 14px;margin-bottom:14px;font-size:13.5px;line-height:1.45;color:var(--text);display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">${msg.icon}</span><span>${msg.text}</span></div>`:"";})()}
   <button class="btn-primary" id="bAIWorkout" style="margin-bottom:10px;width:100%;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🤖 Montar treino com IA</button>
   <button class="btn-sec" id="bCoach" style="margin-bottom:10px;width:100%">💬 Coach IA — tire suas dúvidas</button>
@@ -651,7 +660,6 @@ function rAgenda(){
       const isTrain=trainDays.includes(i);const isTd=i===today();const sched=S.schedule[i];
       return `<div class="day-card ${isTd?"today":""}" id="dayc${i}"><div class="day-top"><div class="day-nm">${wd}${isTd?"<span class='tdot'></span>":""}</div><span class="day-badge ${isTrain?"badge-t":"badge-r"}">${isTrain?"Treino":"Descanso"}</span></div>${isTrain?sched?`<div class="assigned-row" data-open="${i}"><div class="aw-lt">${sched.letter||"A"}</div><div class="aw-nm">${sched.name}</div><button class="aw-btn" data-ed="${i}">✏️</button><button class="aw-btn aw-play" data-play="${sched.id}">▶</button></div>`:`<button class="assign-btn" data-ass="${i}">⊕ Atribuir treino</button>`:""}</div>`;
     }).join("")}
-    <div class="info-sec" style="margin-top:16px"><div class="sec-lbl">TREINO</div><div class="kv"><span class="kk">Atividade</span><span class="kv2">${({sed:"Sedentário",light:"Levemente ativo",mod:"Moderadamente ativo",active:"Muito ativo",very:"Extremamente ativo"})[p?.activity]||"—"}</span></div><div class="kv"><span class="kk">Divisão</span><span class="kv2">${p?.split||"—"}</span></div><div class="tpills">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w,i)=>`<span class="tpill ${(p?.trainDays||[]).includes(i)?"tp-on":""}">${w}</span>`).join("")}</div></div>
   </div>`;
   d.querySelector("#bManageWorkouts")?.addEventListener("click",()=>{S.mCtx={};S.modal="treinos";r();});
   d.querySelector("#bAIWorkout")?.addEventListener("click",()=>{S.mCtx={};S.modal="aiWorkout";S.aiwStep=0;S.aiwData={};S.aiwResult=null;S.aiwLoading=false;r();});
@@ -1170,6 +1178,60 @@ function rReportsModal(){
 
   return d;
 }
+
+// ─── MODAL: CALENDÁRIO DO MÊS (seleção de mês/ano + dias) ───
+function rMonthCalModal(){
+  const d=D("overlay");
+  d.innerHTML=`<div class="modal-sheet"></div>`;
+  const d2=d.querySelector(".modal-sheet");
+  d.onclick=e=>{if(e.target===d)closeModal();};
+  const monthNames=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const wdShort=["D","S","T","Q","Q","S","S"];
+  const todayKey=new Date().toISOString().split("T")[0];
+  const sel=new Date((S.calDate||todayKey)+"T12:00:00");
+  // View month/year state held on S.calViewYM
+  if(!S.calViewYM)S.calViewYM={y:sel.getFullYear(),m:sel.getMonth()};
+  const render=()=>{
+    const{y,m}=S.calViewYM;
+    const first=new Date(y,m,1);
+    const startWd=first.getDay();
+    const daysInMonth=new Date(y,m+1,0).getDate();
+    const cells=[];
+    for(let i=0;i<startWd;i++)cells.push(null);
+    for(let dn=1;dn<=daysInMonth;dn++)cells.push(dn);
+    const grid=cells.map(dn=>{
+      if(dn===null)return `<div></div>`;
+      const k=`${y}-${String(m+1).padStart(2,"0")}-${String(dn).padStart(2,"0")}`;
+      const isSel=k===S.calDate;const isTd=k===todayKey;const hasData=S.history&&S.history[k]&&typeof S.history[k].cal==="number"&&S.history[k].cal>0;
+      return `<button class="mc-day ${isSel?"mc-day-sel":""} ${isTd?"mc-day-today":""}" data-mcd="${k}">${dn}${hasData?`<span class="mc-dot"></span>`:""}</button>`;
+    }).join("");
+    d2.innerHTML=`<div class="modal-handle"></div>
+      <div class="modal-hdr"><div class="modal-title">📅 Calendário</div><button class="close-x" id="bX">✕</button></div>
+      <div style="padding:2px">
+        <div class="mc-nav">
+          <button class="mc-arrow" id="bPrevM">‹</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="mcMonth" class="mc-select">${monthNames.map((mn,i)=>`<option value="${i}" ${i===m?"selected":""}>${mn}</option>`).join("")}</select>
+            <select id="mcYear" class="mc-select">${Array.from({length:7},(_, i)=>new Date().getFullYear()-5+i).map(yy=>`<option value="${yy}" ${yy===y?"selected":""}>${yy}</option>`).join("")}</select>
+          </div>
+          <button class="mc-arrow" id="bNextM">›</button>
+        </div>
+        <div class="mc-grid mc-grid-wd">${wdShort.map(w=>`<div class="mc-wd">${w}</div>`).join("")}</div>
+        <div class="mc-grid">${grid}</div>
+        <button class="btn-sec" id="bToday" style="width:100%;margin-top:14px">Ir para hoje</button>
+      </div>`;
+    d2.querySelector("#bX").onclick=closeModal;
+    d2.querySelector("#bPrevM").onclick=()=>{let nm=m-1,ny=y;if(nm<0){nm=11;ny--;}S.calViewYM={y:ny,m:nm};render();};
+    d2.querySelector("#bNextM").onclick=()=>{let nm=m+1,ny=y;if(nm>11){nm=0;ny++;}S.calViewYM={y:ny,m:nm};render();};
+    d2.querySelector("#mcMonth").onchange=e=>{S.calViewYM={y,m:parseInt(e.target.value)};render();};
+    d2.querySelector("#mcYear").onchange=e=>{S.calViewYM={y:parseInt(e.target.value),m};render();};
+    d2.querySelector("#bToday").onclick=()=>{S.calViewYM=null;switchCalDate(todayKey);};
+    d2.querySelectorAll("[data-mcd]").forEach(b=>b.onclick=()=>{S.calViewYM=null;switchCalDate(b.dataset.mcd);});
+  };
+  render();
+  return d;
+}
+
 // Meal categories with icons and colors
 const MEAL_CATS=[
   {id:"cafe",label:"☕ Café da Manhã",color:"#FFB347"},
@@ -1233,6 +1295,14 @@ function renderFoodItem(f,i){
   </div>`;
 }
 
+async function switchCalDate(dateKey){
+  S.calDate=dateKey;
+  try{S.foods=await loadFoods(dateKey);}catch(e){S.foods=[];S.mealCat={};S.mealCatNames={};}
+  if(S.modal==="monthCal")S.modal=null;
+  S.tab="calorias";
+  r();
+}
+
 function rCalorias(){
   const d=D("tab-page");
   const cal=S.targetCal||0;
@@ -1272,6 +1342,26 @@ function rCalorias(){
     </div>`;
   };
 
+  if(!S.calDate)S.calDate=new Date().toISOString().split("T")[0];
+  const selDate=new Date(S.calDate+"T12:00:00");
+  const todayKey=new Date().toISOString().split("T")[0];
+  const dayNamesShort=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const monthNames=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  // Carousel: 7 days centered on selected (3 before, selected, 3 after)
+  const carouselDays=[];
+  for(let off=-4;off<=4;off++){const dd=new Date(selDate);dd.setDate(selDate.getDate()+off);carouselDays.push(dd);}
+  const mealsTitle=S.calDate===todayKey?"REFEIÇÕES DE HOJE":`REFEIÇÕES · ${selDate.getDate()} ${monthNames[selDate.getMonth()].slice(0,3).toUpperCase()}`;
+  const carouselHTML=`
+    <div class="cal-carousel-wrap">
+      <div class="cal-carousel-top">
+        <div class="cal-month-lbl">${monthNames[selDate.getMonth()]} ${selDate.getFullYear()}</div>
+        <button class="cal-month-btn" id="bCalMonth" title="Ver mês">📅</button>
+      </div>
+      <div class="cal-carousel" id="calCarousel">
+        ${carouselDays.map(dd=>{const k=dd.toISOString().split("T")[0];const isSel=k===S.calDate;const isTd=k===todayKey;return `<button class="cal-day ${isSel?"cal-day-sel":""} ${isTd?"cal-day-today":""}" data-caldate="${k}"><span class="cal-day-wd">${dayNamesShort[dd.getDay()]}</span><span class="cal-day-num">${dd.getDate()}</span>${isTd?`<span class="cal-day-dot"></span>`:""}</button>`;}).join("")}
+      </div>
+    </div>`;
+
   const foodsHTML=`
     <div class="meal-add-section" style="margin-bottom:16px">
       ${MEAL_CATS.map(mc=>`<button class="meal-cat-btn" data-newcat="${mc.id}" style="border-color:${mc.color}20;color:${mc.color}">${mc.label}</button>`).join("")}
@@ -1284,6 +1374,7 @@ function rCalorias(){
       <button class="btn-sm-orange" id="bAIPhoto">📸 IA</button>
       <button class="btn-sm-orange" id="bAddFood">+ Adicionar</button>
     </div></div>
+    ${carouselHTML}
     <div class="cal-ring-wrap"><div class="cal-ring">
       <svg width="160" height="160" viewBox="0 0 160 160" style="transform:rotate(-90deg)">
         <circle cx="80" cy="80" r="64" fill="none" stroke="#222" stroke-width="14"/>
@@ -1300,11 +1391,17 @@ function rCalorias(){
     </div>
     <div class="info-sec" style="margin-bottom:16px"><div class="sec-lbl">METABOLISMO</div><div class="info-grid"><div class="ic"><div class="iv" style="color:var(--orange)">${S.tmb||"—"} kcal</div><div class="il">TMB</div></div><div class="ic"><div class="iv" style="color:var(--orange)">${cal||"—"} kcal</div><div class="il">Meta diária</div></div></div><div class="goal-tag">↗ ${({lose:"Emagrecer",maintain:"Manutenção",gain:"Ganhar massa"})[S.profile?.goal]||"—"}</div></div>
     <button class="btn-primary" id="bAutoDiet" style="width:100%;margin-bottom:16px;background:linear-gradient(135deg,#FF6B00,#FF8C42)">🍽️ Gerar dieta automática com IA</button>
-    <div class="sec-title">REFEIÇÕES DE HOJE</div>
+    <div class="sec-title">${mealsTitle}</div>
     <div class="foods-list" id="foodsList">
       ${S.foods.length===0?`<div class="empty" style="padding:24px 0;text-align:center"><p style="color:#555">Nenhuma refeição registrada</p></div>`:""}
       ${foodsHTML}
     </div>`;
+
+  // Calendar carousel handlers
+  d.querySelectorAll("[data-caldate]").forEach(b=>b.onclick=()=>switchCalDate(b.dataset.caldate));
+  d.querySelector("#bCalMonth")?.addEventListener("click",()=>{S.modal="monthCal";r();});
+  // Auto-scroll carousel so selected day is centered
+  setTimeout(()=>{const car=d.querySelector("#calCarousel");const sel=d.querySelector(".cal-day-sel");if(car&&sel){car.scrollLeft=sel.offsetLeft-car.clientWidth/2+sel.clientWidth/2;}},0);
 
   // Button handlers
   d.querySelector("#bAddFood")?.addEventListener("click",()=>{S.pendingMealCat="sem_categoria";S.foodModalMode="add";S.modal="food";r();});
@@ -1592,6 +1689,7 @@ function rModal(){
   if(S.modal==="reports")return rReportsModal();
   if(S.modal==="perfil")return rPerfilModal();
   if(S.modal==="premium")return rPremiumModal();
+  if(S.modal==="monthCal")return rMonthCalModal();
   return D("div");
 }
 
@@ -2466,6 +2564,7 @@ async function authOk(user){
   try{
     const p=await loadProfile();
     if(p){S.profile=p;if(typeof p.darkMode!=="undefined")S.darkMode=p.darkMode;applyTheme();computeTMB();
+      S.calDate=new Date().toISOString().split("T")[0];
       try{S.foods=await loadFoods();}catch(e){S.foods=[];}
       try{S.workouts=await loadWorkouts();}catch(e){S.workouts=[];}
       try{S.schedule=await loadSchedule();}catch(e){S.schedule={};}
@@ -2480,16 +2579,24 @@ async function authOk(user){
   r();
 }
 
+const SPLASH_START=Date.now();
+const SPLASH_MIN=1900; // ms — tempo mínimo para a animação tocar
+async function leaveSplash(fn){
+  const elapsed=Date.now()-SPLASH_START;
+  if(elapsed<SPLASH_MIN)await new Promise(res=>setTimeout(res,SPLASH_MIN-elapsed));
+  await fn();
+}
+
 onAuthStateChanged(auth,async user=>{
-  if(user&&(S.phase==="splash"||S.phase==="login"))await authOk(user);
-  else if(!user&&S.phase==="splash"){S.phase="login";r();}
+  if(user&&(S.phase==="splash"||S.phase==="login"))await leaveSplash(()=>authOk(user));
+  else if(!user&&S.phase==="splash"){await leaveSplash(async()=>{S.phase="login";r();});}
 });
 
 // Show splash immediately
 applyTheme();
 r();
 // Safety fallback
-setTimeout(()=>{if(S.phase==="splash"){S.phase="login";r();}},4000);
+setTimeout(()=>{if(S.phase==="splash"){S.phase="login";r();}},4500);
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script><style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -2516,6 +2623,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .splash-logo{width:80px;height:80px;background:var(--orange);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(255,107,0,0.4);}
 .splash-name{font-size:36px;font-weight:900;letter-spacing:-0.5px;}
 .splash-tag{font-size:13px;color:var(--text3);}
+.splash-anim{display:flex;flex-direction:column;align-items:center;gap:18px;}
+.splash-row{display:flex;align-items:center;gap:0;overflow:visible;}
+.splash-logo-in{opacity:0;transform:scale(0.3) rotate(-30deg);animation:splashLogo 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards;}
+.splash-name-in{opacity:0;max-width:0;margin-left:0;white-space:nowrap;overflow:hidden;animation:splashName 0.6s ease forwards;animation-delay:0.65s;}
+.splash-tag-in{opacity:0;transform:translateY(10px);animation:splashTag 0.5s ease forwards;animation-delay:1.2s;}
+@keyframes splashLogo{0%{opacity:0;transform:scale(0.3) rotate(-30deg)}60%{opacity:1}100%{opacity:1;transform:scale(1) rotate(0deg)}}
+@keyframes splashName{0%{opacity:0;max-width:0;margin-left:0}100%{opacity:1;max-width:260px;margin-left:14px}}
+@keyframes splashTag{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
 
 /* PAGE */
 .page{flex:1;display:flex;flex-direction:column;overflow:hidden;}
@@ -2574,8 +2689,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .nav-label{font-size:10px;font-weight:600;}
 
 /* CONFIG HAMBURGER + FLOATING BUBBLES (speed-dial) */
-.cfg-btn{position:absolute;top:calc(14px + var(--safe-top));right:14px;z-index:60;width:42px;height:42px;border-radius:13px;background:var(--bg2);border:1.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:all .25s;}
-.cfg-btn span{display:block;width:18px;height:2.5px;border-radius:2px;background:var(--text);transition:all .3s;}
+.cfg-btn{position:absolute;top:calc(14px + var(--safe-top));right:14px;z-index:60;width:44px;height:44px;border-radius:50%;background:var(--bg2);border:1.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3.5px;cursor:pointer;transition:all .25s;}
+.cfg-btn span{display:block;width:5px;height:5px;border-radius:50%;background:var(--text);transition:all .3s;}
 .cfg-btn.active{background:var(--orange);border-color:var(--orange);transform:rotate(90deg);}
 .cfg-btn.active span{background:#fff;}
 .fab-scrim{position:absolute;inset:0;background:rgba(0,0,0,0);z-index:55;pointer-events:none;transition:background .25s;}
@@ -2643,6 +2758,35 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .chev{color:var(--text3);font-size:20px;}
 
 /* CALORIAS */
+/* CALENDAR CAROUSEL */
+.cal-carousel-wrap{margin-bottom:18px;}
+.cal-carousel-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.cal-month-lbl{font-size:14px;font-weight:700;color:var(--text);}
+.cal-month-btn{width:34px;height:34px;border-radius:10px;background:var(--bg3);border:1.5px solid var(--border);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.cal-carousel{display:flex;gap:8px;overflow-x:auto;scroll-behavior:smooth;padding:2px 0;-webkit-overflow-scrolling:touch;}
+.cal-carousel::-webkit-scrollbar{display:none;}
+.cal-day{flex-shrink:0;width:50px;height:64px;border-radius:14px;background:var(--bg3);border:1.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;position:relative;transition:all .2s;}
+.cal-day-wd{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;}
+.cal-day-num{font-size:18px;font-weight:800;color:var(--text);}
+.cal-day-today{border-color:rgba(255,107,0,0.4);}
+.cal-day-today .cal-day-num{color:var(--orange);}
+.cal-day-sel{background:var(--orange);border-color:var(--orange);}
+.cal-day-sel .cal-day-wd,.cal-day-sel .cal-day-num{color:#fff;}
+.cal-day-dot{position:absolute;bottom:6px;width:4px;height:4px;border-radius:50%;background:var(--orange);}
+.cal-day-sel .cal-day-dot{background:#fff;}
+/* MONTH CALENDAR MODAL */
+.mc-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.mc-arrow{width:38px;height:38px;border-radius:10px;background:var(--bg3);border:1.5px solid var(--border);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.mc-select{background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-weight:700;padding:8px 10px;outline:none;cursor:pointer;}
+.mc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.mc-grid-wd{margin-bottom:6px;}
+.mc-wd{text-align:center;font-size:11px;font-weight:700;color:var(--text3);padding:4px 0;}
+.mc-day{aspect-ratio:1;border-radius:10px;background:var(--bg3);border:1.5px solid transparent;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;}
+.mc-day-today{border-color:rgba(255,107,0,0.45);color:var(--orange);}
+.mc-day-sel{background:var(--orange);color:#fff;}
+.mc-dot{position:absolute;bottom:4px;width:4px;height:4px;border-radius:50%;background:var(--orange);}
+.mc-day-sel .mc-dot{background:#fff;}
+
 .cal-ring-wrap{display:flex;justify-content:center;margin:10px 0 20px;}
 .cal-ring{position:relative;width:160px;height:160px;}
 .cal-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
