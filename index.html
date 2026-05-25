@@ -674,6 +674,34 @@ function rAgenda(){
     <button class="btn-ghost" id="bCoach">💬 Coach IA</button>
     <button class="btn-ghost" id="bManageWorkouts">🏋️ Meus treinos</button>
   </div>
+  ${(()=>{
+    const td=today();const sched=S.schedule[td];
+    if(!sched)return "";
+    const w=S.workouts.find(x=>x.id===sched.id);
+    const exs=w?(w.exercises||[]):[];
+    const muscles=[...new Set(exs.map(e=>MUSCLE_META[e.group]?.label).filter(Boolean))];
+    const totalSets=exs.reduce((a,e)=>a+(e.sets||3),0);
+    const estMin=Math.max(15,Math.round(exs.length*7));
+    const estKcal=Math.round(estMin*7);
+    const accent=MUSCLE_META[exs[0]?.group]?.color||"#FF6B00";
+    const trainedToday=(S.history||{})[new Date().toISOString().split("T")[0]]?.trained;
+    return `<div class="hero-card" data-herostart="${sched.id}" style="--accent:${accent}">
+      <div class="hero-glow"></div>
+      <div class="hero-top">
+        <div class="hero-tag">${trainedToday?"✓ CONCLUÍDO HOJE":"TREINO DE HOJE"}</div>
+        <div class="hero-letter">${sched.letter||"A"}</div>
+      </div>
+      <div class="hero-name">${sched.name}</div>
+      <div class="hero-muscles">${muscles.length?muscles.join(" · "):"Toque para configurar"}</div>
+      <div class="hero-meta">
+        <div class="hero-meta-i"><span>🏋️</span>${exs.length} exercícios</div>
+        <div class="hero-meta-i"><span>🔁</span>${totalSets} séries</div>
+        <div class="hero-meta-i"><span>⏱️</span>~${estMin} min</div>
+        <div class="hero-meta-i"><span>🔥</span>~${estKcal} kcal</div>
+      </div>
+      <button class="hero-btn" data-herostart="${sched.id}">▶ ${trainedToday?"Treinar de novo":"Iniciar treino"}</button>
+    </div>`;
+  })()}
   <div class="sec-title" style="margin-top:24px;margin-bottom:14px">SUA SEMANA</div>
   <div class="week-bubbles">
     ${WD.map((wd,i)=>{
@@ -688,6 +716,8 @@ function rAgenda(){
       return `<div class="day-card ${isTd?"today":""}" id="dayc${i}"><div class="day-top"><div class="day-nm">${wd}${isTd?"<span class='tdot'></span>":""}</div><span class="day-badge ${isTrain?"badge-t":"badge-r"}">${isTrain?"Treino":"Descanso"}</span></div>${isTrain?sched?`<div class="assigned-row" data-open="${i}"><div class="aw-lt">${sched.letter||"A"}</div><div class="aw-nm">${sched.name}</div><button class="aw-btn" data-ed="${i}">✏️</button><button class="aw-btn aw-play" data-play="${sched.id}">▶</button></div>`:`<button class="assign-btn" data-ass="${i}">+ Atribuir treino</button>`:""}</div>`;
     }).join("")}
   </div>`;
+  // Hero card start
+  d.querySelectorAll("[data-herostart]").forEach(el=>el.onclick=e=>{e.stopPropagation();const w=S.workouts.find(x=>x.id===el.dataset.herostart);if(w){if((w.exercises||[]).length){S.mCtx={workout:w,fromAgenda:true};S.modal="pickSessionExercises";r();}else{alert("Esse treino ainda não tem exercícios. Adicione em Meus Treinos.");}}});
   d.querySelector("#bManageWorkouts")?.addEventListener("click",()=>{S.mCtx={};S.modal="treinos";r();});
   d.querySelector("#bAIWorkout")?.addEventListener("click",()=>{S.mCtx={};S.modal="aiWorkout";S.aiwStep=0;S.aiwData={};S.aiwResult=null;S.aiwLoading=false;r();});
   d.querySelector("#bCoach")?.addEventListener("click",()=>{S.modal="coach";r();});
@@ -1558,10 +1588,28 @@ function rPerfilModal(){
   const ini=name.trim().split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
   const username=p?.username||name;
   const avatarImg=p?.avatar||"";
+  // ── Gamificação: XP, nível e conquistas ──
+  const hist=S.history||{};
+  const trainedDays=Object.values(hist).filter(h=>h&&(h.trained||h.cal>0)).length;
+  const totalWorkouts=Object.keys(S.perf||{}).length;
+  const curStreak=(()=>{let s=0;const dt=new Date();for(let i=0;i<120;i++){const k=dt.toISOString().split("T")[0];if(hist[k]&&(hist[k].trained||hist[k].cal>0)){s++;}else if(i>0)break;dt.setDate(dt.getDate()-1);}return s;})();
+  const maxLoad=Math.max(0,...Object.values(S.perf||{}).map(x=>x.weight||0));
+  const xp=trainedDays*50+totalWorkouts*10;
+  const level=Math.floor(xp/300)+1;
+  const xpInLevel=xp%300;const xpPct=Math.round((xpInLevel/300)*100);
+  const ach=[
+    {ic:"🌱",nm:"Primeiro passo",ds:"Registre seu 1º dia",ok:trainedDays>=1},
+    {ic:"🔥",nm:"Em chamas",ds:"3 dias seguidos",ok:curStreak>=3},
+    {ic:"⚡",nm:"Imparável",ds:"7 dias seguidos",ok:curStreak>=7},
+    {ic:"💪",nm:"Dedicado",ds:"10 treinos feitos",ok:trainedDays>=10},
+    {ic:"🏋️",nm:"Forte",ds:"Levantou 50kg+",ok:maxLoad>=50},
+    {ic:"👑",nm:"Lendário",ds:"30 dias ativos",ok:trainedDays>=30},
+  ];
+  const unlocked=ach.filter(a=>a.ok).length;
   d2.innerHTML=`<div class="modal-handle"></div>
     <div class="modal-hdr"><div class="modal-title">👤 Meu Perfil</div><button class="close-x" id="bX">✕</button></div>
     <div style="max-height:72vh;overflow-y:auto;padding:2px;-webkit-overflow-scrolling:touch">
-    <div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em" id="bEditUsername" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center">@${username} <span style="font-size:13px;opacity:0.7">✏️</span></div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
+    <div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em" id="bEditUsername" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center">@${username} <span style="font-size:13px;opacity:0.7">✏️</span></div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">NÍVEL ${level}</div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:13px;color:var(--text2);font-weight:600">${xp} XP total</span><span style="font-size:11px;color:var(--text3)">${xpInLevel}/300 p/ nível ${level+1}</span></div><div style="height:10px;background:var(--bg3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${xpPct}%;background:linear-gradient(90deg,#FF6B00,#FF8C42);border-radius:6px;transition:width .6s ease"></div></div></div><div class="info-sec"><div class="sec-lbl" style="display:flex;justify-content:space-between"><span>CONQUISTAS</span><span style="color:var(--orange)">${unlocked}/${ach.length}</span></div><div class="ach-grid">${ach.map(a=>`<div class="ach-card ${a.ok?"unlocked":"locked"}"><div class="ach-ic">${a.ic}</div><div class="ach-nm">${a.nm}</div><div class="ach-ds">${a.ds}</div>${a.ok?`<span class="ach-badge">✓</span>`:`<span class="ach-badge">🔒</span>`}</div>`).join("")}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
       <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>
     </div>
   <input type="file" id="avatarInput" accept="image/*" style="display:none"/>`;
@@ -2526,7 +2574,25 @@ function rSession(){
       savePerf(S.perf);
     }
     const d=D("page");
-    d.innerHTML=`<div class="session-done"><div style="font-size:80px">🏆</div><div class="done-title">TREINO CONCLUÍDO!</div><div class="done-sub">${exercises.length} exercícios · ${sets.flat().filter(s=>s.done).length} séries</div><button class="btn-primary" id="bEnd" style="max-width:260px;margin:0 auto">Finalizar</button></div>`;
+    const doneSets=sets.flat().filter(s=>s.done).length;
+    const totalVol=Math.round(sets.flat().filter(s=>s.done).reduce((a,s)=>a+((parseFloat(s.weight)||0)*(parseInt(s.reps)||0)),0));
+    // Mark today as trained (for streak) — fire and forget
+    logToday({trained:true});
+    // Compute streak after marking
+    const streak=(()=>{const h=S.history||{};let s=0;const dt=new Date();for(let i=0;i<90;i++){const k=dt.toISOString().split("T")[0];if(h[k]&&(h[k].trained||h[k].cal>0)){s++;}else if(i>0){break;}dt.setDate(dt.getDate()-1);}return s;})();
+    d.innerHTML=`<div class="session-done">
+      <div class="confetti-layer">${Array.from({length:24},(_, i)=>{const c=["#FF6B00","#FF8C42","#4B9EFF","#22D3A5","#FFC247","#A78BFA"][i%6];const l=Math.random()*100;const delay=(Math.random()*0.6).toFixed(2);const dur=(1.8+Math.random()*1.4).toFixed(2);const sz=6+Math.random()*6;return `<span class="confetti" style="left:${l}%;background:${c};width:${sz}px;height:${sz*0.5}px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;}).join("")}</div>
+      <div class="done-trophy">🏆</div>
+      <div class="done-title">TREINO CONCLUÍDO!</div>
+      <div class="done-sub">Mandou bem demais hoje 💪</div>
+      <div class="done-stats">
+        <div class="done-stat"><div class="done-stat-v">${exercises.length}</div><div class="done-stat-l">EXERCÍCIOS</div></div>
+        <div class="done-stat"><div class="done-stat-v">${doneSets}</div><div class="done-stat-l">SÉRIES</div></div>
+        <div class="done-stat"><div class="done-stat-v">${totalVol>999?(totalVol/1000).toFixed(1)+"k":totalVol}</div><div class="done-stat-l">VOLUME (kg)</div></div>
+      </div>
+      <div class="done-streak"><span class="flame">🔥</span> <span><strong>${streak}</strong> ${streak===1?"dia":"dias"} de sequência!</span></div>
+      <button class="btn-primary" id="bEnd" style="max-width:280px;margin:8px auto 0">Finalizar</button>
+    </div>`;
     d.querySelector("#bEnd").onclick=()=>{S.session=null;S.perfSaved=false;r();};
     return d;
   }
@@ -2761,6 +2827,18 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .btn-sm-orange{padding:8px 14px;background:rgba(255,107,0,0.15);border:1.5px solid rgba(255,107,0,0.3);border-radius:20px;color:var(--orange);font-size:13px;font-weight:700;cursor:pointer;}
 
 /* AGENDA */
+.hero-card{position:relative;overflow:hidden;background:var(--bg2);background:linear-gradient(150deg,color-mix(in srgb,var(--accent) 18%,var(--bg2)),var(--bg2) 70%);border:1px solid var(--border);border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));border-radius:22px;padding:20px;margin-bottom:8px;}
+.hero-glow{position:absolute;top:-40%;right:-20%;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 40%,transparent),transparent 70%);filter:blur(20px);pointer-events:none;}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;position:relative;}
+.hero-tag{font-size:10.5px;font-weight:800;letter-spacing:1px;color:var(--accent);background:rgba(255,107,0,0.12);background:color-mix(in srgb,var(--accent) 15%,transparent);padding:5px 11px;border-radius:20px;}
+.hero-letter{width:46px;height:46px;border-radius:14px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;}
+.hero-name{font-size:24px;font-weight:800;letter-spacing:-0.02em;position:relative;}
+.hero-muscles{font-size:13px;color:var(--text2);margin-top:4px;position:relative;}
+.hero-meta{display:flex;flex-wrap:wrap;gap:14px;margin:16px 0;position:relative;}
+.hero-meta-i{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--text2);font-weight:600;}
+.hero-meta-i span{font-size:14px;}
+.hero-btn{width:100%;padding:15px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15.5px;font-weight:800;cursor:pointer;position:relative;transition:transform .12s,filter .2s;}
+.hero-btn:active{transform:scale(0.98);filter:brightness(1.08);}
 .agenda-head{margin-bottom:22px;}
 .greet-eye{font-size:14px;color:var(--text2);font-weight:500;}
 .greet-name{font-size:30px;font-weight:800;letter-spacing:-0.02em;margin-top:2px;}
@@ -2984,9 +3062,31 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .set-ctrl{flex:1;padding:11px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;}
 .set-ctrl-del{border-color:rgba(255,100,100,0.4);color:#FF6B6B;}
 .sess-acts{display:flex;flex-direction:column;gap:8px;}
-.session-done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center;gap:12px;}
-.done-title{font-size:30px;font-weight:900;color:var(--orange);}
-.done-sub{font-size:14px;color:var(--text2);}
+.session-done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center;gap:14px;position:relative;overflow:hidden;background:radial-gradient(120% 70% at 50% 20%,rgba(255,107,0,0.12) 0%,transparent 60%);}
+.confetti-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.confetti{position:absolute;top:-20px;border-radius:2px;opacity:0;animation-name:confettiFall;animation-timing-function:ease-in;animation-iteration-count:1;animation-fill-mode:forwards;}
+@keyframes confettiFall{0%{opacity:0;transform:translateY(-20px) rotate(0deg)}10%{opacity:1}100%{opacity:0;transform:translateY(105vh) rotate(540deg)}}
+.done-trophy{font-size:84px;animation:trophyPop 0.7s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes trophyPop{0%{transform:scale(0) rotate(-30deg)}70%{transform:scale(1.15)}100%{transform:scale(1) rotate(0)}}
+.done-title{font-size:30px;font-weight:900;color:var(--orange);letter-spacing:-0.02em;animation:tabFade .5s ease .15s both;}
+.done-sub{font-size:15px;color:var(--text2);animation:tabFade .5s ease .25s both;}
+.done-stats{display:flex;gap:10px;width:100%;max-width:320px;margin-top:8px;animation:tabFade .5s ease .35s both;}
+.done-stat{flex:1;background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;padding:14px 8px;}
+.done-stat-v{font-size:24px;font-weight:800;color:var(--text);}
+.done-stat-l{font-size:9.5px;color:var(--text3);font-weight:600;letter-spacing:0.5px;margin-top:2px;}
+.done-streak{display:flex;align-items:center;gap:8px;background:var(--orange-soft);border:1px solid rgba(255,107,0,0.25);border-radius:30px;padding:10px 18px;font-size:14px;color:var(--text);margin-top:6px;animation:tabFade .5s ease .45s both;}
+.done-streak strong{color:var(--orange);font-size:16px;}
+.flame{font-size:18px;animation:flameFlicker 1.2s ease-in-out infinite;display:inline-block;}
+@keyframes flameFlicker{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.15) rotate(3deg)}}
+/* ACHIEVEMENTS */
+.ach-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ach-card{background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden;}
+.ach-card.locked{opacity:0.5;}
+.ach-card.unlocked{border-color:rgba(255,107,0,0.3);background:linear-gradient(135deg,rgba(255,107,0,0.08),var(--bg2));}
+.ach-ic{font-size:28px;}
+.ach-nm{font-size:13px;font-weight:700;color:var(--text);}
+.ach-ds{font-size:11px;color:var(--text3);line-height:1.3;}
+.ach-badge{position:absolute;top:10px;right:10px;font-size:14px;}
 </style>
 </head>
 <body>
