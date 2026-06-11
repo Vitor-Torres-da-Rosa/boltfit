@@ -620,18 +620,48 @@ function computeTMB(){
 // ═══════════════════════════════════════════
 // RENDER ENGINE — Modal in #modalRoot (outside #app, no max-width constraint)
 // ═══════════════════════════════════════════
+// ─── Preservação de rolagem: r() reconstrói a tela inteira; sem isso,
+// qualquer clique (abrir menu, fechar modal, marcar série) voltava ao topo. ───
+let _scrollMemo=null;let _renderedAppKey="";let _renderedModalKey="";
+function _appKey(){return `${S.phase}|${S.tab}|${S.session?"sess":""}`;}
+function _elPath(el,root){const p=[];while(el&&el!==root){const par=el.parentElement;if(!par)return null;p.unshift(Array.prototype.indexOf.call(par.children,el));el=par;}return p;}
+function _elByPath(path,root){let el=root;for(const i of path){el=el&&el.children[i];if(!el)return null;}return el;}
+function _captureScroll(){
+  const items=[];
+  ["app","modalRoot"].forEach(rid=>{
+    const root=document.getElementById(rid);if(!root)return;
+    root.querySelectorAll("*").forEach(el=>{
+      if(el.scrollTop>0){const path=_elPath(el,root);if(path)items.push({rid,path,top:el.scrollTop});}
+    });
+  });
+  _scrollMemo={appKey:_renderedAppKey,modalKey:_renderedModalKey,items};
+}
+function _restoreScroll(){
+  _renderedAppKey=_appKey();_renderedModalKey=S.modal||"";
+  if(!_scrollMemo)return;
+  const okApp=_scrollMemo.appKey===_renderedAppKey;
+  const okModal=_scrollMemo.modalKey===_renderedModalKey;
+  const apply=()=>{_scrollMemo&&_scrollMemo.items.forEach(it=>{
+    if(it.rid==="app"&&!okApp)return;
+    if(it.rid==="modalRoot"&&!okModal)return;
+    const root=document.getElementById(it.rid);const el=root&&_elByPath(it.path,root);if(el)el.scrollTop=it.top;
+  });};
+  apply();requestAnimationFrame(apply);
+}
 function r(){
+  _captureScroll();
   document.getElementById("app").innerHTML="";
   document.getElementById("modalRoot").innerHTML="";
   if(S.phase==="splash")document.getElementById("app").appendChild(rSplash());
   else if(S.phase==="login")document.getElementById("app").appendChild(rLogin());
   else if(S.phase==="onboard")document.getElementById("app").appendChild(rOnboard());
   else{
-    if(S.session){document.getElementById("app").appendChild(rSession());return;}
+    if(S.session){document.getElementById("app").appendChild(rSession());_restoreScroll();return;}
     document.getElementById("app").appendChild(rHome());
     const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual","pickSessionExercises","treinos","aiWorkout","coach","autoDiet","reports","perfil","premium","monthCal","waterInfo","clearDay"];
     if(modals.includes(S.modal))document.getElementById("modalRoot").appendChild(rModal());
   }
+  _restoreScroll();
 }
 
 // ═══════════════════════════════════════════
@@ -3312,29 +3342,62 @@ function rAddExercisesModal(){
   let picked=[...(w.exercises||[])];
   let lF="",lG="";
   const MGROUPS=Object.entries(MUSCLE_META).map(([id,v])=>({id,...v}));
-  const render=()=>{
-    const filtered=ALL_EX.filter(e=>{const gOk=!lG||e.group===lG;const sOk=!lF||e.name.toLowerCase().includes(lF.toLowerCase());return gOk&&sOk;});
-    const d2=document.querySelector(".modal-sheet");if(!d2)return;
-    d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div><div class="modal-title">Exercícios</div><div class="modal-sub">${w.name}</div></div><button class="close-x" id="bCEx">✕</button></div>
-    <div class="search-box" style="margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exPS" placeholder="Buscar..." value="${lF}"/></div>
-    <div class="mfilters" style="margin-bottom:8px"><button class="mf ${!lG?"mf-on":""}" data-lg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${lG===m.id?"mf-on":""}" data-lg="${m.id}" style="${lG===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}</div>
-    ${picked.length>0?`<div class="picked-bar"><span style="font-size:12px;color:#888">${picked.length} selecionado(s):</span>${picked.map((e,i)=>`<span class="picked-pill">${i+1}.${e.name.split(" ")[0]}</span>`).join("")}</div>`:""}
-    <div class="ex-pick-list">${filtered.map(e=>{const isPicked=picked.find(p=>p.id===e.id);const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-add-row" data-eid="${e.id}"><div class="ex-add-thumb" style="display:flex;align-items:center;justify-content:center;background:${m.bg};overflow:hidden;position:relative"><img src="${gifUrl(e.id)}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center">${muscleSVG(e.group,m.color)}</div></div><div class="ex-add-info"><div class="ex-add-nm">${e.name}</div><div class="ex-add-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq"> · ${e.eq}</span></div></div><button class="ex-add-btn ${isPicked?"ex-added":""}" data-eid="${e.id}">${isPicked?"✓":"+"}</button></div>`;}).join("")}</div>
-    <div style="padding:12px 0 0"><button class="btn-primary" id="bSvEx">Salvar (${picked.length} exercício${picked.length!==1?"s":""})</button></div>`;
-    d2.querySelector("#bCEx")?.addEventListener("click",closeModal);
-    d2.querySelector("#exPS")?.addEventListener("input",e=>{lF=e.target.value;render();});
-    d2.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{lG=b.dataset.lg;render();});
-    d2.querySelectorAll("[data-eid]").forEach(btn=>btn.onclick=e=>{e.stopPropagation();const id=btn.dataset.eid;const ex=ALL_EX.find(e=>e.id===id);if(!ex)return;if(picked.find(p=>p.id===id))picked=picked.filter(p=>p.id!==id);else picked.push(ex);render();});
-    d2.querySelector("#bSvEx")?.addEventListener("click",async(ev)=>{const btn=ev.currentTarget;if(btn.dataset.saving==="1")return;btn.dataset.saving="1";btn.disabled=true;btn.style.opacity="0.6";w.exercises=picked;const updated={...w};try{await setDoc(doc(db,"users",uid(),"workouts",w.id),updated);S.workouts=S.workouts.map(x=>x.id===w.id?updated:x);
-      const day=S.mCtx?.day;
-      if(typeof day==="number"){if(!S.schedule)S.schedule={};S.schedule[day]={id:w.id,name:w.name,letter:w.letter||w.name[0]};await saveSchedule(S.schedule);}
-      closeModal();
-    }catch(e){btn.dataset.saving="0";btn.disabled=false;btn.style.opacity="1";alert("Erro ao salvar. Tente novamente.");}});
-  };
   const d=D("overlay");
   d.innerHTML=`<div class="modal-sheet"></div>`;
   d.onclick=e=>{if(e.target===d)closeModal();};
-  setTimeout(()=>render(),0);
+  const build=()=>{
+    const d2=d.querySelector(".modal-sheet");if(!d2)return;
+    d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div><div class="modal-title">Exercícios</div><div class="modal-sub">${w.name}</div></div><button class="close-x" id="bCEx">✕</button></div>
+    <div class="search-box" style="margin-bottom:8px;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exPS" placeholder="Buscar..." autocomplete="off"/></div>
+    <div class="mfilters" id="pkFilters" style="margin-bottom:8px;flex-shrink:0"></div>
+    <div id="pkBar" style="flex-shrink:0"></div>
+    <div class="ex-pick-list" id="pkList"></div>
+    <div style="padding:12px 0 0;flex-shrink:0"><button class="btn-primary" id="bSvEx">Salvar (0)</button></div>`;
+    d2.querySelector("#bCEx").onclick=closeModal;
+    d2.querySelector("#exPS").addEventListener("input",e=>{lF=e.target.value;renderList();});
+    d2.querySelector("#bSvEx").addEventListener("click",async ev=>{
+      const btn=ev.currentTarget;if(btn.dataset.saving==="1")return;btn.dataset.saving="1";btn.disabled=true;btn.style.opacity="0.6";
+      w.exercises=picked;const updated={...w};
+      try{
+        await setDoc(doc(db,"users",uid(),"workouts",w.id),updated);
+        S.workouts=S.workouts.map(x=>x.id===w.id?updated:x);
+        const day=S.mCtx?.day;
+        if(typeof day==="number"){if(!S.schedule)S.schedule={};S.schedule[day]={id:w.id,name:w.name,letter:w.letter||w.name[0]};await saveSchedule(S.schedule);}
+        closeModal();
+      }catch(e){btn.dataset.saving="0";btn.disabled=false;btn.style.opacity="1";alert("Erro ao salvar. Tente novamente.");}
+    });
+    renderFilters();renderList();updatePicked();
+  };
+  const renderFilters=()=>{
+    const bar=d.querySelector("#pkFilters");if(!bar)return;
+    bar.innerHTML=`<button class="mf ${!lG?"mf-on":""}" data-lg="">Todos</button>${MGROUPS.map(m=>`<button class="mf ${lG===m.id?"mf-on":""}" data-lg="${m.id}" style="${lG===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}`;
+    bar.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{FX.tap();lG=b.dataset.lg;renderFilters();renderList();});
+  };
+  const renderList=()=>{
+    const list=d.querySelector("#pkList");if(!list)return;
+    const filtered=ALL_EX.filter(e=>{const gOk=!lG||e.group===lG;const sOk=!lF||e.name.toLowerCase().includes(lF.toLowerCase());return gOk&&sOk;});
+    list.innerHTML=filtered.length===0
+      ?`<div class="empty" style="padding:40px 0;text-align:center"><div style="font-size:36px;opacity:0.5">🔍</div><p style="margin-top:8px">Nenhum exercício encontrado</p></div>`
+      :filtered.map(e=>{const isPicked=picked.find(p=>p.id===e.id);const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};return `<div class="ex-add-row" data-eid="${e.id}"><div class="ex-add-thumb" style="display:flex;align-items:center;justify-content:center;background:${m.bg};overflow:hidden;position:relative"><img src="${gifUrl(e.id)}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center">${muscleSVG(e.group,m.color)}</div></div><div class="ex-add-info"><div class="ex-add-nm">${e.name}</div><div class="ex-add-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq"> · ${e.eq}</span></div></div><button class="ex-add-btn ${isPicked?"ex-added":""}" data-eid="${e.id}">${isPicked?"✓":"+"}</button></div>`;}).join("");
+    // Toggle in place: nada é reconstruído, então a rolagem fica exatamente onde está
+    list.querySelectorAll("[data-eid]").forEach(el=>el.onclick=e=>{
+      e.stopPropagation();
+      const id=el.dataset.eid;const ex=ALL_EX.find(x=>x.id===id);if(!ex)return;
+      FX.tap();
+      const nowPicked=!picked.find(p=>p.id===id);
+      picked=nowPicked?[...picked,ex]:picked.filter(p=>p.id!==id);
+      list.querySelectorAll(`button[data-eid="${id}"]`).forEach(btn=>{btn.classList.toggle("ex-added",nowPicked);btn.textContent=nowPicked?"✓":"+";});
+      updatePicked();
+    });
+    list.scrollTop=0;
+  };
+  const updatePicked=()=>{
+    const bar=d.querySelector("#pkBar");
+    if(bar)bar.innerHTML=picked.length>0?`<div class="picked-bar"><span style="font-size:12px;color:#888">${picked.length} selecionado(s):</span>${picked.map((e,i)=>`<span class="picked-pill">${i+1}.${e.name.split(" ")[0]}</span>`).join("")}</div>`:"";
+    const sv=d.querySelector("#bSvEx");
+    if(sv)sv.textContent=`Salvar (${picked.length} exercício${picked.length!==1?"s":""})`;
+  };
+  setTimeout(build,0);
   return d;
 }
 
@@ -3429,6 +3492,7 @@ function rPickSessionModal(){
   // Track selection (all selected by default) and editable params
   let picked=exs.map((_,i)=>i);
   const render=()=>{
+    const _psl=d.querySelector("#psList");const _pst=_psl?_psl.scrollTop:0;
     d.querySelector("#psList").innerHTML=exs.map((e,i)=>{
       const m=MUSCLE_META[e.group]||{label:e.group||"",color:"#888",bg:"rgba(136,136,136,0.15)"};
       const on=picked.includes(i);
@@ -3448,6 +3512,7 @@ function rPickSessionModal(){
     d.querySelectorAll(".ps-tog").forEach(b=>b.onclick=()=>{const i=parseInt(b.dataset.i);if(picked.includes(i))picked=picked.filter(x=>x!==i);else picked.push(i);render();});
     d.querySelectorAll(".ps-inp").forEach(inp=>inp.oninput=e=>{const i=parseInt(inp.dataset.i);const f=inp.dataset.f;exs[i][f]=f==="reps"?inp.value:(parseInt(inp.value)||(f==="sets"?3:60));});
     const cnt=d.querySelector("#psCount");if(cnt)cnt.textContent=picked.length;
+    const _psl2=d.querySelector("#psList");if(_psl2&&_pst>0)_psl2.scrollTop=_pst;
   };
   const d=sheet(w.name,"Escolha os exercícios para treinar",`
     <div id="psList" style="max-height:50vh;overflow-y:auto;padding:2px"></div>
