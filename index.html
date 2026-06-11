@@ -2128,21 +2128,77 @@ function rCalorias(){
   return d;
 }
 
-// ─── EXERCÍCIOS ───
+// ─── EXERCÍCIOS (v2 — Biblioteca Premium) ───
 function rExercicios(){
   const d=D("tab-page");
   if(!S.exEquip)S.exEquip="";
-  const filtered=ALL_EX.filter(e=>{
-    const gOk=!S.exGroup||e.group===S.exGroup;
-    const eqOk=!S.exEquip||e.eq===S.exEquip;
-    const sOk=!S.exFilter||e.name.toLowerCase().includes(S.exFilter.toLowerCase())||e.muscles.toLowerCase().includes(S.exFilter.toLowerCase());
-    return gOk&&eqOk&&sOk;
-  });
-  const MGROUPS=Object.entries(MUSCLE_META).map(([id,v])=>({id,...v}));
-  const EQUIPS=[...new Set(ALL_EX.map(e=>e.eq))];
+  if(S.exFilter===undefined)S.exFilter="";
   const eqIcon=eq=>({"Barra":"🏋️","Halteres":"💪","Polia":"🔗","Máquina":"⚙️","Peso Corporal":"🤸"})[eq]||"🏷️";
-  d.innerHTML=`
-    <div class="ex-hero">
+  const MGROUPS=Object.entries(MUSCLE_META).map(([id,v])=>{
+    const list=ALL_EX.filter(e=>e.group===id);
+    return {id,...v,count:list.length,cover:list[0]?gifUrl(list[0].id):""};
+  });
+  const EQUIPS=[...new Set(ALL_EX.map(e=>e.eq))];
+
+  const filterList=()=>{
+    const q=(S.exFilter||"").trim().toLowerCase();
+    return ALL_EX.filter(e=>{
+      const gOk=!S.exGroup||e.group===S.exGroup;
+      const eqOk=!S.exEquip||e.eq===S.exEquip;
+      const sOk=!q||e.name.toLowerCase().includes(q)||e.muscles.toLowerCase().includes(q);
+      return gOk&&eqOk&&sOk;
+    });
+  };
+
+  const rowHTML=(e,showGroup=true)=>{
+    const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
+    return `<div class="exv2-row" data-exd="${e.id}">
+      <div class="exv2-thumb" style="--mc:${m.color}">
+        <img src="${gifUrl(e.id)}" loading="lazy" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+        <div class="exv2-thumb-fb" style="background:${m.bg}">${muscleSVG(e.group,m.color)}</div>
+      </div>
+      <div class="exv2-info">
+        <div class="exv2-nm">${e.name}</div>
+        <div class="exv2-mus">${e.muscles}</div>
+        <div class="exv2-meta">
+          ${showGroup?`<span class="exv2-pill" style="color:${m.color};background:${m.bg}">${m.label}</span>`:""}
+          <span class="exv2-pill exv2-pill-eq">${eqIcon(e.eq)} ${e.eq}</span>
+          <span class="exv2-pill exv2-pill-eq">${e.sets}×${e.reps}</span>
+        </div>
+      </div>
+      <div class="exv2-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </div>`;
+  };
+
+  const gridHTML=()=>`
+    <div class="exv2-sec-lbl">EXPLORAR POR GRUPO MUSCULAR</div>
+    <div class="exv2-grid">
+      ${MGROUPS.map((m,i)=>`<div class="exv2-card" data-mg="${m.id}" style="--mc:${m.color};animation-delay:${i*0.035}s">
+        <img src="${m.cover}" loading="lazy" alt="" onerror="this.style.opacity='0'"/>
+        <div class="exv2-card-shade"></div>
+        <div class="exv2-card-glow"></div>
+        <div class="exv2-card-bottom">
+          <div class="exv2-card-ttl">${m.label.charAt(0)+m.label.slice(1).toLowerCase()}</div>
+          <div class="exv2-card-ct">${m.count} exercícios</div>
+        </div>
+      </div>`).join("")}
+    </div>`;
+
+  const headerHTML=()=>{
+    const q=(S.exFilter||"").trim();
+    if(S.exGroup&&!q){
+      const m=MUSCLE_META[S.exGroup]||{label:S.exGroup,color:"#888",bg:"rgba(136,136,136,0.15)"};
+      const total=ALL_EX.filter(e=>e.group===S.exGroup).length;
+      return `<div class="exv2-grp-hdr">
+        <button class="exv2-back" id="exBack" aria-label="Voltar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <div>
+          <div class="exv2-grp-ttl" style="color:${m.color}">${m.label.charAt(0)+m.label.slice(1).toLowerCase()}</div>
+          <div class="exv2-grp-sub">${total} ${total===1?"exercício":"exercícios"} disponíveis</div>
+        </div>
+        <div class="exv2-grp-ic" style="background:${m.bg}">${muscleSVG(S.exGroup,m.color)}</div>
+      </div>`;
+    }
+    return `<div class="ex-hero" style="padding-bottom:4px">
       <div class="ex-hero-row">
         <div>
           <div class="ex-hero-title">Exercícios</div>
@@ -2150,36 +2206,58 @@ function rExercicios(){
         </div>
         <div class="ex-hero-badge">PRO</div>
       </div>
-    </div>
-    <div class="search-box ex-search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-inp" id="exS" placeholder="Buscar exercício ou músculo..." value="${S.exFilter}"/></div>
-    <div class="mfilters">
-      <button class="mf ${!S.exGroup?"mf-on":""}" data-mg="">Todos</button>
-      ${MGROUPS.map(m=>`<button class="mf ${S.exGroup===m.id?"mf-on":""}" data-mg="${m.id}" style="${S.exGroup===m.id?`color:${m.color};background:${m.bg};border-color:${m.color}`:""}">${m.label}</button>`).join("")}
-    </div>
-    <div class="eqfilters">
-      <button class="eqf ${!S.exEquip?"eqf-on":""}" data-eq="">Todos equipamentos</button>
+    </div>`;
+  };
+
+  const bodyHTML=()=>{
+    const q=(S.exFilter||"").trim();
+    const browsing=S.exGroup||q;
+    if(!browsing)return gridHTML();
+    const list=filterList();
+    const eqRow=`<div class="eqfilters" style="padding:0 0 12px">
+      <button class="eqf ${!S.exEquip?"eqf-on":""}" data-eq="">Todos</button>
       ${EQUIPS.map(eq=>`<button class="eqf ${S.exEquip===eq?"eqf-on":""}" data-eq="${eq}">${eqIcon(eq)} ${eq}</button>`).join("")}
+    </div>`;
+    return `${eqRow}
+      <div class="exv2-count">${list.length} ${list.length===1?"resultado":"resultados"}${q?` para "${q.replace(/</g,"&lt;")}"`:""}</div>
+      ${list.length===0
+        ?`<div class="empty" style="padding:48px 0;text-align:center"><div style="font-size:44px;opacity:0.5">🔍</div><p style="margin-top:10px;font-weight:700">Nenhum exercício encontrado</p><p style="font-size:13px;color:var(--text3);margin-top:4px">Tente outro termo ou remova os filtros</p><button class="eqf" id="exClear" style="margin-top:14px;color:var(--orange);border-color:var(--orange)">Limpar filtros</button></div>`
+        :`<div class="list-body">${list.map(e=>rowHTML(e,!S.exGroup)).join("")}</div>`}`;
+  };
+
+  d.innerHTML=`
+    <div id="exHead"></div>
+    <div class="exv2-search-wrap">
+      <div class="search-box exv2-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-inp" id="exS" placeholder="Buscar exercício ou músculo..." value="${(S.exFilter||"").replace(/"/g,"&quot;")}" autocomplete="off"/>
+        <button id="exSX" class="exv2-search-x" style="display:${S.exFilter?"flex":"none"}" aria-label="Limpar busca">✕</button>
+      </div>
     </div>
-    <div class="ex-count">${filtered.length} ${filtered.length===1?"exercício":"exercícios"}</div>
-    <div class="list-body">${filtered.length===0?`<div class="empty" style="padding:50px 0"><div style="font-size:44px;opacity:0.5">🔍</div><p style="margin-top:10px">Nenhum exercício encontrado</p><p style="font-size:13px;color:var(--text3);margin-top:4px">Tente outro filtro ou busca</p></div>`:filtered.map(e=>{
-      const m=MUSCLE_META[e.group]||{label:e.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
-      return `<div class="ex-row ex-row-pro" data-exd="${e.id}">
-        <div class="ex-thumb ex-thumb-pro" style="background:linear-gradient(135deg,${m.bg},rgba(0,0,0,0.2))">
-          <img src="${gifUrl(e.id)}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
-          <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center">${muscleSVG(e.group,m.color)}</div>
-          <div class="ex-thumb-grad"></div>
-        </div>
-        <div class="ex-info">
-          <div class="ex-nm">${e.name}</div>
-          <div class="ex-mus">${e.muscles}</div>
-          <div class="ex-tags"><span class="ex-tag" style="color:${m.color};background:${m.bg}">${m.label}</span><span class="ex-tq">${eqIcon(e.eq)} ${e.eq}</span></div>
-        </div>
-        <div class="chev">›</div>
-      </div>`;}).join("")}</div>`;
-  d.querySelector("#exS")?.addEventListener("input",e=>{S.exFilter=e.target.value;r();});
-  d.querySelectorAll("[data-mg]").forEach(b=>b.onclick=()=>{FX.tap();S.exGroup=b.dataset.mg;r();});
-  d.querySelectorAll("[data-eq]").forEach(b=>b.onclick=()=>{FX.tap();S.exEquip=b.dataset.eq;r();});
-  d.querySelectorAll("[data-exd]").forEach(row=>row.onclick=()=>{FX.tapSoft();const ex=ALL_EX.find(e=>e.id===row.dataset.exd);if(ex){S.modal="exDetail";S.mCtx={ex};r();}});
+    <div id="exBody" class="exv2-body"></div>`;
+
+  const bind=()=>{
+    d.querySelectorAll(".exv2-card").forEach(c=>c.onclick=()=>{FX.tap();S.exGroup=c.dataset.mg;S.exEquip="";paint();});
+    d.querySelectorAll("[data-eq]").forEach(b=>b.onclick=()=>{FX.tap();S.exEquip=b.dataset.eq;paint(false);});
+    d.querySelectorAll("[data-exd]").forEach(row=>row.onclick=()=>{FX.tapSoft();const ex=ALL_EX.find(e=>e.id===row.dataset.exd);if(ex){S.modal="exDetail";S.mCtx={ex};r();}});
+    const back=d.querySelector("#exBack");if(back)back.onclick=()=>{FX.tap();S.exGroup="";S.exEquip="";paint();};
+    const clr=d.querySelector("#exClear");if(clr)clr.onclick=()=>{FX.tap();S.exFilter="";S.exEquip="";const i=d.querySelector("#exS");if(i)i.value="";const x=d.querySelector("#exSX");if(x)x.style.display="none";paint();};
+  };
+  const paint=(scrollTop=true)=>{
+    d.querySelector("#exHead").innerHTML=headerHTML();
+    d.querySelector("#exBody").innerHTML=bodyHTML();
+    bind();
+    if(scrollTop){const sc=d.closest(".tab-scroll")||d.parentElement;try{(sc||window).scrollTo({top:0,behavior:"instant"});}catch(_){}}
+  };
+  paint(false);
+
+  const inp=d.querySelector("#exS");
+  inp.addEventListener("input",()=>{
+    S.exFilter=inp.value;
+    const x=d.querySelector("#exSX");if(x)x.style.display=S.exFilter?"flex":"none";
+    paint(false);
+  });
+  d.querySelector("#exSX").onclick=()=>{FX.tap();S.exFilter="";inp.value="";d.querySelector("#exSX").style.display="none";paint(false);inp.focus();};
   return d;
 }
 
@@ -3273,26 +3351,70 @@ function rExDetailModal(){
   const ex=S.mCtx?.ex;if(!ex)return D("div");
   const m=MUSCLE_META[ex.group]||{label:ex.group,color:"#888",bg:"rgba(136,136,136,0.15)"};
   const eqIcon=({"Barra":"🏋️","Halteres":"💪","Polia":"🔗","Máquina":"⚙️","Peso Corporal":"🤸"})[ex.eq]||"🏷️";
+  const img0=gifUrl(ex.id),img1=gifUrlAlt(ex.id);
   const d=sheet(ex.name,"",`
-    <div style="position:relative;border-radius:18px;overflow:hidden;margin-bottom:14px;background:linear-gradient(135deg,${m.bg},rgba(0,0,0,0.25));aspect-ratio:16/11;display:flex;align-items:center;justify-content:center">
-      <img src="${gifUrl(ex.id)}" alt="${ex.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;const a='${gifUrlAlt(ex.id)}';if(a&&this.src!==a){this.src=a;}else{this.style.display='none';this.nextElementSibling.style.display='flex';}"/>
-      <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;padding:14px">${exerciseAnimation(ex.group,m.color)}</div>
-      <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.45),transparent 50%);pointer-events:none"></div>
-      <div style="position:absolute;top:12px;left:12px;display:flex;gap:6px"><span class="ex-tag" style="color:#fff;background:${m.color};font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${m.label}</span></div>
+    <div class="exv2-media" style="--mc:${m.color}">
+      <img id="exImgA" src="${img0}" alt="${ex.name}" loading="lazy" onerror="this.style.display='none';const fb=this.parentElement.querySelector('.exv2-media-fb');if(fb)fb.style.display='flex';const b=document.getElementById('exImgB');if(b)b.remove();const lb=document.getElementById('exDemoLbl');if(lb)lb.remove();"/>
+      ${img1?`<img id="exImgB" class="exv2-frame-b" src="${img1}" alt="" loading="lazy" onerror="this.remove();const lb=document.getElementById('exDemoLbl');if(lb)lb.remove();"/>`:""}
+      <div class="exv2-media-fb" style="display:none">${exerciseAnimation(ex.group,m.color)}</div>
+      <div class="exv2-media-shade"></div>
+      <span class="exv2-media-tag" style="background:${m.color}">${m.label}</span>
+      ${img1?`<span class="exv2-demo-lbl" id="exDemoLbl"><span class="exv2-demo-dot"></span>DEMONSTRAÇÃO</span>`:""}
     </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-      <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:12px;padding:11px 14px"><span style="font-size:18px">${eqIcon}</span><div><div style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:0.5px">EQUIPAMENTO</div><div style="font-size:13.5px;font-weight:700;color:var(--text)">${ex.eq}</div></div></div>
-      <div style="width:64px;height:64px;flex-shrink:0;background:var(--bg3);border:1px solid var(--border-soft);border-radius:12px;display:flex;align-items:center;justify-content:center;padding:6px">${muscleSVG(ex.group,m.color)}</div>
+    <div class="exv2-chiprow">
+      <div class="exv2-chip"><span class="exv2-chip-ic">${eqIcon}</span><div><div class="exv2-chip-k">EQUIPAMENTO</div><div class="exv2-chip-v">${ex.eq}</div></div></div>
+      <div class="exv2-chip"><span class="exv2-chip-ic" style="padding:4px">${muscleSVG(ex.group,m.color)}</span><div><div class="exv2-chip-k">GRUPO</div><div class="exv2-chip-v" style="color:${m.color}">${m.label.charAt(0)+m.label.slice(1).toLowerCase()}</div></div></div>
     </div>
-    <div class="sec-lbl" style="margin-bottom:6px">MÚSCULOS TRABALHADOS</div>
-    <p style="font-size:14px;color:var(--text2);margin-bottom:18px;line-height:1.5">${ex.muscles}</p>
     <div class="sec-lbl" style="margin-bottom:8px">EXECUÇÃO RECOMENDADA</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-      <div style="background:linear-gradient(135deg,rgba(255,107,0,0.1),rgba(255,107,0,0.02));border:1px solid rgba(255,107,0,0.2);border-radius:14px;padding:14px 8px;text-align:center"><div style="font-size:24px;font-weight:900;color:var(--orange);line-height:1">${ex.sets}</div><div style="font-size:10.5px;color:var(--text3);font-weight:600;margin-top:4px;letter-spacing:0.3px">SÉRIES</div></div>
-      <div style="background:linear-gradient(135deg,rgba(255,107,0,0.1),rgba(255,107,0,0.02));border:1px solid rgba(255,107,0,0.2);border-radius:14px;padding:14px 8px;text-align:center"><div style="font-size:24px;font-weight:900;color:var(--orange);line-height:1">${ex.reps}</div><div style="font-size:10.5px;color:var(--text3);font-weight:600;margin-top:4px;letter-spacing:0.3px">REPS</div></div>
-      <div style="background:linear-gradient(135deg,rgba(255,107,0,0.1),rgba(255,107,0,0.02));border:1px solid rgba(255,107,0,0.2);border-radius:14px;padding:14px 8px;text-align:center"><div style="font-size:24px;font-weight:900;color:var(--orange);line-height:1">${ex.rest}s</div><div style="font-size:10.5px;color:var(--text3);font-weight:600;margin-top:4px;letter-spacing:0.3px">DESCANSO</div></div>
+    <div class="exv2-stats" style="--mc:${m.color}">
+      <div class="exv2-stat"><div class="exv2-stat-v">${ex.sets}</div><div class="exv2-stat-k">SÉRIES</div></div>
+      <div class="exv2-stat"><div class="exv2-stat-v">${ex.reps}</div><div class="exv2-stat-k">REPS</div></div>
+      <div class="exv2-stat"><div class="exv2-stat-v">${ex.rest}s</div><div class="exv2-stat-k">DESCANSO</div></div>
     </div>
+    <div class="sec-lbl" style="margin:18px 0 6px">MÚSCULOS TRABALHADOS</div>
+    <p style="font-size:14px;color:var(--text2);line-height:1.55;margin-bottom:18px">${ex.muscles}</p>
+    <button class="btn-primary" id="exAddWk">+ Adicionar a um treino</button>
+    <div id="exWkPanel" class="exv2-wkpanel" style="display:none"></div>
   `);
+  const panel=d.querySelector("#exWkPanel");
+  const btnAdd=d.querySelector("#exAddWk");
+  const renderPanel=()=>{
+    const wks=S.workouts||[];
+    if(!wks.length){
+      panel.innerHTML=`<div class="exv2-wk-empty">Você ainda não tem treinos.<br><span style="color:var(--text3);font-size:12.5px">Crie um treino na aba Treinar para salvar exercícios.</span></div>`;
+      return;
+    }
+    panel.innerHTML=`<div class="exv2-wk-lbl">ESCOLHA O TREINO</div>${wks.map(w=>{
+      const has=(w.exercises||[]).some(e=>e.id===ex.id);
+      return `<button class="exv2-wk-item ${has?"exv2-wk-has":""}" data-wk="${w.id}" ${has?"disabled":""}>
+        <span class="exv2-wk-letter">${(w.letter||w.name||"T")[0].toUpperCase()}</span>
+        <span class="exv2-wk-nm">${w.name}</span>
+        <span class="exv2-wk-st">${has?"✓ já incluso":`${(w.exercises||[]).length} exerc.`}</span>
+      </button>`;}).join("")}`;
+    panel.querySelectorAll("[data-wk]:not([disabled])").forEach(b=>b.onclick=async()=>{
+      const w=S.workouts.find(x=>x.id===b.dataset.wk);if(!w)return;
+      b.disabled=true;b.style.opacity="0.6";
+      const newEx={...ex};
+      const updated={...w,exercises:[...(w.exercises||[]),newEx],muscles:[...new Set([...(w.muscles||[]),ex.group])]};
+      try{
+        await setDoc(doc(db,"users",uid(),"workouts",w.id),updated);
+        S.workouts=S.workouts.map(x=>x.id===w.id?updated:x);
+        FX.tapStrong();
+        b.classList.add("exv2-wk-ok");
+        b.querySelector(".exv2-wk-st").textContent="✓ adicionado!";
+      }catch(err){
+        b.disabled=false;b.style.opacity="1";
+        alert("Não foi possível salvar. Verifique sua conexão e tente novamente.");
+      }
+    });
+  };
+  btnAdd.onclick=()=>{
+    FX.tap();
+    const open=panel.style.display!=="none";
+    panel.style.display=open?"none":"block";
+    btnAdd.textContent=open?"+ Adicionar a um treino":"Fechar";
+    if(!open)renderPanel();
+  };
   return d;
 }
 
@@ -4230,6 +4352,77 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .ach-nm{font-size:13px;font-weight:700;color:var(--text);}
 .ach-ds{font-size:11px;color:var(--text3);line-height:1.3;}
 .ach-badge{position:absolute;top:10px;right:10px;font-size:14px;}
+
+/* ─── EXERCÍCIOS v2 — Biblioteca Premium ─── */
+#exHead .ex-hero{padding:0 0 10px;}
+.exv2-search-wrap{margin-bottom:14px;}
+.exv2-search{margin-bottom:0;border-radius:14px;padding:12px 14px;}
+.exv2-search-x{width:24px;height:24px;border-radius:50%;border:none;background:var(--bg3);color:var(--text3);font-size:11px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;display:flex;}
+.exv2-body{display:flex;flex-direction:column;min-height:200px;}
+.exv2-sec-lbl{font-size:10px;font-weight:800;color:var(--text3);letter-spacing:2px;margin:2px 0 12px;}
+.exv2-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.exv2-card{position:relative;aspect-ratio:1/0.82;border-radius:18px;overflow:hidden;background:var(--bg2);border:1px solid var(--border-soft);cursor:pointer;transition:transform .14s ease,border-color .2s;animation:exv2In .4s ease both;}
+@keyframes exv2In{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.exv2-card:active{transform:scale(0.965);}
+.exv2-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(0.85);transition:opacity .3s;}
+.exv2-card-shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.88) 8%,rgba(0,0,0,0.25) 55%,rgba(0,0,0,0.05));}
+.exv2-card-glow{position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--mc),transparent 85%);}
+.exv2-card-bottom{position:absolute;left:13px;right:10px;bottom:11px;}
+.exv2-card-ttl{font-size:16.5px;font-weight:850;letter-spacing:-0.2px;color:#fff;line-height:1.15;}
+.exv2-card-ct{font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.62);margin-top:2px;}
+.exv2-grp-hdr{display:flex;align-items:center;gap:12px;padding:2px 0 14px;}
+.exv2-back{width:38px;height:38px;border-radius:12px;background:var(--bg2);border:1px solid var(--border-soft);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s;}
+.exv2-back:active{transform:scale(0.92);}
+.exv2-grp-ttl{font-size:21px;font-weight:900;letter-spacing:-0.4px;line-height:1.1;}
+.exv2-grp-sub{font-size:12px;color:var(--text3);font-weight:500;margin-top:2px;}
+.exv2-grp-ic{width:44px;height:44px;border-radius:13px;margin-left:auto;display:flex;align-items:center;justify-content:center;padding:5px;flex-shrink:0;}
+.exv2-count{font-size:10.5px;font-weight:800;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:10px;}
+.exv2-row{display:flex;align-items:center;gap:13px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;padding:10px;margin-bottom:9px;cursor:pointer;transition:transform .12s,background .15s,border-color .15s;}
+.exv2-row:active{transform:scale(0.985);background:var(--bg3);}
+.exv2-thumb{position:relative;width:74px;height:74px;border-radius:13px;overflow:hidden;flex-shrink:0;background:var(--bg3);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04);}
+.exv2-thumb::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--mc);opacity:0.85;}
+.exv2-thumb img{width:100%;height:100%;object-fit:cover;}
+.exv2-thumb-fb{display:none;width:100%;height:100%;align-items:center;justify-content:center;padding:8px;}
+.exv2-info{flex:1;min-width:0;}
+.exv2-nm{font-weight:750;font-size:14.5px;line-height:1.25;color:var(--text);}
+.exv2-mus{font-size:11.5px;color:var(--text3);margin-top:3px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;}
+.exv2-meta{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;}
+.exv2-pill{font-size:9.5px;font-weight:800;padding:3px 8px;border-radius:20px;letter-spacing:0.3px;}
+.exv2-pill-eq{background:var(--bg3);color:var(--text2);border:1px solid var(--border);font-weight:650;}
+.exv2-chev{color:var(--text3);flex-shrink:0;padding-right:2px;}
+/* detalhe do exercício */
+.exv2-media{position:relative;border-radius:18px;overflow:hidden;margin-bottom:14px;background:var(--bg3);aspect-ratio:16/11;}
+.exv2-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.exv2-frame-b{opacity:0;animation:exv2Swap 2.6s ease-in-out infinite;}
+@keyframes exv2Swap{0%,38%{opacity:0}50%,88%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.exv2-frame-b{animation:none;opacity:0;}.exv2-card{animation:none;}}
+.exv2-media-fb{position:absolute;inset:0;align-items:center;justify-content:center;padding:14px;}
+.exv2-media-shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.5),transparent 45%);pointer-events:none;}
+.exv2-media-tag{position:absolute;top:12px;left:12px;font-size:10px;font-weight:900;letter-spacing:1px;color:#fff;padding:5px 11px;border-radius:20px;box-shadow:0 2px 10px rgba(0,0,0,0.35);}
+.exv2-demo-lbl{position:absolute;bottom:10px;right:12px;display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:800;letter-spacing:1.2px;color:rgba(255,255,255,0.92);background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);padding:5px 10px;border-radius:20px;}
+.exv2-demo-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;animation:exv2Pulse 1.3s ease-in-out infinite;}
+@keyframes exv2Pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.exv2-chiprow{display:flex;gap:9px;margin-bottom:18px;}
+.exv2-chip{flex:1;display:flex;align-items:center;gap:9px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:13px;padding:10px 12px;min-width:0;}
+.exv2-chip-ic{width:34px;height:34px;border-radius:10px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.exv2-chip-k{font-size:9px;color:var(--text3);font-weight:800;letter-spacing:0.8px;}
+.exv2-chip-v{font-size:13px;font-weight:750;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.exv2-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
+.exv2-stat{background:linear-gradient(150deg,color-mix(in srgb,var(--mc) 13%,transparent),transparent 70%);border:1px solid color-mix(in srgb,var(--mc) 26%,transparent);border-radius:14px;padding:14px 6px;text-align:center;}
+.exv2-stat-v{font-size:23px;font-weight:900;color:var(--mc);line-height:1;}
+.exv2-stat-k{font-size:10px;color:var(--text3);font-weight:700;margin-top:5px;letter-spacing:0.5px;}
+.exv2-wkpanel{margin-top:12px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:16px;padding:13px;animation:exv2In .25s ease both;}
+.exv2-wk-lbl{font-size:9.5px;font-weight:800;letter-spacing:1.5px;color:var(--text3);margin-bottom:10px;}
+.exv2-wk-item{display:flex;align-items:center;gap:10px;width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;color:var(--text);transition:border-color .15s,transform .12s;text-align:left;}
+.exv2-wk-item:active:not([disabled]){transform:scale(0.985);}
+.exv2-wk-item:last-child{margin-bottom:0;}
+.exv2-wk-has{opacity:0.55;cursor:default;}
+.exv2-wk-ok{border-color:#4ADE80;}
+.exv2-wk-ok .exv2-wk-st{color:#4ADE80;font-weight:800;}
+.exv2-wk-letter{width:32px;height:32px;border-radius:9px;background:var(--orange);color:#fff;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.exv2-wk-nm{flex:1;font-weight:700;font-size:13.5px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.exv2-wk-st{font-size:11px;color:var(--text3);font-weight:600;flex-shrink:0;}
+.exv2-wk-empty{text-align:center;font-size:13.5px;font-weight:700;color:var(--text2);padding:14px 6px;line-height:1.6;}
 </style>
 </head>
 <body>
