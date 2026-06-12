@@ -443,10 +443,10 @@ function showPremiumGate(reason){
   document.body.appendChild(ov);
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
   ov.querySelector("#pgClose").onclick=()=>ov.remove();
-  ov.querySelector("#pgUpgrade").onclick=()=>{
+  ov.querySelector("#pgUpgrade").onclick=async()=>{
     ov.remove();
     // Cobrança real exige gateway de pagamento + servidor. Por ora, ativação manual.
-    if(confirm("O pagamento online ainda será configurado.\n\nDeseja ativar o Premium neste dispositivo agora (modo teste)?")){
+    if(await askConfirm("Ativar Premium","O pagamento online ainda será configurado. Deseja ativar o Premium neste dispositivo agora (modo teste)?","Ativar")){
       if(!S.profile)S.profile={};
       S.profile.plan="premium";
       saveProfile(S.profile);
@@ -623,6 +623,33 @@ function computeTMB(){
 // ─── Preservação de rolagem: r() reconstrói a tela inteira; sem isso,
 // qualquer clique (abrir menu, fechar modal, marcar série) voltava ao topo. ───
 
+
+// ─── CONFIRMAÇÃO: modal próprio no lugar do confirm() do navegador ───
+function askConfirm(title,msg,okLabel="Confirmar",danger=false){
+  return new Promise(res=>{
+    const ov=document.createElement("div");
+    ov.className="cfm-ov";
+    ov.innerHTML=`<div class="cfm-box">
+      <div class="cfm-ic ${danger?"cfm-ic-danger":""}">${danger
+        ?`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>`
+        :`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>`}</div>
+      <div class="cfm-title"></div>
+      <div class="cfm-msg"></div>
+      <div class="cfm-btns">
+        <button class="cfm-cancel">Cancelar</button>
+        <button class="cfm-ok ${danger?"cfm-ok-danger":""}"></button>
+      </div>
+    </div>`;
+    ov.querySelector(".cfm-title").textContent=title;
+    ov.querySelector(".cfm-msg").textContent=msg;
+    ov.querySelector(".cfm-ok").textContent=okLabel;
+    const close=v=>{ov.classList.add("cfm-out");setTimeout(()=>ov.remove(),200);res(v);};
+    ov.querySelector(".cfm-cancel").onclick=()=>{FX.tap();close(false);};
+    ov.querySelector(".cfm-ok").onclick=()=>{FX.tapStrong();close(true);};
+    ov.onclick=e=>{if(e.target===ov)close(false);};
+    document.body.appendChild(ov);
+  });
+}
 // ─── TOAST: notificações elegantes no lugar de alert() ───
 let _toastTimer=null;
 function toast(msg,type="info"){
@@ -692,10 +719,12 @@ function r(){
 // ═══════════════════════════════════════════
 function rSplash(){
   const d=D("splash");
+  const row=`<div class="splash-logo splash-logo-in"><div class="splash-logo-ring"></div><svg width="42" height="42" viewBox="0 0 80 80" style="position:relative;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35))"><polygon points="46,4 18,44 38,44 34,76 62,36 42,36" fill="white"/></svg></div>
+      <div class="splash-name splash-name-in">Bolt<span class="splash-name-accent">Fit</span><span class="splash-name-shine"></span></div>`;
   d.innerHTML=`<div class="splash-anim">
-    <div class="splash-row">
-      <div class="splash-logo splash-logo-in"><svg width="44" height="44" viewBox="0 0 80 80"><polygon points="46,4 18,44 38,44 34,76 62,36 42,36" fill="white"/></svg></div>
-      <div class="splash-name splash-name-in">BoltFit</div>
+    <div class="splash-stage">
+      <div class="splash-row">${row}</div>
+      <div class="splash-row splash-mirror" aria-hidden="true">${row}</div>
     </div>
     <div class="splash-tag splash-tag-in">Seu treino. Sua evolução.</div>
   </div>`;
@@ -954,14 +983,15 @@ function rAgenda(){
 // ─── TREINOS ───
 function rTreinos(){
   const d=D("tab-page");
-  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Meus Treinos</div><button class="icon-add" id="bNew">+</button></div><div class="list-body">${S.workouts.length===0?`<div class="empty"><div style="font-size:48px">🏋️</div><p>Nenhum treino ainda</p><p style="font-size:13px;color:#666;margin-top:4px">Toque em + para criar</p></div>`:""}${S.workouts.map(w=>`<div class="wrow" data-wid="${w.id}"><div class="wlt">${(w.letter||w.name[0]).slice(0,2)}</div><div class="wi"><div class="wn">${w.name}</div><div class="wm">${(w.muscles||[]).map(m=>(MUSCLE_META[m]?.label||m)).join(" · ")}</div></div><button class="del-btn" data-del="${w.id}" aria-label="Excluir"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button><div class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>`).join("")}</div>`;
+  d.innerHTML=`<div class="tab-hdr"><div class="tab-title">Meus Treinos</div><button class="icon-add" id="bNew">+</button></div><div class="list-body">${S.workouts.length===0?`<div class="empty"><div style="font-size:48px">🏋️</div><p>Nenhum treino ainda</p><p style="font-size:13px;color:#666;margin-top:4px">Toque em + para criar</p></div>`:""}${S.workouts.map(w=>`<div class="wrow" data-wid="${w.id}"><div class="wlt">${(w.letter||w.name[0]).slice(0,2)}</div><div class="wi"><div class="wn">${w.name}</div><div class="wm">${(w.muscles||[]).map(m=>(MUSCLE_META[m]?.label||m)).join(" · ")}</div></div><button class="edit2-btn" data-edw="${w.id}" aria-label="Editar exercícios"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="del-btn" data-del="${w.id}" aria-label="Excluir"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button><div class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>`).join("")}</div>`;
   d.querySelector("#bNew")?.addEventListener("click",()=>{S.modal="newWorkout";S.mCtx={};r();});
-  d.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!confirm("Excluir?"))return;const did=b.dataset.del;await deleteWorkout(did);S.workouts=S.workouts.filter(w=>w.id!==did);
+  d.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!(await askConfirm("Excluir treino","Essa ação não pode ser desfeita.","Excluir",true)))return;const did=b.dataset.del;await deleteWorkout(did);S.workouts=S.workouts.filter(w=>w.id!==did);
     let schedChanged=false;
     Object.keys(S.schedule||{}).forEach(k=>{if(S.schedule[k]&&S.schedule[k].id===did){delete S.schedule[k];schedChanged=true;}});
     if(schedChanged)await saveSchedule(S.schedule);
     r();});
-  d.querySelectorAll("[data-wid]").forEach(row=>row.onclick=e=>{if(e.target.closest("[data-del]"))return;const w=S.workouts.find(x=>x.id===row.dataset.wid);if(w){S.modal="addExercises";S.mCtx={workout:w};r();}});
+  d.querySelectorAll("[data-edw]").forEach(b=>b.onclick=e=>{e.stopPropagation();const w=S.workouts.find(x=>x.id===b.dataset.edw);if(!w)return;FX.tap();S.modal="addExercises";S.mCtx={workout:w};r();});
+  d.querySelectorAll("[data-wid]").forEach(row=>row.onclick=e=>{if(e.target.closest("[data-del]")||e.target.closest("[data-edw]"))return;const w=S.workouts.find(x=>x.id===row.dataset.wid);if(w){S.modal="addExercises";S.mCtx={workout:w};r();}});
   return d;
 }
 
@@ -971,12 +1001,13 @@ function rTreinosModal(){
   const render=()=>{
     d2.innerHTML=`<div class="modal-handle"></div><div class="modal-hdr"><div class="modal-title">Meus Treinos</div><button class="close-x" id="bCloseTr">✕</button></div>
       <button class="btn-primary" id="bNewTr" style="margin-bottom:14px">+ Criar novo treino</button>
-      <div class="list-body" style="padding:0;max-height:55vh;overflow-y:auto">${S.workouts.length===0?`<div class="empty" style="padding:30px 0"><div style="font-size:44px">🏋️</div><p>Nenhum treino ainda</p><p style="font-size:13px;color:#666;margin-top:4px">Toque em "Criar novo treino"</p></div>`:""}${S.workouts.map(w=>`<div class="wrow" data-wid="${w.id}" style="cursor:pointer"><div class="wlt">${(w.letter||w.name[0]).slice(0,2)}</div><div class="wi"><div class="wn">${w.name}</div><div class="wm">${(w.muscles||[]).map(m=>(MUSCLE_META[m]?.label||m)).join(" · ")||"Toque para editar exercícios"}</div></div><button class="del-btn" data-del="${w.id}" aria-label="Excluir"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button><div class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>`).join("")}</div>`;
+      <div class="list-body" style="padding:0;max-height:55vh;overflow-y:auto">${S.workouts.length===0?`<div class="empty" style="padding:30px 0"><div style="font-size:44px">🏋️</div><p>Nenhum treino ainda</p><p style="font-size:13px;color:#666;margin-top:4px">Toque em "Criar novo treino"</p></div>`:""}${S.workouts.map(w=>`<div class="wrow" data-wid="${w.id}" style="cursor:pointer"><div class="wlt">${(w.letter||w.name[0]).slice(0,2)}</div><div class="wi"><div class="wn">${w.name}</div><div class="wm">${(w.muscles||[]).map(m=>(MUSCLE_META[m]?.label||m)).join(" · ")||"Toque para editar exercícios"}</div></div><button class="edit2-btn" data-edw="${w.id}" aria-label="Editar exercícios"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="del-btn" data-del="${w.id}" aria-label="Excluir"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button><div class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>`).join("")}</div>`;
     d2.querySelector("#bCloseTr").onclick=()=>closeModal(changed);
     d2.querySelector("#bNewTr").onclick=()=>{S.modal="newWorkout";S.mCtx={fromAgenda:true};r();};
-    d2.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!confirm("Excluir?"))return;const did=b.dataset.del;await deleteWorkout(did);S.workouts=S.workouts.filter(w=>w.id!==did);let sc=false;Object.keys(S.schedule||{}).forEach(k=>{if(S.schedule[k]&&S.schedule[k].id===did){delete S.schedule[k];sc=true;}});if(sc)await saveSchedule(S.schedule);changed=true;render();});
+    d2.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!(await askConfirm("Excluir treino","Essa ação não pode ser desfeita.","Excluir",true)))return;const did=b.dataset.del;await deleteWorkout(did);S.workouts=S.workouts.filter(w=>w.id!==did);let sc=false;Object.keys(S.schedule||{}).forEach(k=>{if(S.schedule[k]&&S.schedule[k].id===did){delete S.schedule[k];sc=true;}});if(sc)await saveSchedule(S.schedule);changed=true;render();});
+    d2.querySelectorAll("[data-edw]").forEach(b=>b.onclick=e=>{e.stopPropagation();const w=S.workouts.find(x=>x.id===b.dataset.edw);if(!w)return;FX.tap();S.modal="addExercises";S.mCtx={workout:w};r();});
     d2.querySelectorAll("[data-wid]").forEach(row=>row.onclick=e=>{
-      if(e.target.closest("[data-del]"))return;
+      if(e.target.closest("[data-del]")||e.target.closest("[data-edw]"))return;
       const w=S.workouts.find(x=>x.id===row.dataset.wid);if(!w)return;
       // If opened to assign to a day, assign; otherwise edit exercises
       if(S.mCtx&&typeof S.mCtx.day==="number"){
@@ -2267,13 +2298,8 @@ function rExercicios(){
       </div>`;
     }
     return `<div class="ex-hero" style="padding-bottom:4px">
-      <div class="ex-hero-row">
-        <div>
-          <div class="ex-hero-title">Exercícios</div>
-          <div class="ex-hero-sub">${ALL_EX.length} movimentos · biblioteca completa</div>
-        </div>
-        <div class="ex-hero-badge">PRO</div>
-      </div>
+      <div class="ex-hero-title">Exercícios${isPremium()?`<span class="ex-pro-inline">PRO</span>`:""}</div>
+      <div class="ex-hero-sub">${ALL_EX.length} movimentos · biblioteca completa</div>
     </div>`;
   };
 
@@ -2369,7 +2395,7 @@ function rPerfilModal(){
   <input type="file" id="avatarInput" accept="image/*" style="display:none"/>`;
   const d_=d2;
   d2.querySelector("#bX").onclick=closeModal;
-  d_.querySelector("#bSO")?.addEventListener("click",()=>{if(confirm("Sair?"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
+  d_.querySelector("#bSO")?.addEventListener("click",async()=>{if(await askConfirm("Sair da conta","Você precisará entrar novamente para acessar seus dados.","Sair"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
   d_.querySelector("#bEdit")?.addEventListener("click",()=>{S.modal=null;S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
   d_.querySelector("#bEditUsername")?.addEventListener("click",()=>{
     const ov=document.createElement("div");
@@ -2527,8 +2553,8 @@ function rPremiumModal(){
           <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:10px">Pagamento seguro · ativação imediata</div>`}
     </div>`;
   d2.querySelector("#bX").onclick=closeModal;
-  d2.querySelector("#bUpgrade")?.addEventListener("click",()=>{
-    if(confirm("O pagamento online ainda será configurado.\n\nDeseja ativar o Premium neste dispositivo agora (modo teste)?")){
+  d2.querySelector("#bUpgrade")?.addEventListener("click",async()=>{
+    if(await askConfirm("Ativar Premium","O pagamento online ainda será configurado. Deseja ativar o Premium neste dispositivo agora (modo teste)?","Ativar")){
       if(!S.profile)S.profile={};
       S.profile.plan="premium";
       saveProfile(S.profile);
@@ -2536,8 +2562,8 @@ function rPremiumModal(){
       r();
     }
   });
-  d2.querySelector("#bManagePlan")?.addEventListener("click",()=>{
-    if(confirm("Você é Premium. Deseja voltar para o plano Grátis?")){
+  d2.querySelector("#bManagePlan")?.addEventListener("click",async()=>{
+    if(await askConfirm("Plano Premium","Você é Premium. Deseja voltar para o plano Grátis?","Voltar para Grátis")){
       S.profile.plan="free";saveProfile(S.profile);r();
     }
   });
@@ -2819,7 +2845,7 @@ function rFoodModal(){
     container.querySelectorAll("[data-del-community]").forEach(btn=>btn.onclick=async e=>{
       e.stopPropagation();
       const id=btn.dataset.delCommunity;
-      if(!confirm("Excluir este alimento do banco?"))return;
+      if(!(await askConfirm("Excluir alimento","Ele será removido do banco de alimentos.","Excluir",true)))return;
       try{
         // Find by id or name — only if addedById matches current user
         const food=S.communityFoods.find(f=>f.id===id||f.n===id);
@@ -3544,7 +3570,7 @@ function rPickSessionModal(){
       return `<div class="ps-ex" style="background:var(--bg2);border:1.5px solid ${on?"var(--orange)":"var(--border)"};border-radius:14px;padding:12px;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:${on?"10px":"0"}">
           <button class="ps-tog" data-i="${i}" style="width:26px;height:26px;border-radius:8px;border:2px solid ${on?"var(--orange)":"var(--border)"};background:${on?"var(--orange)":"transparent"};color:#fff;font-size:14px;cursor:pointer;flex-shrink:0">${on?"✓":""}</button>
-          <div style="width:42px;height:42px;border-radius:10px;background:${m.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0">${muscleSVG(e.group,m.color)}</div>
+          <div class="ps-th"><img src="${gifUrl(e.id)}" loading="lazy" alt="" onload="this.classList.add('ld')" onerror="this.style.display='none';const b=this.parentElement.querySelector('.ps-th-b');if(b)b.remove();this.parentElement.querySelector('.ps-th-fb').style.display='flex'"/>${gifUrlAlt(e.id)?`<img class="ps-th-b" src="${gifUrlAlt(e.id)}" loading="lazy" alt="" onerror="this.remove()"/>`:""}<div class="ps-th-fb" style="display:none">${noImgHTML(true)}</div></div>
           <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${e.name}</div><div style="font-size:11px;color:${m.color}">${m.label}</div></div>
         </div>
         ${on?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
@@ -3736,7 +3762,7 @@ function rSession(){
     <div class="set-ctrls">${sets[idx].length>1?`<button class="set-ctrl set-ctrl-del" id="bRemSet">- Remover série</button>`:`<span></span>`}<button class="set-ctrl" id="bAddSet">+ Adicionar série</button></div></div>
     <div class="sess-acts">${sets[idx].every(s=>s.done)?`<button class="btn-primary" id="bNxEx">${idx<exercises.length-1?"Próximo exercício →":"Finalizar treino 🏆"}</button>`:""}<button class="btn-sec" id="bSkipEx" style="width:100%">Pular exercício</button></div>
   </div></div>`;
-  d.querySelector("#bExit").onclick=()=>{if(confirm("Sair do treino?")&&(clearInterval(restTimer)||true)){S.session=null;r();}};
+  d.querySelector("#bExit").onclick=async()=>{if(await askConfirm("Sair do treino","Seu progresso desta sessão não será salvo.","Sair",true)){clearInterval(restTimer);S.session=null;r();}};
   d.querySelectorAll(".set-inp").forEach(inp=>inp.oninput=e=>{S.session.sets[idx][parseInt(inp.dataset.si)][inp.dataset.f]=e.target.value;});
   d.querySelectorAll(".set-chk").forEach(btn=>btn.onclick=()=>{
     const si=parseInt(btn.dataset.si);
@@ -3854,7 +3880,16 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* SPLASH */
 .splash{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(ellipse 80% 50% at 50% 30%,rgba(255,107,0,0.1) 0%,var(--bg) 70%);}
-.splash-logo{width:80px;height:80px;background:var(--orange);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(255,107,0,0.4);}
+.splash-logo{position:relative;width:84px;height:84px;background:linear-gradient(145deg,#FF9A4D 0%,#FF6B00 45%,#E04F00 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 50px rgba(255,107,0,0.55),0 0 110px rgba(255,107,0,0.22),inset 0 2px 6px rgba(255,255,255,0.35),inset 0 -4px 10px rgba(0,0,0,0.25);}
+.splash-logo-ring{position:absolute;inset:-7px;border-radius:50%;border:1.5px solid rgba(255,138,61,0.35);animation:splashRing 2.4s ease-out infinite;}
+@keyframes splashRing{0%{transform:scale(0.92);opacity:0.9}70%,100%{transform:scale(1.28);opacity:0}}
+.splash-stage{display:flex;flex-direction:column;align-items:center;}
+.splash-mirror{transform:scaleY(-1) translateY(14px);opacity:0.5;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,0.55),transparent 62%);mask-image:linear-gradient(to top,rgba(0,0,0,0.55),transparent 62%);filter:blur(0.6px);pointer-events:none;}
+.splash-name-accent{color:var(--orange);}
+.splash-name{position:relative;overflow:hidden;}
+.splash-name-shine{position:absolute;top:0;bottom:0;left:-60%;width:45%;background:linear-gradient(105deg,transparent,rgba(255,255,255,0.5),transparent);animation:splashShine 2.8s ease-in-out 1.4s infinite;pointer-events:none;}
+@keyframes splashShine{0%,55%{left:-60%}80%,100%{left:120%}}
+@media (prefers-reduced-motion:reduce){.splash-logo-ring,.splash-name-shine{animation:none;display:none;}}
 .splash-name{font-size:36px;font-weight:900;letter-spacing:-0.5px;}
 .splash-tag{font-size:13px;color:var(--text3);}
 .splash-anim{display:flex;flex-direction:column;align-items:center;gap:18px;}
@@ -4021,6 +4056,12 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wi{flex:1;}
 .wn{font-weight:700;font-size:16px;}
 .wm{font-size:12px;color:var(--text2);margin-top:3px;}
+.edit2-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--text2);flex-shrink:0;transition:transform .12s;}
+.edit2-btn:active{transform:scale(0.88);}
+.ps-th{position:relative;width:46px;height:46px;border-radius:11px;overflow:hidden;flex-shrink:0;background:var(--bg3);}
+.ps-th img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.ps-th-b{opacity:0;animation:exv2Swap 2.6s ease-in-out infinite;}
+@media (prefers-reduced-motion:reduce){.ps-th-b{animation:none;}}
 .del-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.22);cursor:pointer;color:#FF6B6B;flex-shrink:0;transition:transform .12s;}
 .del-btn:active{transform:scale(0.88);}
 .chev{color:var(--text3);display:flex;align-items:center;flex-shrink:0;}
@@ -4469,6 +4510,22 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 
 
+
+/* ─── CONFIRMAÇÃO ─── */
+.cfm-ov{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:10000;padding:28px;animation:fadeIn .2s ease both;}
+.cfm-out{animation:fadeOut .2s ease both;}
+.cfm-box{width:100%;max-width:320px;background:var(--bg2);border:1px solid var(--border);border-radius:22px;padding:24px 20px 18px;text-align:center;animation:cfmIn .28s cubic-bezier(0.24,1.2,0.36,1) both;box-shadow:0 24px 60px rgba(0,0,0,0.55);}
+@keyframes cfmIn{from{opacity:0;transform:scale(0.88) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.cfm-ic{width:48px;height:48px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--orange) 14%,transparent);color:var(--orange);}
+.cfm-ic-danger{background:rgba(255,107,107,0.13);color:#FF6B6B;}
+.cfm-title{font-size:17px;font-weight:850;letter-spacing:-0.2px;}
+.cfm-msg{font-size:13.5px;color:var(--text2);line-height:1.5;margin:7px 0 18px;}
+.cfm-btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.cfm-cancel{background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:13px;color:var(--text);font-size:14px;font-weight:750;cursor:pointer;}
+.cfm-ok{background:var(--orange);border:none;border-radius:13px;padding:13px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;}
+.cfm-ok-danger{background:#E5484D;}
+.cfm-cancel:active,.cfm-ok:active{transform:scale(0.96);}
+
 /* ─── TOAST ─── */
 #toastHost{position:fixed;left:0;right:0;bottom:calc(96px + var(--safe-bot,0px));display:flex;justify-content:center;z-index:9999;pointer-events:none;}
 .toast{display:flex;align-items:center;gap:9px;max-width:86vw;background:color-mix(in srgb,var(--bg2) 88%,#000);border:1px solid var(--border);border-radius:30px;padding:11px 18px 11px 13px;font-size:13.5px;font-weight:650;color:var(--text);box-shadow:0 10px 32px rgba(0,0,0,0.5);backdrop-filter:blur(12px);pointer-events:auto;animation:toastIn .32s cubic-bezier(0.22,1.2,0.36,1) both;}
@@ -4549,6 +4606,8 @@ html,body{overscroll-behavior-y:none;}
 @keyframes mcSlideR{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:translateX(0)}}
 
 /* ─── EXERCÍCIOS v2 — Biblioteca Premium ─── */
+.ex-pro-inline{display:inline-block;vertical-align:6px;margin-left:9px;font-size:10px;font-weight:900;letter-spacing:1.2px;color:#fff;background:linear-gradient(135deg,#FF6B00,#FF8A3D);padding:4px 9px;border-radius:20px;box-shadow:0 3px 10px rgba(255,107,0,0.35);}
+
 #exHead .ex-hero{padding:0 0 10px;}
 .exv2-search-wrap{margin-bottom:14px;}
 .exv2-search{margin-bottom:0;border-radius:14px;padding:12px 14px;}
