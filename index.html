@@ -14,7 +14,7 @@
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,createUserWithEmailAndPassword,onAuthStateChanged,signOut,updateProfile}from"https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-import{getFirestore,doc,setDoc,getDoc,collection,addDoc,getDocs,deleteDoc,serverTimestamp}from"https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import{getFirestore,doc,setDoc,getDoc,updateDoc,collection,addDoc,getDocs,deleteDoc,query,where,orderBy,onSnapshot,serverTimestamp}from"https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const cfg={apiKey:"AIzaSyCp50nvQiNBtsjDgUGEiAKh6G1miAQeKkw",authDomain:"boltfit-app.firebaseapp.com",projectId:"boltfit-app",storageBucket:"boltfit-app.firebasestorage.app",messagingSenderId:"45884635466",appId:"1:45884635466:web:30759128b6d4359ca9e9b3"};
 const firebase=initializeApp(cfg);
@@ -485,6 +485,69 @@ let restTimer=null;
 // FIREBASE HELPERS
 // ═══════════════════════════════════════════
 const uid=()=>S.user?.uid;
+// ─── ADMIN / SUPORTE ───
+const OWNER_EMAIL="vitortorresdarosa@gmail.com";
+const myEmail=()=>(S.user?.email||"").toLowerCase();
+const isOwner=()=>myEmail()===OWNER_EMAIL;
+// Tem acesso aos chamados: dono OU quem recebeu permissão (S.profile.supportAgent)
+const isSupportAgent=()=>isOwner()||(S.profile?.supportAgent===true);
+// Registra/atualiza o índice público de usuários (para busca por nome/email no painel do dono)
+async function indexUser(){
+  try{
+    if(!uid())return;
+    const uname=S.profile?.username||S.profile?.name||S.user?.displayName||(myEmail().split("@")[0]);
+    await setDoc(doc(db,"userIndex",uid()),{uid:uid(),email:myEmail(),name:S.profile?.name||uname,username:uname,supportAgent:S.profile?.supportAgent===true},{merge:true});
+  }catch(e){}
+}
+async function searchUsers(term){
+  const t=(term||"").trim().toLowerCase();
+  const snap=await getDocs(collection(db,"userIndex"));
+  const all=snap.docs.map(d=>d.data()).filter(u=>u.email!==OWNER_EMAIL);
+  if(!t)return all.slice(0,40);
+  return all.filter(u=>(u.email||"").toLowerCase().includes(t)||(u.username||"").toLowerCase().includes(t)||(u.name||"").toLowerCase().includes(t)).slice(0,40);
+}
+async function setAgentPermission(targetUid,grant){
+  // grava no índice e no profile do usuário-alvo
+  await setDoc(doc(db,"userIndex",targetUid),{supportAgent:grant},{merge:true});
+  await setDoc(doc(db,"users",targetUid,"data","profile"),{supportAgent:grant},{merge:true});
+  // histórico de permissões
+  await addDoc(collection(db,"permissionLog"),{targetUid,grant,by:myEmail(),at:serverTimestamp()});
+}
+async function loadPermissionLog(){
+  try{const snap=await getDocs(collection(db,"permissionLog"));return snap.docs.map(d=>d.data()).sort((a,b)=>(b.at?.seconds||0)-(a.at?.seconds||0));}catch(e){return [];}
+}
+async function loadAgents(){
+  try{const snap=await getDocs(collection(db,"userIndex"));return snap.docs.map(d=>d.data()).filter(u=>u.supportAgent===true);}catch(e){return [];}
+}
+// Chamados de suporte
+async function createTicket(message,photoData){
+  const t={
+    fromUid:uid(),fromEmail:myEmail(),fromName:S.profile?.username||S.profile?.name||myEmail().split("@")[0],
+    message,photo:photoData||null,status:"aberto",createdAt:serverTimestamp(),
+    replies:[]
+  };
+  return (await addDoc(collection(db,"tickets"),t)).id;
+}
+async function loadTickets(){
+  try{const snap=await getDocs(collection(db,"tickets"));return snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));}catch(e){return [];}
+}
+async function loadMyTickets(){
+  try{const snap=await getDocs(query(collection(db,"tickets"),where("fromUid","==",uid())));return snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));}catch(e){return [];}
+}
+async function replyTicket(id,text,close){
+  const ref=doc(db,"tickets",id);
+  const snap=await getDoc(ref);if(!snap.exists())return;
+  const data=snap.data();const replies=data.replies||[];
+  replies.push({by:myEmail(),agent:true,text,at:new Date().toISOString()});
+  await updateDoc(ref,{replies,status:close?"resolvido":"respondido"});
+}
+async function addUserMessage(id,text){
+  const ref=doc(db,"tickets",id);
+  const snap=await getDoc(ref);if(!snap.exists())return;
+  const data=snap.data();const replies=data.replies||[];
+  replies.push({by:myEmail(),agent:false,text,at:new Date().toISOString()});
+  await updateDoc(ref,{replies,status:"aberto"});
+}
 const saveProfile=async p=>{if(p&&p.weight)logToday({weight:parseFloat(p.weight)||0});return setDoc(doc(db,"users",uid(),"data","profile"),p);};
 const loadProfile=async()=>{const s=await getDoc(doc(db,"users",uid(),"data","profile"));return s.exists()?s.data():null;};
 function calDateKey(){return S.calDate||new Date().toISOString().split("T")[0];}
@@ -709,7 +772,7 @@ function r(){
   else{
     if(S.session){document.getElementById("app").appendChild(rSession());_restoreScroll();return;}
     document.getElementById("app").appendChild(rHome());
-    const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual","pickSessionExercises","treinos","aiWorkout","coach","autoDiet","reports","perfil","premium","monthCal","waterInfo","clearDay"];
+    const modals=["food","newWorkout","addExercises","assignWorkout","exDetail","addFoodManual","pickSessionExercises","treinos","aiWorkout","coach","autoDiet","reports","perfil","premium","monthCal","waterInfo","clearDay","support","tickets","perms"];
     if(modals.includes(S.modal))document.getElementById("modalRoot").appendChild(rModal());
   }
   _restoreScroll();
@@ -833,6 +896,10 @@ function rHome(){
       <div class="fab-item" data-fab="perfil"><span class="fab-lbl">Perfil</span><button class="fab-bub">👤</button></div>
       <div class="fab-item" data-fab="premium"><span class="fab-lbl">Premium</span><button class="fab-bub fab-crown">👑</button></div>
       <div class="fab-item" data-fab="reports"><span class="fab-lbl">Relatórios</span><button class="fab-bub">📊</button></div>
+      <div class="fab-item" data-fab="coach"><span class="fab-lbl">Coach IA</span><button class="fab-bub">💬</button></div>
+      <div class="fab-item" data-fab="support"><span class="fab-lbl">Suporte</span><button class="fab-bub">🛟</button></div>
+      ${isSupportAgent()?`<div class="fab-item" data-fab="tickets"><span class="fab-lbl">Chamados</span><button class="fab-bub">🎫</button></div>`:""}
+      ${isOwner()?`<div class="fab-item" data-fab="perms"><span class="fab-lbl">Permissões</span><button class="fab-bub">🛡️</button></div>`:""}
     </div>
     <div class="fab-scrim ${S.fabOpen?"fab-open":""}" id="fabScrim"></div>
     <div class="home-body" id="hBody"></div><nav class="bottom-nav">${TABS.map(t=>`<div class="nav-item ${S.tab===t.id?"active":""}" data-tab="${t.id}"><div class="nav-icon">${t.icon}</div><div class="nav-label">${t.label}</div></div>`).join("")}</nav>`;
@@ -845,6 +912,10 @@ function rHome(){
     const t=b.dataset.fab;S.fabOpen=false;
     if(t==="premium"){S.modal="premium";}
     else if(t==="reports"){S.modal="reports";}
+    else if(t==="coach"){S.modal="coach";}
+    else if(t==="support"){S.modal="support";}
+    else if(t==="tickets"){S.modal="tickets";}
+    else if(t==="perms"){S.modal="perms";}
     else{S.modal="perfil";}
     r();
   });
@@ -931,18 +1002,14 @@ function rAgenda(){
     <div class="ag2-eyebrow">${greet} 👋</div>
     <div class="ag2-name">${name}${isPremium()?`<span class="ag2-pro">PRO</span>`:""}</div>
   </div>
-  <div class="ag2-stats ag2-in" style="animation-delay:.03s">
-    <div class="ag2-stat"><div class="ag2-stat-v">${streak}<span class="ag2-stat-u">${streak===1?" dia":" dias"}</span></div><div class="ag2-stat-k">SEQUÊNCIA</div></div>
-    <div class="ag2-sep"></div>
-    <div class="ag2-stat"><div class="ag2-stat-v">${todayCal||"—"}</div><div class="ag2-stat-k">KCAL HOJE</div></div>
-    <div class="ag2-sep"></div>
-    <button class="ag2-stat ag2-stat-btn" id="bStatWorkouts" aria-label="Meus treinos"><div class="ag2-stat-ic">${icDb}</div><div class="ag2-stat-k">MEUS TREINOS</div></button>
-  </div>
-  ${(()=>{const msg=motivationMsg();return msg?`<div class="motiv-card ag2-in" style="animation-delay:.05s"><span style="font-size:18px;flex-shrink:0">${msg.icon}</span><span>${msg.text}</span></div>`:"";})()}
   <button class="ag2-cta ag2-in" id="bAIWorkout" style="animation-delay:.07s"><span class="ag2-cta-shine"></span>✦&nbsp; Montar treino com IA</button>
-  <button class="ag2-ghost ag2-ghost-full ag2-in" id="bCoach" style="animation-delay:.09s">${icChat} Coach IA</button>
+
   ${hero}
-  <div class="ag2-sec-row ag2-in" style="animation-delay:.1s"><span class="ag2-sec">SUA SEMANA</span><button class="ag2-sec-link" id="bWeekWorkouts">${icDb} Meus treinos</button></div>
+  <div class="ag2-week-bar ag2-in" style="animation-delay:.1s">
+    <span class="ag2-sec">SUA SEMANA</span>
+    <button class="ag2-sec-link" id="bWeekWorkouts">${icDb} Meus treinos</button>
+    <div class="ag2-streak" title="Sequência de treinos"><span class="ag2-streak-fire">🔥</span><span class="ag2-streak-n">${streak}</span><span class="ag2-streak-u">${streak===1?"dia":"dias"}</span></div>
+  </div>
   <div class="ag2-week ag2-in" style="animation-delay:.12s">
     ${WD.map((wd,i)=>{
       const isTrain=trainDays.includes(i);const isTd=i===today();const sched=S.schedule[i];
@@ -964,10 +1031,9 @@ function rAgenda(){
   // Hero card start
   d.querySelectorAll("[data-herostart]").forEach(el=>el.onclick=e=>{e.stopPropagation();FX.tapStrong();const w=S.workouts.find(x=>x.id===el.dataset.herostart);if(w){if((w.exercises||[]).length){S.mCtx={workout:w,fromAgenda:true};S.modal="pickSessionExercises";r();}else{toast("Esse treino ainda não tem exercícios. Adicione em Meus Treinos.");}}});
   const openWorkouts=()=>{FX.tap();S.mCtx={};S.modal="treinos";r();};
-  d.querySelector("#bStatWorkouts")?.addEventListener("click",openWorkouts);
   d.querySelector("#bWeekWorkouts")?.addEventListener("click",openWorkouts);
   d.querySelector("#bAIWorkout")?.addEventListener("click",()=>{FX.tapSoft();S.mCtx={};S.modal="aiWorkout";S.aiwStep=0;S.aiwData={};S.aiwResult=null;S.aiwLoading=false;r();});
-  d.querySelector("#bCoach")?.addEventListener("click",()=>{FX.tap();S.modal="coach";r();});
+
   d.querySelectorAll("[data-ass]").forEach(b=>b.onclick=()=>{S.mCtx={day:parseInt(b.dataset.ass)};S.modal="treinos";r();});
   d.querySelectorAll("[data-ed]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.mCtx={day:parseInt(b.dataset.ed)};S.modal="treinos";r();});
   d.querySelectorAll("[data-play]").forEach(b=>b.onclick=e=>{e.stopPropagation();const w=S.workouts.find(x=>x.id===b.dataset.play);if(w)startSession(w.exercises||[]);else toast("Esse treino foi removido.");});
@@ -2636,7 +2702,197 @@ function rModal(){
   if(S.modal==="monthCal")return rMonthCalModal();
   if(S.modal==="waterInfo")return rWaterInfoModal();
   if(S.modal==="clearDay")return rClearDayModal();
+  if(S.modal==="support")return rSupportModal();
+  if(S.modal==="tickets")return rTicketsModal();
+  if(S.modal==="perms")return rPermsModal();
   return D("div");
+}
+
+// ─── SUPORTE (usuário) ───
+function rSupportModal(){
+  let photoData=null;
+  let sending=false;
+  const d=sheet("🛟 Suporte","Fale com a equipe do BoltFit",`
+    <div class="sup-intro">Encontrou um erro ou tem uma dúvida? Descreva abaixo. Você pode anexar uma foto para nos ajudar a entender.</div>
+    <label class="sec-lbl" style="margin-bottom:6px">SUA MENSAGEM</label>
+    <textarea id="supMsg" class="sup-ta" placeholder="Descreva o problema ou sua dúvida..." rows="5"></textarea>
+    <div class="sup-photo-row">
+      <label class="sup-photo-btn" id="supPhotoLbl">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Anexar foto
+        <input type="file" accept="image/*" id="supPhoto" style="display:none"/>
+      </label>
+      <div id="supPreview" class="sup-preview" style="display:none"><img id="supPrevImg" alt=""/><button id="supPrevX" aria-label="Remover">✕</button></div>
+    </div>
+    <button class="btn-primary" id="supSend" style="margin-top:16px">Enviar mensagem</button>
+    <div id="supMyTickets" style="margin-top:22px"></div>
+  `);
+  const fileInp=d.querySelector("#supPhoto");
+  const prev=d.querySelector("#supPreview");
+  const prevImg=d.querySelector("#supPrevImg");
+  fileInp.addEventListener("change",e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        // reduzir mantendo legível: máx 900px no maior lado, JPEG 0.6
+        const max=900;let{width:w,height:h}=img;
+        if(w>h&&w>max){h=h*max/w;w=max;}else if(h>max){w=w*max/h;h=max;}
+        const cv=document.createElement("canvas");cv.width=w;cv.height=h;
+        cv.getContext("2d").drawImage(img,0,0,w,h);
+        photoData=cv.toDataURL("image/jpeg",0.6);
+        prevImg.src=photoData;prev.style.display="flex";
+        d.querySelector("#supPhotoLbl").style.display="none";
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  d.querySelector("#supPrevX").onclick=()=>{photoData=null;prev.style.display="none";fileInp.value="";d.querySelector("#supPhotoLbl").style.display="flex";};
+  d.querySelector("#supSend").onclick=async()=>{
+    if(sending)return;
+    const msg=d.querySelector("#supMsg").value.trim();
+    if(!msg){toast("Escreva sua mensagem primeiro.");return;}
+    sending=true;const btn=d.querySelector("#supSend");btn.disabled=true;btn.textContent="Enviando...";
+    try{
+      await createTicket(msg,photoData);
+      toast("Mensagem enviada! Responderemos em breve.","success");
+      d.querySelector("#supMsg").value="";
+      photoData=null;prev.style.display="none";fileInp.value="";d.querySelector("#supPhotoLbl").style.display="flex";
+      loadMine();
+    }catch(e){toast("Erro ao enviar. Tente novamente.","error");}
+    sending=false;btn.disabled=false;btn.textContent="Enviar mensagem";
+  };
+  const loadMine=async()=>{
+    const box=d.querySelector("#supMyTickets");if(!box)return;
+    const mine=await loadMyTickets();
+    if(!mine.length){box.innerHTML="";return;}
+    box.innerHTML=`<div class="sec-lbl" style="margin-bottom:8px">SEUS CHAMADOS</div>`+mine.map(t=>{
+      const st={aberto:["Aberto","#FF8C42"],respondido:["Respondido","#4FC3F7"],resolvido:["Resolvido","#4ADE80"]}[t.status]||["Aberto","#FF8C42"];
+      const lastReply=(t.replies||[]).filter(r=>r.agent).slice(-1)[0];
+      return `<div class="sup-tk"><div class="sup-tk-top"><span class="sup-tk-st" style="color:${st[1]};background:${st[1]}22">${st[0]}</span><span class="sup-tk-dt">${t.createdAt?new Date(t.createdAt.seconds*1000).toLocaleDateString("pt-BR"):""}</span></div><div class="sup-tk-msg">${(t.message||"").replace(/</g,"&lt;")}</div>${lastReply?`<div class="sup-tk-reply"><strong>Equipe:</strong> ${(lastReply.text||"").replace(/</g,"&lt;")}</div>`:""}</div>`;
+    }).join("");
+  };
+  loadMine();
+  return d;
+}
+
+// ─── CHAMADOS (agente/dono) ───
+function rTicketsModal(){
+  let tickets=[];
+  const d=sheet("🎫 Chamados","Suporte · "+(isOwner()?"Administrador":"Agente"),`<div id="tkList" class="tk-list"><div class="tk-loading">Carregando chamados...</div></div>`);
+  const render=()=>{
+    const box=d.querySelector("#tkList");if(!box)return;
+    if(!tickets.length){box.innerHTML=`<div class="empty" style="padding:40px 0;text-align:center"><div style="font-size:40px;opacity:0.5">📭</div><p style="margin-top:8px;font-weight:700">Nenhum chamado ainda</p></div>`;return;}
+    box.innerHTML=tickets.map(t=>{
+      const st={aberto:["Aberto","#FF8C42"],respondido:["Respondido","#4FC3F7"],resolvido:["Resolvido","#4ADE80"]}[t.status]||["Aberto","#FF8C42"];
+      const open=S._openTicket===t.id;
+      const conv=(t.replies||[]).map(rp=>`<div class="tk-msg ${rp.agent?"tk-msg-agent":"tk-msg-user"}"><div class="tk-msg-by">${rp.agent?"Equipe":t.fromName||"Usuário"}</div><div>${(rp.text||"").replace(/</g,"&lt;")}</div></div>`).join("");
+      return `<div class="tk-card ${open?"tk-open":""}">
+        <div class="tk-head" data-tk="${t.id}">
+          <div style="flex:1;min-width:0">
+            <div class="tk-from">${(t.fromName||t.fromEmail||"Usuário").replace(/</g,"&lt;")}</div>
+            <div class="tk-email">${(t.fromEmail||"").replace(/</g,"&lt;")}</div>
+          </div>
+          <span class="tk-st" style="color:${st[1]};background:${st[1]}22">${st[0]}</span>
+        </div>
+        <div class="tk-body">
+          <div class="tk-orig">${(t.message||"").replace(/</g,"&lt;")}</div>
+          ${t.photo?`<img class="tk-photo" src="${t.photo}" alt="anexo" data-img="${t.id}"/>`:""}
+          ${conv?`<div class="tk-conv">${conv}</div>`:""}
+          ${open?`<textarea class="tk-reply-ta" id="tkReply_${t.id}" placeholder="Escreva uma resposta..." rows="2"></textarea>
+            <div class="tk-actions">
+              <button class="tk-btn tk-btn-resolve" data-resolve="${t.id}">Responder e resolver</button>
+              <button class="tk-btn" data-reply="${t.id}">Responder</button>
+            </div>`:`<button class="tk-expand" data-tk="${t.id}">${(t.replies||[]).length?"Ver conversa / responder":"Responder"}</button>`}
+        </div>
+      </div>`;
+    }).join("");
+    box.querySelectorAll("[data-tk]").forEach(el=>el.onclick=e=>{e.stopPropagation();S._openTicket=S._openTicket===el.dataset.tk?null:el.dataset.tk;render();});
+    box.querySelectorAll("[data-img]").forEach(im=>im.onclick=()=>{const o=document.createElement("div");o.className="img-zoom";o.innerHTML=`<img src="${im.src}"/>`;o.onclick=()=>o.remove();document.body.appendChild(o);});
+    const doReply=async(id,close)=>{
+      const ta=d.querySelector(`#tkReply_${id}`);const txt=(ta?.value||"").trim();
+      if(!txt){toast("Escreva uma resposta.");return;}
+      try{await replyTicket(id,txt,close);toast(close?"Chamado resolvido!":"Resposta enviada!","success");S._openTicket=null;tickets=await loadTickets();render();}
+      catch(e){toast("Erro ao responder.","error");}
+    };
+    box.querySelectorAll("[data-reply]").forEach(b=>b.onclick=()=>doReply(b.dataset.reply,false));
+    box.querySelectorAll("[data-resolve]").forEach(b=>b.onclick=()=>doReply(b.dataset.resolve,true));
+  };
+  loadTickets().then(t=>{tickets=t;render();});
+  return d;
+}
+
+// ─── PERMISSÕES (somente dono) ───
+function rPermsModal(){
+  if(!isOwner())return sheet("Acesso restrito","",`<div class="empty" style="padding:40px 0;text-align:center"><div style="font-size:40px">🔒</div><p style="margin-top:8px">Apenas o administrador tem acesso.</p></div>`);
+  let tab="grant";
+  const d=sheet("🛡️ Permissões","Gerenciar acesso ao suporte",`
+    <div class="perm-tabs">
+      <button class="perm-tab perm-tab-on" data-pt="grant">Atribuir / Remover</button>
+      <button class="perm-tab" data-pt="list">Com acesso</button>
+      <button class="perm-tab" data-pt="log">Histórico</button>
+    </div>
+    <div id="permBody"></div>
+  `);
+  const body=d.querySelector("#permBody");
+
+  const renderGrant=()=>{
+    body.innerHTML=`
+      <div class="perm-search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="permSearch" placeholder="Buscar por nome ou email..." autocomplete="off"/></div>
+      <div id="permResults" class="perm-results"><div class="tk-loading">Digite para buscar usuários...</div></div>`;
+    const inp=body.querySelector("#permSearch");
+    const results=body.querySelector("#permResults");
+    let timer=null;
+    const doSearch=async()=>{
+      const term=inp.value;
+      results.innerHTML=`<div class="tk-loading">Buscando...</div>`;
+      const users=await searchUsers(term);
+      if(!users.length){results.innerHTML=`<div class="tk-loading">Nenhum usuário encontrado.</div>`;return;}
+      results.innerHTML=users.map(u=>`<div class="perm-user">
+        <div style="flex:1;min-width:0"><div class="perm-user-nm">${(u.username||u.name||"—").replace(/</g,"&lt;")}</div><div class="perm-user-em">${(u.email||"").replace(/</g,"&lt;")}</div></div>
+        ${u.supportAgent?`<button class="perm-btn perm-btn-revoke" data-revoke="${u.uid}">Remover</button>`:`<button class="perm-btn perm-btn-grant" data-grant="${u.uid}">Dar acesso</button>`}
+      </div>`).join("");
+      results.querySelectorAll("[data-grant]").forEach(b=>b.onclick=async()=>{
+        b.disabled=true;b.textContent="...";
+        try{await setAgentPermission(b.dataset.grant,true);toast("Acesso concedido!","success");doSearch();}catch(e){toast("Erro ao conceder.","error");b.disabled=false;b.textContent="Dar acesso";}
+      });
+      results.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{
+        if(!(await askConfirm("Remover acesso","O usuário deixará de ver e responder chamados.","Remover",true)))return;
+        b.disabled=true;b.textContent="...";
+        try{await setAgentPermission(b.dataset.revoke,false);toast("Acesso removido.","success");doSearch();}catch(e){toast("Erro ao remover.","error");b.disabled=false;b.textContent="Remover";}
+      });
+    };
+    inp.addEventListener("input",()=>{clearTimeout(timer);timer=setTimeout(doSearch,280);});
+    inp.focus();
+  };
+  const renderList=async()=>{
+    body.innerHTML=`<div class="tk-loading">Carregando...</div>`;
+    const agents=await loadAgents();
+    if(!agents.length){body.innerHTML=`<div class="empty" style="padding:36px 0;text-align:center"><div style="font-size:36px;opacity:0.5">👥</div><p style="margin-top:8px">Ninguém tem acesso ao suporte ainda.</p></div>`;return;}
+    body.innerHTML=`<div class="sec-lbl" style="margin-bottom:10px">${agents.length} com acesso</div>`+agents.map(u=>`<div class="perm-user"><div style="flex:1;min-width:0"><div class="perm-user-nm">${(u.username||u.name||"—").replace(/</g,"&lt;")}</div><div class="perm-user-em">${(u.email||"").replace(/</g,"&lt;")}</div></div><button class="perm-btn perm-btn-revoke" data-revoke="${u.uid}">Remover</button></div>`).join("");
+    body.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{
+      if(!(await askConfirm("Remover acesso","O usuário deixará de ver e responder chamados.","Remover",true)))return;
+      try{await setAgentPermission(b.dataset.revoke,false);toast("Acesso removido.","success");renderList();}catch(e){toast("Erro.","error");}
+    });
+  };
+  const renderLog=async()=>{
+    body.innerHTML=`<div class="tk-loading">Carregando histórico...</div>`;
+    const log=await loadPermissionLog();
+    // resolver nomes pelo índice
+    let idx={};try{const snap=await getDocs(collection(db,"userIndex"));snap.docs.forEach(x=>{const v=x.data();idx[v.uid]=v;});}catch(e){}
+    if(!log.length){body.innerHTML=`<div class="empty" style="padding:36px 0;text-align:center"><div style="font-size:36px;opacity:0.5">📜</div><p style="margin-top:8px">Nenhuma alteração registrada.</p></div>`;return;}
+    body.innerHTML=log.map(l=>{
+      const u=idx[l.targetUid]||{};
+      const when=l.at?new Date(l.at.seconds*1000).toLocaleString("pt-BR"):"";
+      return `<div class="perm-log ${l.grant?"perm-log-grant":"perm-log-revoke"}"><span class="perm-log-ic">${l.grant?"➕":"➖"}</span><div style="flex:1;min-width:0"><div class="perm-user-nm">${(u.username||u.email||l.targetUid).replace(/</g,"&lt;")}</div><div class="perm-user-em">${l.grant?"Acesso concedido":"Acesso removido"} · ${when}</div></div></div>`;
+    }).join("");
+  };
+  const switchTab=t=>{tab=t;body.scrollTop=0;if(t==="grant")renderGrant();else if(t==="list")renderList();else renderLog();};
+  d.querySelectorAll("[data-pt]").forEach(b=>b.onclick=()=>{d.querySelectorAll("[data-pt]").forEach(x=>x.classList.remove("perm-tab-on"));b.classList.add("perm-tab-on");switchTab(b.dataset.pt);});
+  switchTab("grant");
+  return d;
 }
 
 // ─── WATER INFO MODAL ───
@@ -3869,6 +4125,7 @@ async function authOk(user){
       try{S.history=await loadHistory();}catch(e){S.history={};}
       // Load community foods from Firestore
       try{const cSnap=await getDocs(collection(db,"communityFoods"));S.communityFoods=cSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){S.communityFoods=[];}
+      indexUser();
       S.phase="home";
     }else{S.phase="onboard";S.onboard={step:0,data:{sex:"",age:"",weight:"",height:"",activity:"",goal:"",trainDays:[],split:""}};}
   }catch(e){S.phase="onboard";}
@@ -4008,9 +4265,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .fab-menu{position:absolute;top:calc(66px + var(--safe-top));right:16px;z-index:58;display:flex;flex-direction:column;gap:10px;align-items:flex-end;pointer-events:none;}
 .fab-item{display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(-8px) scale(0.92);transition:opacity .28s cubic-bezier(0.4,0,0.2,1),transform .28s cubic-bezier(0.4,0,0.2,1);pointer-events:none;}
 .fab-menu.fab-open .fab-item{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}
-.fab-menu.fab-open .fab-item:nth-child(1){transition-delay:.05s;}
-.fab-menu.fab-open .fab-item:nth-child(2){transition-delay:.1s;}
-.fab-menu.fab-open .fab-item:nth-child(3){transition-delay:.15s;}
+.fab-menu.fab-open .fab-item:nth-child(1){transition-delay:.04s;}
+.fab-menu.fab-open .fab-item:nth-child(2){transition-delay:.08s;}
+.fab-menu.fab-open .fab-item:nth-child(3){transition-delay:.12s;}
+.fab-menu.fab-open .fab-item:nth-child(4){transition-delay:.16s;}
+.fab-menu.fab-open .fab-item:nth-child(5){transition-delay:.20s;}
+.fab-menu.fab-open .fab-item:nth-child(6){transition-delay:.24s;}
+.fab-menu.fab-open .fab-item:nth-child(7){transition-delay:.28s;}
 .fab-lbl{color:var(--text);font-size:13px;font-weight:600;letter-spacing:-0.01em;white-space:nowrap;opacity:0.92;}
 .fab-bub{width:44px;height:44px;border-radius:50%;background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
 .fab-bub:active{transform:scale(0.88);}
@@ -4603,6 +4864,14 @@ html,body{overscroll-behavior-y:none;}
 .ag2-stat-ic{width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--orange) 13%,transparent);color:var(--orange);display:flex;align-items:center;justify-content:center;}
 .ag2-stat-ic svg{width:16px;height:16px;}
 .ag2-ghost-full{width:100%;margin-bottom:18px;}
+
+.ag2-week-bar{display:flex;align-items:center;gap:10px;margin:6px 0 12px;}
+.ag2-week-bar .ag2-sec{margin:0;flex-shrink:0;}
+.ag2-week-bar .ag2-sec-link{margin:0;}
+.ag2-streak{display:flex;align-items:center;gap:4px;margin-left:auto;background:linear-gradient(135deg,color-mix(in srgb,var(--orange) 14%,transparent),transparent);border:1px solid color-mix(in srgb,var(--orange) 28%,transparent);border-radius:20px;padding:6px 11px;flex-shrink:0;}
+.ag2-streak-fire{font-size:14px;line-height:1;}
+.ag2-streak-n{font-size:15px;font-weight:900;color:var(--orange);line-height:1;}
+.ag2-streak-u{font-size:11px;font-weight:700;color:var(--text3);}
 .ag2-sec-row{display:flex;align-items:center;justify-content:space-between;margin:22px 0 12px;}
 .ag2-sec-row .ag2-sec{margin:0;}
 .ag2-sec-link{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:11px;padding:7px 12px;color:var(--orange);font-size:12px;font-weight:750;cursor:pointer;transition:transform .12s,border-color .15s;}
@@ -4660,6 +4929,63 @@ html,body{overscroll-behavior-y:none;}
 .mc-slide-r{animation:mcSlideR .26s ease both;}
 @keyframes mcSlideL{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:translateX(0)}}
 @keyframes mcSlideR{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:translateX(0)}}
+
+
+/* ─── SUPORTE / CHAMADOS / PERMISSÕES ─── */
+.sup-intro{font-size:13.5px;color:var(--text2);line-height:1.55;margin-bottom:16px;}
+.sup-ta,.tk-reply-ta{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:13px;color:var(--text);font-size:14px;font-family:inherit;outline:none;resize:vertical;line-height:1.5;}
+.sup-ta:focus,.tk-reply-ta:focus{border-color:var(--orange);}
+.sup-photo-row{display:flex;align-items:center;gap:12px;margin-top:12px;}
+.sup-photo-btn{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:11px 15px;color:var(--text2);font-size:13.5px;font-weight:700;cursor:pointer;}
+.sup-photo-btn svg{color:var(--orange);}
+.sup-preview{position:relative;display:flex;align-items:center;}
+.sup-preview img{width:60px;height:60px;object-fit:cover;border-radius:11px;border:1px solid var(--border);}
+.sup-preview button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#E5484D;border:2px solid var(--bg2);color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.sup-tk{background:var(--bg3);border:1px solid var(--border-soft);border-radius:13px;padding:13px;margin-bottom:9px;}
+.sup-tk-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+.sup-tk-st{font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;letter-spacing:0.5px;}
+.sup-tk-dt{font-size:11px;color:var(--text3);}
+.sup-tk-msg{font-size:13.5px;color:var(--text);line-height:1.45;}
+.sup-tk-reply{margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:13px;color:var(--text2);line-height:1.45;}
+.sup-tk-reply strong{color:var(--orange);}
+.tk-list{display:flex;flex-direction:column;}
+.tk-loading{text-align:center;color:var(--text3);font-size:13px;padding:30px 0;}
+.tk-card{background:var(--bg3);border:1px solid var(--border-soft);border-radius:15px;margin-bottom:10px;overflow:hidden;}
+.tk-open{border-color:color-mix(in srgb,var(--orange) 40%,transparent);}
+.tk-head{display:flex;align-items:center;gap:10px;padding:13px;cursor:pointer;}
+.tk-from{font-size:14px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tk-email{font-size:11.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tk-st{font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;flex-shrink:0;letter-spacing:0.5px;}
+.tk-body{padding:0 13px 13px;}
+.tk-orig{font-size:13.5px;color:var(--text);line-height:1.5;background:var(--bg2);border-radius:11px;padding:11px;}
+.tk-photo{margin-top:10px;width:100%;max-height:220px;object-fit:cover;border-radius:11px;cursor:pointer;border:1px solid var(--border);}
+.tk-conv{margin-top:10px;display:flex;flex-direction:column;gap:7px;}
+.tk-msg{font-size:13px;line-height:1.45;padding:9px 11px;border-radius:11px;max-width:88%;}
+.tk-msg-by{font-size:10px;font-weight:800;opacity:0.6;margin-bottom:2px;letter-spacing:0.3px;}
+.tk-msg-agent{background:color-mix(in srgb,var(--orange) 14%,transparent);align-self:flex-end;}
+.tk-msg-user{background:var(--bg2);align-self:flex-start;}
+.tk-expand{margin-top:10px;width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:10px;color:var(--orange);font-size:13px;font-weight:750;cursor:pointer;}
+.tk-actions{display:flex;gap:8px;margin-top:9px;}
+.tk-btn{flex:1;border-radius:11px;padding:11px;font-size:13px;font-weight:750;cursor:pointer;background:var(--bg2);border:1px solid var(--border);color:var(--text);}
+.tk-btn-resolve{background:var(--orange);border-color:var(--orange);color:#fff;}
+.img-zoom{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s ease both;}
+.img-zoom img{max-width:100%;max-height:100%;border-radius:12px;}
+.perm-tabs{display:flex;gap:7px;margin-bottom:16px;background:var(--bg3);padding:4px;border-radius:13px;}
+.perm-tab{flex:1;border:none;background:none;color:var(--text3);font-size:12.5px;font-weight:750;padding:9px 4px;border-radius:10px;cursor:pointer;}
+.perm-tab-on{background:var(--orange);color:#fff;}
+.perm-search{display:flex;align-items:center;gap:9px;background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:12px 14px;margin-bottom:12px;}
+.perm-search input{flex:1;background:none;border:none;outline:none;color:var(--text);font-size:14px;font-family:inherit;}
+.perm-results{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow-y:auto;}
+.perm-user{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:13px;padding:11px 13px;}
+.perm-user-nm{font-size:14px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.perm-user-em{font-size:11.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.perm-btn{flex-shrink:0;border-radius:10px;padding:9px 14px;font-size:12.5px;font-weight:800;cursor:pointer;border:none;}
+.perm-btn-grant{background:var(--orange);color:#fff;}
+.perm-btn-revoke{background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.25);color:#FF6B6B;}
+.perm-log{display:flex;align-items:center;gap:11px;background:var(--bg3);border:1px solid var(--border-soft);border-radius:12px;padding:11px 13px;margin-bottom:8px;}
+.perm-log-ic{font-size:14px;}
+.perm-log-grant{border-left:3px solid #4ADE80;}
+.perm-log-revoke{border-left:3px solid #FF6B6B;}
 
 /* ─── EXERCÍCIOS v2 — Biblioteca Premium ─── */
 
