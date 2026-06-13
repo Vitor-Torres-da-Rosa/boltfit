@@ -832,15 +832,16 @@ function rOnboard(){
   d.querySelector("#bNx").addEventListener("click",async()=>{
     collectOb(d,step);
     // Username obrigatório no passo 1
-    if(step===0&&(!S.onboard.data.username||!S.onboard.data.username.trim())){
-      toast("Por favor, escolha um nome de usuário para continuar.");
-      return;
+    if(step===0){
+      if(!S.onboard.data.fullName||!S.onboard.data.fullName.trim()){toast("Por favor, informe seu nome completo.");return;}
+      if(!S.onboard.data.username||!S.onboard.data.username.trim()){toast("Por favor, escolha um nome de usuário.");return;}
     }
     if(step===total-1){
       const b=d.querySelector("#bNx");b.textContent="Salvando...";b.disabled=true;
       computeTMB();
       const uname=S.onboard.data.username||S.user.displayName||S.user.email.split("@")[0];
-      S.profile={...S.onboard.data,username:uname,tmb:S.tmb,targetCal:S.targetCal,name:uname,email:S.user.email,darkMode:typeof S.darkMode!=="undefined"?S.darkMode:true,createdAt:S.onboard.data.createdAt||new Date().toISOString()};
+      const realName=S.onboard.data.fullName||S.user.displayName||uname;
+      S.profile={...S.onboard.data,username:uname,fullName:realName,tmb:S.tmb,targetCal:S.targetCal,name:realName,email:S.user.email,darkMode:typeof S.darkMode!=="undefined"?S.darkMode:true,createdAt:S.onboard.data.createdAt||new Date().toISOString()};
       try{await saveProfile(S.profile);}catch(e){}
       S.phase="home";r();
     }else{S.onboard.step++;r();}
@@ -850,7 +851,7 @@ function rOnboard(){
 function obStep(step){
   const d=S.onboard.data;
   const steps=[
-    `<div class="ob-num">PASSO 1 DE 7</div><h2 class="ob-title">Bem-vindo!</h2><p class="ob-sub">Vamos configurar seu perfil para personalizar seus treinos e nutrição.</p><div style="text-align:center;padding:24px 0 20px"><div style="width:80px;height:80px;background:#FF6B00;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><svg width="40" height="40" viewBox="0 0 80 80"><polygon points="46,4 18,44 38,44 34,76 62,36 42,36" fill="white"/></svg></div></div><label class="lbl">Nome de usuário <span style="color:var(--orange)">*</span></label><input class="inp" id="fuser" placeholder="ex: vitor_torres" value="${d.username||""}" style="margin-top:6px" maxlength="24"/><p style="font-size:12px;color:#888;margin-top:8px">Esse nome aparece nos alimentos que você criar no banco de dados.</p>`,
+    `<div class="ob-num">PASSO 1 DE 7</div><h2 class="ob-title">Bem-vindo!</h2><p class="ob-sub">Vamos configurar seu perfil para personalizar seus treinos e nutrição.</p><div style="text-align:center;padding:24px 0 20px"><div style="width:80px;height:80px;background:#FF6B00;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><svg width="40" height="40" viewBox="0 0 80 80"><polygon points="46,4 18,44 38,44 34,76 62,36 42,36" fill="white"/></svg></div></div><label class="lbl">Nome completo <span style="color:var(--orange)">*</span></label><input class="inp" id="ffull" placeholder="ex: Vitor Torres da Rosa" value="${d.fullName||""}" style="margin-top:6px" maxlength="40"/><p style="font-size:12px;color:#888;margin:8px 0 18px">Seu nome real — é como você aparece no app.</p><label class="lbl">Nome de usuário <span style="color:var(--orange)">*</span></label><input class="inp" id="fuser" placeholder="ex: vitor_torres" value="${d.username||""}" style="margin-top:6px" maxlength="24"/><p style="font-size:12px;color:#888;margin-top:8px">Identificador único — aparece nos alimentos que você criar.</p>`,
     `<div class="ob-num">PASSO 2 DE 7</div><h2 class="ob-title">Sobre você</h2><p class="ob-sub">Para calcular seu metabolismo basal.</p><div class="g2"><div class="opt-card ${d.sex==="M"?"sel":""}" data-sex="M"><div class="opt-e">♂️</div><div>Masculino</div></div><div class="opt-card ${d.sex==="F"?"sel":""}" data-sex="F"><div class="opt-e">♀️</div><div>Feminino</div></div></div><label class="lbl" style="margin-top:20px">Idade</label><input class="inp" id="fa" type="number" placeholder="Ex: 25" value="${d.age}"/>`,
     `<div class="ob-num">PASSO 3 DE 7</div><h2 class="ob-title">Medidas</h2><p class="ob-sub">Seu peso e altura atual.</p><div class="g2" style="gap:14px"><div><label class="lbl">Peso (kg)</label><input class="inp" id="fw" type="number" placeholder="75" value="${d.weight}" style="margin-top:6px"/></div><div><label class="lbl">Altura (cm)</label><input class="inp" id="fh" type="number" placeholder="175" value="${d.height}" style="margin-top:6px"/></div></div>`,
     `<div class="ob-num">PASSO 4 DE 7</div><h2 class="ob-title">Nível de atividade</h2><p class="ob-sub">Como é seu dia a dia?</p><div class="opt-list">${[{v:"sed",e:"🪑",n:"Sedentário",d:"Trabalho de escritório"},{v:"light",e:"🚶",n:"Levemente ativo",d:"1-3 dias/semana"},{v:"mod",e:"🏃",n:"Moderado",d:"3-5 dias/semana"},{v:"active",e:"⚡",n:"Muito ativo",d:"6-7 dias intenso"},{v:"very",e:"🔥",n:"Extremamente ativo",d:"Atleta profissional"}].map(a=>`<div class="opt-row ${d.activity===a.v?"sel":""}" data-act="${a.v}"><span style="font-size:22px">${a.e}</span><div><div class="opt-rn">${a.n}</div><div class="opt-rd">${a.d}</div></div></div>`).join("")}</div>`,
@@ -874,7 +875,7 @@ function bindOb(d,step){
   });
 }
 function collectOb(d,step){
-  if(step===0&&d.querySelector("#fuser")?.value)S.onboard.data.username=d.querySelector("#fuser").value.trim();
+  if(step===0){if(d.querySelector("#ffull")?.value)S.onboard.data.fullName=d.querySelector("#ffull").value.trim();if(d.querySelector("#fuser")?.value)S.onboard.data.username=d.querySelector("#fuser").value.trim();}
   if(step===1&&d.querySelector("#fa")?.value)S.onboard.data.age=d.querySelector("#fa").value;
   if(step===2){if(d.querySelector("#fw")?.value)S.onboard.data.weight=d.querySelector("#fw").value;if(d.querySelector("#fh")?.value)S.onboard.data.height=d.querySelector("#fh").value;}
 }
@@ -933,7 +934,7 @@ function motivationMsg(){
   const hour=now.getHours();
   const isTrainDay=trainDays.includes(dow);
   const sched=(S.schedule||{})[dow];
-  const name=(p.username||p.name||"").split(" ")[0];
+  const name=(p.fullName||p.name||p.username||"").split(" ")[0];
   if(!isTrainDay){
     return {icon:"😌",text:"Hoje é dia de descanso. Recuperação também faz parte do progresso — durma bem e se alimente direito."};
   }
@@ -2452,7 +2453,7 @@ function rPerfilModal(){
   const d2=d.querySelector(".modal-sheet");
   d.onclick=e=>{if(e.target===d)closeModal();};
   const p=S.profile;
-  const name=p?.name||S.user?.displayName||"Atleta";
+  const name=p?.fullName||p?.name||S.user?.displayName||"Atleta";
   const ini=name.trim().split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
   const username=p?.username||name;
   const avatarImg=p?.avatar||"";
@@ -2477,7 +2478,7 @@ function rPerfilModal(){
   d2.innerHTML=`<div class="modal-handle"></div>
     <div class="modal-hdr"><div class="modal-title">👤 Meu Perfil</div><button class="close-x" id="bX">✕</button></div>
     <div style="max-height:72vh;overflow-y:auto;padding:2px;-webkit-overflow-scrolling:touch">
-    <div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm">${name}</div><div class="pf-em" id="bEditUsername" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center">@${username} <span style="font-size:13px;opacity:0.7">✏️</span></div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">NÍVEL ${level}</div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:13px;color:var(--text2);font-weight:600">${xp} XP total</span><span style="font-size:11px;color:var(--text3)">${xpInLevel}/300 p/ nível ${level+1}</span></div><div style="height:10px;background:var(--bg3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${xpPct}%;background:linear-gradient(90deg,#FF6B00,#FF8C42);border-radius:6px;transition:width .6s ease"></div></div></div><div class="info-sec"><div class="sec-lbl" style="display:flex;justify-content:space-between"><span>CONQUISTAS</span><span style="color:var(--orange)">${unlocked}/${ach.length}</span></div><div class="ach-grid">${ach.map(a=>`<div class="ach-card ${a.ok?"unlocked":"locked"}"><div class="ach-ic">${a.ic}</div><div class="ach-nm">${a.nm}</div><div class="ach-ds">${a.ds}</div>${a.ok?`<span class="ach-badge">✓</span>`:`<span class="ach-badge">🔒</span>`}</div>`).join("")}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
+    <div class="perfil-wrap"><div class="pf-top"><div class="pf-av" id="bEditAvatar" style="cursor:pointer;position:relative;overflow:hidden">${avatarImg?`<img src="${avatarImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`:ini}<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);font-size:10px;padding:2px 0;text-align:center;color:#fff">✏️</div></div><div class="pf-nm" id="bEditName" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;justify-content:center">${name} <span style="font-size:15px;opacity:0.6">✏️</span></div><div class="pf-em" id="bEditUsername" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center">@${username} <span style="font-size:13px;opacity:0.7">✏️</span></div><div class="pf-em" style="font-size:12px">${S.user?.email||""}</div></div><div class="info-sec"><div class="sec-lbl">DADOS FÍSICOS</div><div class="info-grid"><div class="ic"><div class="iv">${p?.weight||"—"} kg</div><div class="il">Peso</div></div><div class="ic"><div class="iv">${p?.height||"—"} cm</div><div class="il">Altura</div></div><div class="ic"><div class="iv">${p?.age||"—"} anos</div><div class="il">Idade</div></div><div class="ic"><div class="iv">${p?.sex==="M"?"Masculino":"Feminino"}</div><div class="il">Gênero</div></div></div></div><div class="info-sec"><div class="sec-lbl">NÍVEL ${level}</div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:13px;color:var(--text2);font-weight:600">${xp} XP total</span><span style="font-size:11px;color:var(--text3)">${xpInLevel}/300 p/ nível ${level+1}</span></div><div style="height:10px;background:var(--bg3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${xpPct}%;background:linear-gradient(90deg,#FF6B00,#FF8C42);border-radius:6px;transition:width .6s ease"></div></div></div><div class="info-sec"><div class="sec-lbl" style="display:flex;justify-content:space-between"><span>CONQUISTAS</span><span style="color:var(--orange)">${unlocked}/${ach.length}</span></div><div class="ach-grid">${ach.map(a=>`<div class="ach-card ${a.ok?"unlocked":"locked"}"><div class="ach-ic">${a.ic}</div><div class="ach-nm">${a.nm}</div><div class="ach-ds">${a.ds}</div>${a.ok?`<span class="ach-badge">✓</span>`:`<span class="ach-badge">🔒</span>`}</div>`).join("")}</div></div><div class="info-sec"><div class="sec-lbl">CONFIGURAÇÕES</div><div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌙</span><span class="kk">Tema escuro</span></div><div id="bDarkToggle" class="toggle-sw ${S.darkMode===false?'':'on'}" style="width:46px;height:26px;background:${S.darkMode===false?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${S.darkMode===false?'0':'20px'})"></div></div></div>
       <div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔊</span><span class="kk">Sons</span></div><div id="bSoundToggle" class="toggle-sw" style="width:46px;height:26px;background:${(p?.sound===false)?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${(p?.sound===false)?'0':'20px'})"></div></div></div>
       <div class="kv" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">📳</span><span class="kk">Vibração</span></div><div id="bHapticToggle" class="toggle-sw" style="width:46px;height:26px;background:${(p?.haptic===false)?'#666':'var(--orange)'};border-radius:13px;padding:2px;cursor:pointer;transition:background 0.3s;flex-shrink:0"><div style="width:22px;height:22px;background:#fff;border-radius:50%;transition:transform 0.3s;transform:translateX(${(p?.haptic===false)?'0':'20px'})"></div></div></div>
       <div class="kv" id="bNotif" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span class="kk">Notificações</span></div><div class="chev">›</div></div><div class="kv" id="bEdit" style="cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✏️</span><span class="kk">Editar perfil</span></div><div class="chev">›</div></div></div><button class="btn-signout" id="bSO">Sair</button></div>
@@ -2487,6 +2488,31 @@ function rPerfilModal(){
   d2.querySelector("#bX").onclick=closeModal;
   d_.querySelector("#bSO")?.addEventListener("click",async()=>{if(await askConfirm("Sair da conta","Você precisará entrar novamente para acessar seus dados.","Sair"))signOut(auth).then(()=>{S={...S,user:null,profile:null,phase:"login",foods:[],workouts:[],schedule:{},communityFoods:[],mealCat:{},mealCatNames:{},session:null,modal:null,mCtx:null,tmb:null,targetCal:null,aiResult:null,aiRawResult:null,aiImg:null,aiError:null,aiWeightStep:false,aiPlateWeight:0,pendingMealCat:null};r();});});
   d_.querySelector("#bEdit")?.addEventListener("click",()=>{S.modal=null;S.phase="onboard";S.onboard={step:1,data:{...S.profile}};r();});
+  d_.querySelector("#bEditName")?.addEventListener("click",()=>{
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px";
+    ov.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:360px">
+      <div style="font-weight:800;font-size:18px;margin-bottom:4px;color:var(--text)">Nome completo</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Seu nome real, como aparece no app</div>
+      <input id="nmInp" value="${(p?.fullName||name).replace(/"/g,"&quot;")}" maxlength="40" style="width:100%;padding:14px;background:var(--bg3);border:1.5px solid var(--orange);border-radius:12px;color:var(--text);font-size:16px;font-weight:600;outline:none;margin-bottom:18px"/>
+      <div style="display:flex;gap:10px">
+        <button id="nmCancel" style="flex:1;padding:13px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-weight:700;cursor:pointer">Cancelar</button>
+        <button id="nmOk" style="flex:1;padding:13px;background:var(--orange);border:none;border-radius:12px;color:#fff;font-weight:700;cursor:pointer">Salvar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const inp=ov.querySelector("#nmInp");inp.focus();inp.select();
+    ov.onclick=e=>{if(e.target===ov)ov.remove();};
+    ov.querySelector("#nmCancel").onclick=()=>ov.remove();
+    ov.querySelector("#nmOk").onclick=async()=>{
+      const v=inp.value.trim();
+      if(!v){ov.remove();return;}
+      S.profile.fullName=v;S.profile.name=v;
+      try{await saveProfile(S.profile);indexUser();}catch(e){}
+      ov.remove();r();
+    };
+    inp.onkeydown=e=>{if(e.key==="Enter")ov.querySelector("#nmOk").click();};
+  });
   d_.querySelector("#bEditUsername")?.addEventListener("click",()=>{
     const ov=document.createElement("div");
     ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px";
@@ -2507,7 +2533,7 @@ function rPerfilModal(){
       const v=inp.value.trim();
       if(!v){ov.remove();return;}
       S.profile.username=v;
-      try{await saveProfile(S.profile);}catch(e){}
+      try{await saveProfile(S.profile);indexUser();}catch(e){}
       ov.remove();r();
     };
     inp.onkeydown=e=>{if(e.key==="Enter")ov.querySelector("#unOk").click();};
