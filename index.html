@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
+<meta name="color-scheme" content="dark"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -928,29 +929,26 @@ function rAgenda(){
   d.innerHTML=`
   <div class="ag2-head ag2-in">
     <div class="ag2-eyebrow">${greet} 👋</div>
-    <div class="ag2-name">${name}</div>
+    <div class="ag2-name">${name}${isPremium()?`<span class="ag2-pro">PRO</span>`:""}</div>
   </div>
   <div class="ag2-stats ag2-in" style="animation-delay:.03s">
     <div class="ag2-stat"><div class="ag2-stat-v">${streak}<span class="ag2-stat-u">${streak===1?" dia":" dias"}</span></div><div class="ag2-stat-k">SEQUÊNCIA</div></div>
     <div class="ag2-sep"></div>
     <div class="ag2-stat"><div class="ag2-stat-v">${todayCal||"—"}</div><div class="ag2-stat-k">KCAL HOJE</div></div>
     <div class="ag2-sep"></div>
-    <div class="ag2-stat"><div class="ag2-stat-v" style="font-size:${nextWk&&nextWk.name.length>6?"15":"19"}px">${nextWk?nextWk.name.split(" ")[0]:"—"}</div><div class="ag2-stat-k">${nextWk?"PRÓX · "+nextWk.day.toUpperCase():"SEM TREINO"}</div></div>
+    <button class="ag2-stat ag2-stat-btn" id="bStatWorkouts" aria-label="Meus treinos"><div class="ag2-stat-ic">${icDb}</div><div class="ag2-stat-k">MEUS TREINOS</div></button>
   </div>
   ${(()=>{const msg=motivationMsg();return msg?`<div class="motiv-card ag2-in" style="animation-delay:.05s"><span style="font-size:18px;flex-shrink:0">${msg.icon}</span><span>${msg.text}</span></div>`:"";})()}
   <button class="ag2-cta ag2-in" id="bAIWorkout" style="animation-delay:.07s"><span class="ag2-cta-shine"></span>✦&nbsp; Montar treino com IA</button>
-  <div class="ag2-duo ag2-in" style="animation-delay:.09s">
-    <button class="ag2-ghost" id="bCoach">${icChat} Coach IA</button>
-    <button class="ag2-ghost" id="bManageWorkouts">${icDb} Meus treinos</button>
-  </div>
+  <button class="ag2-ghost ag2-ghost-full ag2-in" id="bCoach" style="animation-delay:.09s">${icChat} Coach IA</button>
   ${hero}
-  <div class="ag2-sec ag2-in" style="animation-delay:.1s">SUA SEMANA</div>
+  <div class="ag2-sec-row ag2-in" style="animation-delay:.1s"><span class="ag2-sec">SUA SEMANA</span><button class="ag2-sec-link" id="bWeekWorkouts">${icDb} Meus treinos</button></div>
   <div class="ag2-week ag2-in" style="animation-delay:.12s">
     ${WD.map((wd,i)=>{
       const isTrain=trainDays.includes(i);const isTd=i===today();const sched=S.schedule[i];
       let body;
       if(!isTrain)body=`<span class="ag2-rest">Descanso</span>`;
-      else if(sched)body=`<div class="ag2-wk" data-open="${i}">
+      else if(sched)body=`<div class="ag2-wk">
           <span class="ag2-wk-lt">${(sched.letter||"A").slice(0,2)}</span>
           <span class="ag2-wk-nm">${sched.name}</span>
           <button class="ag2-mini" data-ed="${i}" aria-label="Editar">${icPen}</button>
@@ -965,17 +963,13 @@ function rAgenda(){
   </div>`;
   // Hero card start
   d.querySelectorAll("[data-herostart]").forEach(el=>el.onclick=e=>{e.stopPropagation();FX.tapStrong();const w=S.workouts.find(x=>x.id===el.dataset.herostart);if(w){if((w.exercises||[]).length){S.mCtx={workout:w,fromAgenda:true};S.modal="pickSessionExercises";r();}else{toast("Esse treino ainda não tem exercícios. Adicione em Meus Treinos.");}}});
-  d.querySelector("#bManageWorkouts")?.addEventListener("click",()=>{FX.tap();S.mCtx={};S.modal="treinos";r();});
+  const openWorkouts=()=>{FX.tap();S.mCtx={};S.modal="treinos";r();};
+  d.querySelector("#bStatWorkouts")?.addEventListener("click",openWorkouts);
+  d.querySelector("#bWeekWorkouts")?.addEventListener("click",openWorkouts);
   d.querySelector("#bAIWorkout")?.addEventListener("click",()=>{FX.tapSoft();S.mCtx={};S.modal="aiWorkout";S.aiwStep=0;S.aiwData={};S.aiwResult=null;S.aiwLoading=false;r();});
   d.querySelector("#bCoach")?.addEventListener("click",()=>{FX.tap();S.modal="coach";r();});
   d.querySelectorAll("[data-ass]").forEach(b=>b.onclick=()=>{S.mCtx={day:parseInt(b.dataset.ass)};S.modal="treinos";r();});
   d.querySelectorAll("[data-ed]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.mCtx={day:parseInt(b.dataset.ed)};S.modal="treinos";r();});
-  // Clicking the assigned workout row opens the exercise selection (which exercises to do)
-  d.querySelectorAll("[data-open]").forEach(row=>row.onclick=e=>{
-    if(e.target.closest("[data-ed]")||e.target.closest("[data-play]"))return;
-    const i=parseInt(row.dataset.open);const sched=S.schedule[i];
-    if(sched){const w=S.workouts.find(x=>x.id===sched.id);if(w){S.mCtx={workout:w,fromAgenda:true};S.modal="pickSessionExercises";r();}}
-  });
   d.querySelectorAll("[data-play]").forEach(b=>b.onclick=e=>{e.stopPropagation();const w=S.workouts.find(x=>x.id===b.dataset.play);if(w)startSession(w.exercises||[]);else toast("Esse treino foi removido.");});
   return d;
 }
@@ -1672,6 +1666,23 @@ const MEAL_CATS=[
   {id:"ceia",label:"🌛 Ceia",color:"#818CF8"},
 ];
 
+function foodUnit(name){
+  // Alimentos contáveis: passos de 1 unidade; mostra gramas ao lado.
+  const n=(name||"").toLowerCase();
+  const U=(g,sing,plur)=>({g,sing,plur:plur||(sing+"s")});
+  if(/\bovo|ovos\b/.test(n)&&!/clara|gema|colher|p[óo]/.test(n))return U(50,"ovo","ovos");
+  if(/p[ãa]o franc[êe]s|p[ãa]ozinho|p[ãa]o de forma|p[ãa]o integral|p[ãa]o de queijo|p[ãa]o sirio|p[ãa]o careca|baguete|bisnaguinha/.test(n))return U(50,"unidade","unidades");
+  if(/banana/.test(n))return U(100,"unidade","unidades");
+  if(/ma[çc][ãa]\b/.test(n))return U(130,"unidade","unidades");
+  if(/laranja\b/.test(n))return U(130,"unidade","unidades");
+  if(/\btangerina|mexerica|bergamota\b/.test(n))return U(110,"unidade","unidades");
+  if(/\bpera\b/.test(n))return U(130,"unidade","unidades");
+  if(/\bkiwi\b/.test(n))return U(75,"unidade","unidades");
+  if(/\bovo de codorna/.test(n))return U(10,"ovo","ovos");
+  if(/fatia|torrada/.test(n))return U(25,"fatia","fatias");
+  if(/bolacha|biscoito|cookie/.test(n)&&!/pacote/.test(n))return U(8,"unidade","unidades");
+  return null;
+}
 function calcAdj(f){
   const grams=f.grams||f.serving||100;
   const base=f.serving||100;
@@ -1720,12 +1731,17 @@ function renderFoodItem(f,i){
     <div class="fi-info">
       <div class="fi-name">${f.n}${f.brand?` <span style="font-size:10px;color:#666">${f.brand}</span>`:""}</div>
       <div class="fi-mac" id="fimac_${i}">P:${a.p}g · C:${a.c}g · G:${a.f}g</div>
-      <div style="display:flex;align-items:center;gap:5px;margin-top:5px">
+      ${(()=>{const u=foodUnit(f.n);if(u){const units=Math.max(1,Math.round(a.grams/u.g));return `<div style="display:flex;align-items:center;gap:5px;margin-top:5px">
+        <button class="fi-grams-btn" data-dir="-1" data-fi="${i}" data-unit="${u.g}">−</button>
+        <input type="number" class="fi-grams" data-fi="${i}" data-unit="${u.g}" value="${units}" min="1" max="100"/>
+        <button class="fi-grams-btn" data-dir="1" data-fi="${i}" data-unit="${u.g}">+</button>
+        <span style="font-size:11px;color:#888">${units===1?u.sing:u.plur} · ${a.grams}g</span>
+      </div>`;}return `<div style="display:flex;align-items:center;gap:5px;margin-top:5px">
         <button class="fi-grams-btn" data-dir="-1" data-fi="${i}">−</button>
         <input type="number" class="fi-grams" data-fi="${i}" value="${a.grams}" min="1" max="5000"/>
         <button class="fi-grams-btn" data-dir="1" data-fi="${i}">+</button>
         <span style="font-size:11px;color:#888">g</span>
-      </div>
+      </div>`;})()}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
       <div class="fi-cal" id="fical_${i}">${a.cal} kcal</div>
@@ -2047,7 +2063,7 @@ function rCalorias(){
             <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="15"/>
             <circle id="calRingCircle" cx="100" cy="100" r="84" fill="none" stroke="url(#ringGrad)" stroke-width="15"
               stroke-dasharray="${2*Math.PI*84}" stroke-dashoffset="${2*Math.PI*84*(1-pct/100)}"
-              stroke-linecap="round" style="transition:stroke-dashoffset 0.9s cubic-bezier(0.34,1.2,0.64,1);filter:drop-shadow(0 0 16px rgba(255,107,0,0.5))"/>
+              stroke-linecap="round" style="transition:stroke-dashoffset 0.9s cubic-bezier(0.34,1.2,0.64,1)"/>
           </svg>
           <div class="cal-ring-inner">
             <div class="cal-ring-eyebrow">CONSUMIDAS</div>
@@ -2197,7 +2213,11 @@ function rCalorias(){
     const inp=d.querySelector(`.fi-grams[data-fi="${i}"]`);
     const calEl=d.querySelector(`#fical_${i}`);
     const macEl=d.querySelector(`#fimac_${i}`);
-    if(inp)inp.value=a.grams;
+    const u=foodUnit(f.n);
+    if(inp){
+      if(u){const units=Math.max(1,Math.round(a.grams/u.g));inp.value=units;const lbl=inp.parentElement.querySelector("span");if(lbl)lbl.textContent=`${units===1?u.sing:u.plur} · ${a.grams}g`;}
+      else inp.value=a.grams;
+    }
     if(calEl)calEl.textContent=a.cal+" kcal";
     if(macEl)macEl.textContent=`P:${a.p}g · C:${a.c}g · G:${a.f}g`;
     // Update group calorie header
@@ -2211,14 +2231,18 @@ function rCalorias(){
 
   d.querySelectorAll(".fi-grams").forEach(inp=>inp.addEventListener("input",async e=>{
     const i=parseInt(inp.dataset.fi);
-    S.foods[i].grams=parseFloat(e.target.value)||1;
+    const ug=parseFloat(inp.dataset.unit);
+    const v=parseFloat(e.target.value)||1;
+    S.foods[i].grams=ug?Math.max(1,Math.round(v))*ug:(v||1);
     updateRow(i);
     await saveFoods(S.foods);
   }));
   d.querySelectorAll(".fi-grams-btn").forEach(btn=>btn.addEventListener("click",async()=>{
     const i=parseInt(btn.dataset.fi);const dir=parseInt(btn.dataset.dir);
+    const ug=parseFloat(btn.dataset.unit);
     const cur=S.foods[i].grams||S.foods[i].serving||100;
-    S.foods[i].grams=Math.max(1,cur+(dir*10));
+    if(ug){const units=Math.max(1,Math.round(cur/ug)+dir);S.foods[i].grams=units*ug;}
+    else S.foods[i].grams=Math.max(1,cur+(dir*10));
     updateRow(i);
     await saveFoods(S.foods);
   }));
@@ -2298,7 +2322,7 @@ function rExercicios(){
       </div>`;
     }
     return `<div class="ex-hero" style="padding-bottom:4px">
-      <div class="ex-hero-title">Exercícios${isPremium()?`<span class="ex-pro-inline">PRO</span>`:""}</div>
+      <div class="ex-hero-title">Exercícios</div>
       <div class="ex-hero-sub">${ALL_EX.length} movimentos · biblioteca completa</div>
     </div>`;
   };
@@ -3755,7 +3779,7 @@ function rSession(){
       <div style="font-size:17px;font-weight:700">${ex.name}</div>
       <div style="font-size:13px;margin-top:4px;font-weight:600;color:${m.color}">${ex.muscles||"Músculos diversos"}</div>
     </div>
-    <div class="ex3stats"><div class="es"><div class="esv">${sets[idx].length}</div><div class="esl">SÉRIES</div></div><div class="es"><div class="esv">${ex.reps||"10-12"}</div><div class="esl">REPS</div></div><div class="es"><div class="esv">${ex.rest||60}s</div><div class="esl">DESCANSO</div></div></div>
+    <div class="ex3stats"><div class="es es-ed"><input class="esv esv-inp" id="edSets" type="number" min="1" max="12" value="${sets[idx].length}" inputmode="numeric"/><div class="esl">SÉRIES</div></div><div class="es es-ed"><input class="esv esv-inp" id="edReps" value="${ex.reps||"10-12"}"/><div class="esl">REPS</div></div><div class="es es-ed"><div class="esv-wrap"><input class="esv esv-inp esv-inp-rest" id="edRest" type="number" min="0" max="600" value="${ex.rest||60}" inputmode="numeric"/><span class="esv-suf">s</span></div><div class="esl">DESCANSO</div></div></div>
     ${S.session.suggestions&&S.session.suggestions[idx]?`<div style="background:rgba(255,107,0,0.1);border:1px solid rgba(255,107,0,0.3);border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--text);line-height:1.45">🤖 ${S.session.suggestions[idx]}</div>`:""}
     ${S.session.restActive?`<div class="rest-card"><div class="rest-lbl">DESCANSO</div><div class="rest-val" id="rV">${fmtTime(S.session.restLeft)}</div><div class="rest-bar"><div class="rest-fill" id="rF" style="width:${((S.session.restTotal-S.session.restLeft)/S.session.restTotal)*100}%"></div></div><button class="btn-sec" id="bSR" style="margin-top:10px;width:100%">Pular descanso</button></div>`:""}
     <div class="sets-block"><div class="sets-hdr"><span>SÉRIE</span><span>REPS</span><span>PESO (kg)</span><span></span></div>${sets[idx].map((s,si)=>`<div class="set-row"><div class="set-n">S${si+1}</div><input class="set-inp" data-si="${si}" data-f="reps" type="number" value="${s.reps}"/><input class="set-inp" data-si="${si}" data-f="weight" type="number" value="${s.weight}"/><div class="set-chk ${s.done?"chk-done":""}" data-si="${si}">${s.done?"✓":""}</div></div>`).join("")}
@@ -3763,6 +3787,19 @@ function rSession(){
     <div class="sess-acts">${sets[idx].every(s=>s.done)?`<button class="btn-primary" id="bNxEx">${idx<exercises.length-1?"Próximo exercício →":"Finalizar treino 🏆"}</button>`:""}<button class="btn-sec" id="bSkipEx" style="width:100%">Pular exercício</button></div>
   </div></div>`;
   d.querySelector("#bExit").onclick=async()=>{if(await askConfirm("Sair do treino","Seu progresso desta sessão não será salvo.","Sair",true)){clearInterval(restTimer);S.session=null;r();}};
+  // Editar SÉRIES / REPS / DESCANSO direto no topo
+  const edReps=d.querySelector("#edReps");
+  if(edReps)edReps.onchange=e=>{const v=e.target.value.trim()||"10-12";exercises[idx].reps=v;S.session.exercises[idx].reps=v;};
+  const edRest=d.querySelector("#edRest");
+  if(edRest)edRest.onchange=e=>{const v=Math.max(0,Math.min(600,parseInt(e.target.value)||0));exercises[idx].rest=v;S.session.exercises[idx].rest=v;e.target.value=v;};
+  const edSets=d.querySelector("#edSets");
+  if(edSets)edSets.onchange=e=>{
+    let n=Math.max(1,Math.min(12,parseInt(e.target.value)||1));
+    const cur=S.session.sets[idx];
+    if(n>cur.length){const sug=suggestLoad(exercises[idx]);while(S.session.sets[idx].length<n)S.session.sets[idx].push({reps:sug.reps,weight:(cur[cur.length-1]||{}).weight||sug.weight,done:false});}
+    else if(n<cur.length){S.session.sets[idx]=cur.slice(0,n);}
+    r();
+  };
   d.querySelectorAll(".set-inp").forEach(inp=>inp.oninput=e=>{S.session.sets[idx][parseInt(inp.dataset.si)][inp.dataset.f]=e.target.value;});
   d.querySelectorAll(".set-chk").forEach(btn=>btn.onclick=()=>{
     const si=parseInt(btn.dataset.si);
@@ -3860,6 +3897,7 @@ if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch((
 </script><style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
+  color-scheme:dark;
   --bg:#0A0A0B;--bg2:#161618;--bg3:#1F1F22;--bg4:#2A2A2E;
   --orange:#FF6B00;--orange-soft:rgba(255,107,0,0.12);--border:#242428;--border-soft:#1C1C1F;
   --text:#FFFFFF;--text2:#B8B8BE;--text3:#76767E;
@@ -4099,7 +4137,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .cal-ring-wrap{display:flex;justify-content:center;margin:10px 0 20px;}
 .cal-ring{position:relative;width:160px;height:160px;}
 .cal-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.cal-num{font-size:32px;font-weight:800;}
+.cal-num{font-size:32px;font-weight:800;color:var(--text);}
 .cal-lbl{font-size:12px;color:var(--text2);margin-top:2px;}
 
 /* ═══ DASHBOARD UNIFICADO PREMIUM ═══ */
@@ -4114,19 +4152,20 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   box-shadow:0 10px 40px rgba(0,0,0,0.25);
 }
 .dash-glow{
-  position:absolute;top:-90px;left:50%;transform:translateX(-50%);
-  width:300px;height:220px;
-  background:radial-gradient(ellipse,rgba(255,107,0,0.14),transparent 70%);
-  pointer-events:none;filter:blur(24px);
+  position:absolute;top:-70px;left:50%;transform:translateX(-50%);
+  width:260px;height:180px;
+  background:radial-gradient(ellipse,color-mix(in srgb,var(--orange) 10%,transparent),transparent 72%);
+  pointer-events:none;filter:blur(28px);
 }
 .dash-ring-section{display:flex;justify-content:center;position:relative;}
 .dash .cal-ring{width:200px;height:200px;position:relative;display:flex;align-items:center;justify-content:center;}
+.dash .cal-ring::before{content:"";position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--orange) 22%,transparent) 0%,transparent 68%);filter:blur(18px);pointer-events:none;z-index:-1;}
 .dash .cal-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;}
 .cal-ring-eyebrow{font-size:10px;font-weight:800;letter-spacing:2.5px;color:var(--text3);margin-bottom:5px;}
 .dash .cal-num{
   font-size:50px;font-weight:900;letter-spacing:-2px;line-height:1;
-  background:linear-gradient(180deg,#FFFFFF 0%,#D8D8D8 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  color:var(--text);
+  text-shadow:0 1px 2px rgba(0,0,0,0.35),0 0 22px color-mix(in srgb,var(--orange) 28%,transparent);
   font-feature-settings:"tnum";
 }
 .dash .cal-lbl{font-size:12px;color:var(--text3);margin-top:7px;font-weight:600;letter-spacing:0.3px;}
@@ -4213,9 +4252,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 }
 .water-amount{display:flex;align-items:baseline;gap:2px;}
 .water-amount-v{
-  font-size:30px;font-weight:900;
-  background:linear-gradient(180deg,#4FC3F7,#29B6F6);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  font-size:30px;font-weight:900;color:#4FC3F7;
   letter-spacing:-1px;line-height:1;font-feature-settings:"tnum";
 }
 .water-amount-u{font-size:15px;color:#4FC3F7;font-weight:700;margin-left:1px;}
@@ -4464,6 +4501,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .ex3stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;}
 .es{background:var(--bg3);border-radius:var(--radius);padding:12px;text-align:center;}
 .esv{font-size:24px;font-weight:800;color:var(--orange);}
+.es-ed{position:relative;}
+.esv-inp{width:100%;background:none;border:none;text-align:center;font-size:23px;font-weight:800;color:var(--orange);outline:none;padding:0;font-family:inherit;}
+.esv-inp:focus{color:#fff;}
+.esv-wrap{display:flex;align-items:baseline;justify-content:center;gap:1px;}
+.esv-inp-rest{width:auto;max-width:62px;}
+.esv-suf{font-size:18px;font-weight:800;color:var(--orange);}
+.es-ed::after{content:"";position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:18px;height:2px;border-radius:2px;background:color-mix(in srgb,var(--orange) 35%,transparent);}
 .esl{font-size:9px;color:var(--text3);letter-spacing:1.5px;margin-top:2px;}
 .rest-card{background:var(--bg2);border:1px solid var(--border-soft);border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:14px;}
 .rest-lbl{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:2px;}
@@ -4551,8 +4595,20 @@ html,body{overscroll-behavior-y:none;}
 .ag2-head{margin-bottom:18px;}
 .ag2-eyebrow{font-size:13px;font-weight:600;color:var(--text3);}
 .ag2-name{font-size:30px;font-weight:900;letter-spacing:-0.6px;line-height:1.1;margin-top:2px;}
+.ag2-pro{display:inline-block;vertical-align:8px;margin-left:10px;font-size:11px;font-weight:900;letter-spacing:1.2px;color:#fff;background:linear-gradient(135deg,#FF6B00,#FF8A3D);padding:4px 10px;border-radius:20px;box-shadow:0 3px 12px rgba(255,107,0,0.4);}
 .ag2-stats{display:flex;align-items:stretch;background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;padding:14px 6px;margin-bottom:14px;}
 .ag2-stat{flex:1;text-align:center;min-width:0;padding:0 4px;}
+.ag2-stat-btn{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:0 4px;transition:transform .12s;}
+.ag2-stat-btn:active{transform:scale(0.92);}
+.ag2-stat-ic{width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--orange) 13%,transparent);color:var(--orange);display:flex;align-items:center;justify-content:center;}
+.ag2-stat-ic svg{width:16px;height:16px;}
+.ag2-ghost-full{width:100%;margin-bottom:18px;}
+.ag2-sec-row{display:flex;align-items:center;justify-content:space-between;margin:22px 0 12px;}
+.ag2-sec-row .ag2-sec{margin:0;}
+.ag2-sec-link{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border-soft);border-radius:11px;padding:7px 12px;color:var(--orange);font-size:12px;font-weight:750;cursor:pointer;transition:transform .12s,border-color .15s;}
+.ag2-sec-link svg{width:14px;height:14px;}
+.ag2-sec-link:active{transform:scale(0.95);}
+
 .ag2-stat-v{font-size:19px;font-weight:850;letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ag2-stat-u{font-size:12px;font-weight:700;color:var(--text3);}
 .ag2-stat-k{font-size:9px;font-weight:800;letter-spacing:1.2px;color:var(--text3);margin-top:4px;}
@@ -4606,7 +4662,6 @@ html,body{overscroll-behavior-y:none;}
 @keyframes mcSlideR{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:translateX(0)}}
 
 /* ─── EXERCÍCIOS v2 — Biblioteca Premium ─── */
-.ex-pro-inline{display:inline-block;vertical-align:6px;margin-left:9px;font-size:10px;font-weight:900;letter-spacing:1.2px;color:#fff;background:linear-gradient(135deg,#FF6B00,#FF8A3D);padding:4px 9px;border-radius:20px;box-shadow:0 3px 10px rgba(255,107,0,0.35);}
 
 #exHead .ex-hero{padding:0 0 10px;}
 .exv2-search-wrap{margin-bottom:14px;}
