@@ -2761,7 +2761,7 @@ function rSupportModal(){
       d.querySelector("#supMsg").value="";
       photoData=null;prev.style.display="none";fileInp.value="";d.querySelector("#supPhotoLbl").style.display="flex";
       loadMine();
-    }catch(e){toast("Erro ao enviar. Tente novamente.","error");}
+    }catch(e){toast("Erro ao enviar: "+((e&&e.code)||e.message||"verifique sua conexão"),"error");}
     sending=false;btn.disabled=false;btn.textContent="Enviar mensagem";
   };
   const loadMine=async()=>{
@@ -2848,8 +2848,10 @@ function rPermsModal(){
     const doSearch=async()=>{
       const term=inp.value;
       results.innerHTML=`<div class="tk-loading">Buscando...</div>`;
-      const users=await searchUsers(term);
-      if(!users.length){results.innerHTML=`<div class="tk-loading">Nenhum usuário encontrado.</div>`;return;}
+      let users;
+      try{users=await searchUsers(term);}
+      catch(err){results.innerHTML=`<div class="perm-err"><strong>Não foi possível buscar.</strong><br>As regras de segurança do Firestore precisam ser configuradas no console do Firebase. Erro: ${(err&&err.code)||err.message||"desconhecido"}</div>`;return;}
+      if(!users.length){results.innerHTML=`<div class="tk-loading">Nenhum usuário encontrado.${term?"":" Nenhum usuário cadastrado ainda além de você."}</div>`;return;}
       results.innerHTML=users.map(u=>`<div class="perm-user">
         <div style="flex:1;min-width:0"><div class="perm-user-nm">${(u.username||u.name||"—").replace(/</g,"&lt;")}</div><div class="perm-user-em">${(u.email||"").replace(/</g,"&lt;")}</div></div>
         ${u.supportAgent?`<button class="perm-btn perm-btn-revoke" data-revoke="${u.uid}">Remover</button>`:`<button class="perm-btn perm-btn-grant" data-grant="${u.uid}">Dar acesso</button>`}
@@ -4970,6 +4972,7 @@ html,body{overscroll-behavior-y:none;}
 .tk-btn-resolve{background:var(--orange);border-color:var(--orange);color:#fff;}
 .img-zoom{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s ease both;}
 .img-zoom img{max-width:100%;max-height:100%;border-radius:12px;}
+.perm-err{font-size:13px;color:#FF8C42;line-height:1.5;background:rgba(255,107,0,0.08);border:1px solid rgba(255,107,0,0.22);border-radius:12px;padding:14px;}
 .perm-tabs{display:flex;gap:7px;margin-bottom:16px;background:var(--bg3);padding:4px;border-radius:13px;}
 .perm-tab{flex:1;border:none;background:none;color:var(--text3);font-size:12.5px;font-weight:750;padding:9px 4px;border-radius:10px;cursor:pointer;}
 .perm-tab-on{background:var(--orange);color:#fff;}
